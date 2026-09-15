@@ -19,6 +19,20 @@ from app.services.navigation_engine import NavigationSessionEngine
 from app.idr.enums import SensorStatus
 
 
+import math
+
+def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate the great circle distance between two points in meters."""
+    R = 6371000.0  # Earth radius in meters
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    a = math.sin(delta_phi / 2.0) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2.0) ** 2
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+    return R * c
+
+
 class ActiveSession:
     """Holds the state for a single active WebSocket session."""
     def __init__(self, session_id: str, websocket: WebSocket, vehicle_type: str = "CAR"):
@@ -29,6 +43,15 @@ class ActiveSession:
         self.last_activity = time.time()
         self.packets_received = 0
         self.packets_sent = 0
+        
+        # Real trajectory & distance tracking
+        self.points: list = []
+        self.total_distance_m: float = 0.0
+        self.start_lat: Optional[float] = None
+        self.start_lon: Optional[float] = None
+        self.end_lat: Optional[float] = None
+        self.end_lon: Optional[float] = None
+        self.last_point_time: float = 0.0
 
 
 class WebSocketManager:
@@ -113,11 +136,45 @@ class WebSocketManager:
                     })
                     continue
                 
+                # Accumulate real trajectory and distance
+                lat = nav_state.get("latitude")
+                lon = nav_state.get("longitude")
+                if lat is not None and lon is not None and (lat != 0.0 or lon != 0.0):
+                    if session.start_lat is None:
+                        session.start_lat = lat
+                        session.start_lon = lon
+                    
+                    dist_delta = 0.0
+                    if session.end_lat is not None and session.end_lon is not None:
+                        dist_delta = haversine_distance(session.end_lat, session.end_lon, lat, lon)
+                        # Filter GPS noise / stationary jitter under 0.3m
+                        if dist_delta > 0.3:
+                            session.total_distance_m += dist_delta
+                    
+                    session.end_lat = lat
+                    session.end_lon = lon
+                    
+                    now = time.time()
+                    if now - session.last_point_time >= 1.0 or dist_delta > 2.0:
+                        session.last_point_time = now
+                        session.points.append({
+                            "latitude": lat,
+                            "longitude": lon,
+                            "altitude": nav_state.get("altitude"),
+                            "speed": nav_state.get("speed", 0.0),
+                            "heading": nav_state.get("heading_deg", 0.0),
+                            "horizontal_accuracy": nav_state.get("horizontal_accuracy", 0.0),
+                            "position_confidence": nav_state.get("position_confidence", 1.0),
+                            "navigation_mode": nav_state.get("navigation_mode", "GNSS_AIDED"),
+                            "timestamp": now,
+                        })
+                
                 # Add metadata to outgoing state
                 nav_state["type"] = "navigation_state"
                 nav_state["session_id"] = session.session_id
                 nav_state["sensor_states"] = session.engine.sensor_states
                 nav_state["packets_received"] = session.packets_received
+                nav_state["total_distance_m"] = round(session.total_distance_m, 1)
                 
                 # Broadcast fused state back
                 await session.websocket.send_json(nav_state)
@@ -132,6 +189,20 @@ class WebSocketManager:
     
     def get_session(self, session_id: str) -> Optional[ActiveSession]:
         return self._sessions.get(session_id)
+    
+    def get_session_summary(self, session_id: str) -> Optional[dict]:
+        session = self._sessions.get(session_id)
+        if not session:
+            return None
+        return {
+            "session_id": session.session_id,
+            "distance_m": round(session.total_distance_m, 1) if session.total_distance_m > 0 else None,
+            "start_lat": session.start_lat,
+            "start_lon": session.start_lon,
+            "end_lat": session.end_lat,
+            "end_lon": session.end_lon,
+            "points": session.points,
+        }
     
     def get_active_sessions(self) -> list:
         return [

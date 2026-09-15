@@ -31,3 +31,28 @@ def test_navigation_session_create():
     data = response.json()
     assert "session_id" in data
     assert data["is_active"] == True
+
+def test_navigation_session_end_and_idempotent():
+    # 1. Create session
+    create_res = client.post("/api/v1/navigation/session", json={"vehicle_type": "CAR"})
+    assert create_res.status_code == 200
+    session_id = create_res.json()["session_id"]
+    
+    # 2. End session using POST /session/{session_id}/end
+    end_res = client.post(f"/api/v1/navigation/session/{session_id}/end")
+    assert end_res.status_code == 200
+    end_data = end_res.json()
+    assert end_data["session_id"] == session_id
+    assert end_data["status"] == "COMPLETED"
+    assert end_data["ended_at"] is not None
+    
+    # 3. Test idempotency: calling end again should succeed safely without error
+    end_again_res = client.post(f"/api/v1/navigation/session/{session_id}/end")
+    assert end_again_res.status_code == 200
+    assert end_again_res.json()["status"] == "COMPLETED"
+    
+    # 4. Check that History API shows the completed session
+    history_res = client.get("/api/v1/history/sessions")
+    assert history_res.status_code == 200
+    sessions = history_res.json()
+    assert any(s["session_id"] == session_id for s in sessions)

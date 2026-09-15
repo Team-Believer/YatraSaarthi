@@ -1,4 +1,29 @@
 import { create } from 'zustand';
+import type { EndSessionResponse } from '../services/api/navigationService';
+
+export type NavigationSessionStatus = 
+  | 'IDLE' 
+  | 'STARTING' 
+  | 'LIVE' 
+  | 'ENDING' 
+  | 'ENDED' 
+  | 'ERROR';
+
+export type WebSocketStatus = 
+  | 'DISCONNECTED' 
+  | 'CONNECTING' 
+  | 'CONNECTED' 
+  | 'CLOSED' 
+  | 'ERROR';
+
+export interface FusedPosition {
+  latitude: number;
+  longitude: number;
+  altitude: number;
+  speed: number;
+  heading_deg: number;
+  horizontal_accuracy: number;
+}
 
 export interface NavigationState {
   timestamp: number;
@@ -39,7 +64,7 @@ export interface NavigationState {
   packets_received: number;
 }
 
-const defaultState: NavigationState = {
+const defaultNavigationState: NavigationState = {
   timestamp: 0,
   latitude: 0,
   longitude: 0,
@@ -52,7 +77,7 @@ const defaultState: NavigationState = {
   map_confidence: 0,
   gnss_available: false,
   gnss_quality: 'LOST',
-  navigation_mode: 'GNSS_LOST',
+  navigation_mode: 'STANDBY',
   environment_state: 'UNKNOWN',
   alignment_status: 'UNALIGNED',
   velocity_north: 0,
@@ -78,15 +103,130 @@ const defaultState: NavigationState = {
 };
 
 interface NavigationStore {
+  // Session Lifecycle State (Single Source of Truth)
+  sessionStatus: NavigationSessionStatus;
+  isLive: boolean;
+  isEnding: boolean;
+  activeSessionId: string | null;
+  websocketStatus: WebSocketStatus;
+  sensorStreaming: boolean;
+  
+  // Fused Navigation Telemetry (valid ONLY when isLive = true)
+  fusedPosition: FusedPosition | null;
+  trajectory: [number, number][]; // [[lon, lat], ...]
+  totalDistanceM: number;
+  journeySummary: EndSessionResponse | null;
+  errorMessage: string | null;
+
+  // Detailed telemetry for diagnostics & backward compatibility
   state: NavigationState;
-  updateState: (newState: Partial<NavigationState>) => void;
-  resetState: () => void;
+
+  // Lifecycle & State Actions
+  setSessionStatus: (status: NavigationSessionStatus) => void;
+  setWebsocketStatus: (status: WebSocketStatus) => void;
+  setSensorStreaming: (streaming: boolean) => void;
+  setJourneySummary: (summary: EndSessionResponse | null) => void;
+  setErrorMessage: (msg: string | null) => void;
   setSessionId: (id: string | null) => void;
+  
+  updateState: (newState: Partial<NavigationState>) => void;
+  clearActiveSession: () => void;
+  resetState: () => void;
 }
 
 export const useNavigationStore = create<NavigationStore>((set) => ({
-  state: { ...defaultState },
-  updateState: (newState) => set((store) => ({ state: { ...store.state, ...newState } })),
-  resetState: () => set({ state: { ...defaultState } }),
-  setSessionId: (id) => set((store) => ({ state: { ...store.state, session_id: id } })),
+  sessionStatus: 'IDLE',
+  isLive: false,
+  isEnding: false,
+  activeSessionId: null,
+  websocketStatus: 'DISCONNECTED',
+  sensorStreaming: false,
+  
+  fusedPosition: null,
+  trajectory: [],
+  totalDistanceM: 0,
+  journeySummary: null,
+  errorMessage: null,
+  state: { ...defaultNavigationState },
+
+  setSessionStatus: (sessionStatus) => set((store) => ({
+    sessionStatus,
+    isLive: sessionStatus === 'LIVE',
+    isEnding: sessionStatus === 'ENDING',
+    state: {
+      ...store.state,
+      session_id: sessionStatus === 'IDLE' || sessionStatus === 'ENDED' ? null : store.activeSessionId,
+    }
+  })),
+
+  setWebsocketStatus: (websocketStatus) => set({ websocketStatus }),
+  setSensorStreaming: (sensorStreaming) => set({ sensorStreaming }),
+  setJourneySummary: (journeySummary) => set({ journeySummary }),
+  setErrorMessage: (errorMessage) => set({ errorMessage }),
+  
+  setSessionId: (activeSessionId) => set((store) => ({
+    activeSessionId,
+    state: { ...store.state, session_id: activeSessionId },
+    sessionStatus: activeSessionId ? 'LIVE' : (store.sessionStatus === 'ENDING' ? 'ENDED' : 'IDLE'),
+    isLive: activeSessionId !== null,
+    isEnding: false,
+  })),
+
+  updateState: (newState) => set((store) => {
+    const updated = { ...store.state, ...newState };
+    
+    // Accumulate trajectory if valid coordinates received
+    let newTrajectory = store.trajectory;
+    let newFusedPosition = store.fusedPosition;
+
+    if (updated.latitude !== 0 && updated.longitude !== 0) {
+      newFusedPosition = {
+        latitude: updated.latitude,
+        longitude: updated.longitude,
+        altitude: updated.altitude,
+        speed: updated.speed,
+        heading_deg: updated.heading_deg,
+        horizontal_accuracy: updated.horizontal_accuracy,
+      };
+
+      const lastPoint = newTrajectory[newTrajectory.length - 1];
+      if (!lastPoint || (lastPoint[0] !== updated.longitude || lastPoint[1] !== updated.latitude)) {
+        newTrajectory = [...newTrajectory, [updated.longitude, updated.latitude]];
+      }
+    }
+
+    return {
+      state: updated,
+      fusedPosition: newFusedPosition,
+      trajectory: newTrajectory,
+    };
+  }),
+
+  clearActiveSession: () => set({
+    sessionStatus: 'IDLE',
+    isLive: false,
+    isEnding: false,
+    activeSessionId: null,
+    websocketStatus: 'DISCONNECTED',
+    sensorStreaming: false,
+    fusedPosition: null,
+    trajectory: [],
+    totalDistanceM: 0,
+    state: { ...defaultNavigationState },
+  }),
+
+  resetState: () => set({
+    sessionStatus: 'IDLE',
+    isLive: false,
+    isEnding: false,
+    activeSessionId: null,
+    websocketStatus: 'DISCONNECTED',
+    sensorStreaming: false,
+    fusedPosition: null,
+    trajectory: [],
+    totalDistanceM: 0,
+    journeySummary: null,
+    errorMessage: null,
+    state: { ...defaultNavigationState },
+  }),
 }));

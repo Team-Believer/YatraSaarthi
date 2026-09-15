@@ -45,6 +45,17 @@ class SessionResponse(BaseModel):
 class StopSessionRequest(BaseModel):
     session_id: str
 
+class EndSessionResponse(BaseModel):
+    session_id: str
+    status: str = "COMPLETED"
+    ended_at: Optional[datetime] = None
+    distance_m: Optional[float] = None
+    duration_s: Optional[float] = None
+    start_lat: Optional[float] = None
+    start_lon: Optional[float] = None
+    end_lat: Optional[float] = None
+    end_lon: Optional[float] = None
+
 
 # ========== Sensor Data Schemas (WebSocket incoming) ==========
 class SensorPacket(BaseModel):

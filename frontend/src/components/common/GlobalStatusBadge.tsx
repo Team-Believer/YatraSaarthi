@@ -3,6 +3,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useSensorStore } from '../../stores/useSensorStore';
+import { useLocationStore } from '../../stores/useLocationStore';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -14,16 +15,27 @@ export interface GlobalStatusBadgeProps {
 }
 
 export const GlobalStatusBadge: React.FC<GlobalStatusBadgeProps> = ({ status, className }) => {
-  const { state } = useNavigationStore();
-  const { capabilities, permissions } = useSensorStore();
+  const { state, sessionStatus } = useNavigationStore();
+  const { capabilities } = useSensorStore();
+  const { permission: locPermission, availability: locAvailability } = useLocationStore();
 
   let activeStatus = status;
 
   if (!activeStatus) {
-    if (state.session_id) {
+    if (sessionStatus === 'LIVE' || state.session_id) {
       activeStatus = state.gnss_available ? 'LIVE' : 'DEGRADED';
+    } else if (sessionStatus === 'ENDING') {
+      activeStatus = 'ENDING';
+    } else if (sessionStatus === 'STARTING') {
+      activeStatus = 'STARTING';
+    } else if (locPermission === 'denied') {
+      activeStatus = 'PERMISSION_REQUIRED';
+    } else if (locAvailability === 'available') {
+      activeStatus = 'STANDBY';
+    } else if (locAvailability === 'getting') {
+      activeStatus = 'GETTING';
     } else if (capabilities.geolocation) {
-      activeStatus = permissions.geolocation === 'DENIED' ? 'PERMISSION_REQUIRED' : 'STANDBY';
+      activeStatus = 'STANDBY';
     } else {
       activeStatus = 'UNAVAILABLE';
     }
@@ -41,9 +53,21 @@ export const GlobalStatusBadge: React.FC<GlobalStatusBadgeProps> = ({ status, cl
       colorClass = 'bg-amber-100 text-amber-800 border border-amber-200';
       label = '▲ INEKF DEAD RECKONING';
       break;
+    case 'STARTING':
+      colorClass = 'bg-blue-100 text-blue-800 border border-blue-200 animate-pulse';
+      label = 'CONNECTING...';
+      break;
+    case 'ENDING':
+      colorClass = 'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse';
+      label = 'FINALIZING...';
+      break;
     case 'STANDBY':
       colorClass = 'bg-blue-100 text-blue-800 border border-blue-200';
       label = 'SYSTEM READY';
+      break;
+    case 'GETTING':
+      colorClass = 'bg-sky-100 text-sky-800 border border-sky-200';
+      label = 'ACQUIRING FIX...';
       break;
     case 'UNAVAILABLE':
       colorClass = 'bg-gray-100 text-gray-600 border border-gray-200';

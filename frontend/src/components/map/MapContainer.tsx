@@ -16,7 +16,7 @@ interface MapContainerProps {
 export const MapContainer: React.FC<MapContainerProps> = ({
   onMapLoaded,
   children,
-  initialCenter = [72.5714, 23.0225], // Fallback center only
+  initialCenter = [78.9629, 20.5937], // Geographic overview fallback only before location fix is acquired
   initialZoom = 15,
   initialPitch = 45,
   styleUrl = 'mapbox://styles/mapbox/streets-v12',

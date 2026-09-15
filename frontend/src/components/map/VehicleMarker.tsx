@@ -3,8 +3,8 @@ import mapboxgl from 'mapbox-gl';
 import { useMap } from './MapContainer';
 
 interface VehicleMarkerProps {
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   heading?: number;
   mode?: string;
 }
@@ -20,7 +20,13 @@ export const VehicleMarker: React.FC<VehicleMarkerProps> = ({
   const elementRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!map || latitude === 0 || longitude === 0) return;
+    if (!map || latitude === null || longitude === null || latitude === 0 || longitude === 0) {
+      if (markerRef.current) {
+        markerRef.current.remove();
+        markerRef.current = null;
+      }
+      return;
+    }
 
     if (!markerRef.current) {
       const el = document.createElement('div');

@@ -1,56 +1,23 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useNavigationStore } from '../stores/useNavigationStore';
-import { sensorCollector } from '../services/sensors/sensorCollector';
+import { sessionLifecycle } from '../services/navigation/sessionLifecycle';
 
-export function useNavigationWebSocket(sessionId: string | null) {
-  const ws = useRef<WebSocket | null>(null);
-  const { updateState } = useNavigationStore();
+/**
+ * Hook to monitor WebSocket connection for active navigation session.
+ * The connection itself is managed through sessionLifecycle to guarantee
+ * clean start/end lifecycle and prevent dual connections.
+ */
+export function useNavigationWebSocket(_sessionId?: string | null) {
+  const sessionStatus = useNavigationStore((s) => s.sessionStatus);
 
   useEffect(() => {
-    if (!sessionId) return;
-
-    // Connect to real WebSocket
-    const wsUrl = `ws://localhost:8000/ws/navigation/${sessionId}`;
-    ws.current = new WebSocket(wsUrl);
-
-    ws.current.onopen = () => {
-      console.log('WebSocket connected to IDR engine');
-      
-      // Start collecting real sensor data and pushing it over WS
-      sensorCollector.start((packet) => {
-        if (ws.current?.readyState === WebSocket.OPEN) {
-          ws.current.send(JSON.stringify(packet));
-        }
-      });
-    };
-
-    ws.current.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'navigation_state') {
-          updateState(data);
-        } else if (data.type === 'session_started') {
-          console.log('Session verified by server:', data);
-        } else if (data.type === 'error') {
-          console.error('Server IDR error:', data.message);
-        }
-      } catch (err) {
-        console.error('Failed to parse WS message', err);
-      }
-    };
-
-    ws.current.onclose = () => {
-      console.log('WebSocket disconnected');
-      sensorCollector.stop();
-    };
-
+    // If component unmounts while in session, we do not abruptly close
+    // unless explicitly ended via endLiveSession()
     return () => {
-      if (ws.current) {
-        ws.current.close();
-      }
-      sensorCollector.stop();
+      // Intentionally no-op to allow navigation across tabs (Home <-> LiveMap)
+      // without tearing down the live navigation session.
     };
-  }, [sessionId, updateState]);
+  }, [sessionStatus]);
 
-  return ws;
+  return sessionLifecycle.getWebSocket();
 }
