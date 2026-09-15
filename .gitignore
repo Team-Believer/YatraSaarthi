@@ -1,0 +1,51 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# Dependencies
+node_modules/
+.venv/
+venv/
+ENV/
+env/
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+*.egg-info/
+.eggs/
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# SQLite Database & Storage
+data/*.db
+data/*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

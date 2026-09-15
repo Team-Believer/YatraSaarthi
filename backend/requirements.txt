@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+pydantic-settings
+alembic
+websockets
+numpy
+scipy
+shapely
+networkx
+httpx
+pytest
+bcrypt
+pyjwt
+requests
+
