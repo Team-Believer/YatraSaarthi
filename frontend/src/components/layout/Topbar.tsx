@@ -1,11 +1,25 @@
 import { User, LogOut, LogIn } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { GlobalStatusBadge } from '../common/GlobalStatusBadge';
 
 export default function Topbar() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const getPageTitle = (path: string) => {
+    switch (path) {
+      case '/app': return 'Dashboard';
+      case '/app/map': return 'Live Navigation Map';
+      case '/app/tunnel': return 'Tunnel & Outage Mode';
+      case '/app/history': return 'Journey History';
+      case '/app/learning': return 'Learning Insights';
+      case '/app/diagnostics': return 'Sensor Diagnostics';
+      case '/app/settings': return 'System Settings';
+      default: return 'YatraSaarthi Platform';
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -13,10 +27,12 @@ export default function Topbar() {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-brand-100 flex items-center justify-between px-6">
+    <header className="h-16 bg-white border-b border-brand-100 flex items-center justify-between px-6 shrink-0">
       <div className="flex items-center gap-4">
+        <h2 className="text-lg font-bold text-brand-navy">{getPageTitle(location.pathname)}</h2>
         <GlobalStatusBadge />
       </div>
+
       
       <div className="flex items-center gap-4">
         {isAuthenticated && user ? (

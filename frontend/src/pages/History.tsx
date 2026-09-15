@@ -1,19 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Map, Clock, Navigation, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
-
-interface SessionSummary {
-  session_id: string;
-  start_time: string;
-  end_time: string | null;
-  distance_meters: number;
-  duration_seconds: number;
-  vehicle_type: string;
-  start_lat: number | null;
-  start_lon: number | null;
-  end_lat: number | null;
-  end_lon: number | null;
-}
+import { historyService, type SessionSummary } from '../services/api/historyService';
 
 export default function History() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -22,18 +10,15 @@ export default function History() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/v1/history/sessions')
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch session history');
-        return res.json();
-      })
+    historyService.getSessions()
       .then((data) => {
-        setSessions(data);
-        if (data.length > 0) setSelectedSessionId(data[0].session_id);
+        setSessions(data || []);
+        if (data && data.length > 0) setSelectedSessionId(data[0].session_id);
         setLoading(false);
       })
       .catch((err) => {
-        setError(err.message);
+        console.error('History API error:', err);
+        setError(err.message || 'Error loading journey history');
         setLoading(false);
       });
   }, []);

@@ -14,6 +14,7 @@ from app.websocket.manager import ws_manager
 router = APIRouter(prefix="/navigation", tags=["Navigation"])
 
 
+@router.post("/session", response_model=SessionResponse)
 @router.post("/sessions/start", response_model=SessionResponse)
 def start_session(data: StartSessionRequest, db: Session = Depends(get_db)):
     """Create a new navigation session."""
@@ -26,6 +27,23 @@ def start_session(data: StartSessionRequest, db: Session = Depends(get_db)):
     db.add(session)
     db.commit()
     db.refresh(session)
+    
+    return SessionResponse(
+        session_id=session.id,
+        start_time=session.start_time,
+        is_active=session.is_active,
+        vehicle_type=session.vehicle_type,
+        navigation_mode=session.navigation_mode
+    )
+
+
+@router.get("/session/{session_id}", response_model=SessionResponse)
+@router.get("/sessions/{session_id}", response_model=SessionResponse)
+def get_session(session_id: str, db: Session = Depends(get_db)):
+    """Get navigation session status."""
+    session = db.query(NavigationSession).filter(NavigationSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
     
     return SessionResponse(
         session_id=session.id,
@@ -67,3 +85,4 @@ def get_session_diagnostics(session_id: str):
     if not diag:
         raise HTTPException(status_code=404, detail="No active engine for this session")
     return diag
+

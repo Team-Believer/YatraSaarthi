@@ -20,7 +20,7 @@ from app.models.models import (
     SensorHealth, GNSSObservation, DeadReckoningState,
     MapMatchResult, Route, RoutePoint, Alert, UserSetting, SavedPlace
 )
-from app.api.v1 import auth, navigation, history, settings as settings_api
+from app.api.v1 import auth, navigation, history, settings as settings_api, routes, sensors, idr
 from app.websocket.manager import ws_manager
 
 # Track uptime
@@ -64,6 +64,10 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(navigation.router, prefix="/api/v1")
 app.include_router(history.router, prefix="/api/v1")
 app.include_router(settings_api.router, prefix="/api/v1")
+app.include_router(routes.router, prefix="/api/v1")
+app.include_router(sensors.router, prefix="/api/v1")
+app.include_router(idr.router, prefix="/api/v1")
+
 
 
 @app.get("/")

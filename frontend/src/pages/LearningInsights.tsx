@@ -1,32 +1,20 @@
 import { useEffect, useState } from 'react';
 import { BrainCircuit, TrendingUp, ShieldCheck, Activity, Layers, Compass, AlertCircle } from 'lucide-react';
-
-interface InsightData {
-  total_sessions: number;
-  total_distance_km: number;
-  total_duration_minutes: number;
-  points_processed: number;
-  mode_distribution: Record<string, number>;
-  has_data: boolean;
-}
+import { historyService, type TelemetryInsights } from '../services/api/historyService';
 
 export default function LearningInsights() {
-  const [data, setData] = useState<InsightData | null>(null);
+  const [data, setData] = useState<TelemetryInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/v1/history/insights')
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to load learning insights');
-        return res.json();
-      })
+    historyService.getInsights()
       .then((resData) => {
         setData(resData);
         setLoading(false);
       })
       .catch((err) => {
-        setError(err.message);
+        setError(err.message || 'Failed to load learning insights');
         setLoading(false);
       });
   }, []);
