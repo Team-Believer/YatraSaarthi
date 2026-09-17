@@ -1,0 +1,120 @@
+{
+    "calibration_method": "scalar",
+    "calibration_parameters": {
+        "k": 1.9122540606990217,
+        "sigma_floor": 0.05
+    },
+    "validation_dataset_id": "data/processed/indexes/generalization_validation_5s.parquet",
+    "validation_metrics": {
+        "MAE": 2.733725852209475,
+        "RMSE": 4.034269010893104,
+        "mean_sigma": 3.797913951891986,
+        "median_sigma": 3.7762719998185226,
+        "p90_sigma": 6.8303522598526065,
+        "p95_sigma": 7.253039424959843,
+        "coverage_1.0": 0.8224365004703669,
+        "coverage_1.645": 0.9216839134524929,
+        "coverage_1.96": 0.9488867983693948,
+        "calibration_error": 0.05417787185115497
+    },
+    "primary_test_metrics": {
+        "MAE": 2.9169257697156996,
+        "RMSE": 3.954647810221381,
+        "mean_sigma": 4.722425289170754,
+        "median_sigma": 4.678757785827592,
+        "p90_sigma": 7.085952766908859,
+        "p95_sigma": 7.594269901491348,
+        "coverage_1.0": 0.8198829186702906,
+        "coverage_1.645": 0.9453272005017771,
+        "coverage_1.96": 0.9696146072897066,
+        "calibration_error": 0.06737490882059145
+    },
+    "generalization_test_metrics": {
+        "MAE": 5.1936662102669136,
+        "RMSE": 7.091925278919863,
+        "mean_sigma": 4.306833828587217,
+        "median_sigma": 4.004516193749637,
+        "p90_sigma": 7.535043128074232,
+        "p95_sigma": 7.9292910634490275,
+        "coverage_1.0": 0.5531396302910372,
+        "coverage_1.645": 0.7221149669385588,
+        "coverage_1.96": 0.7786090062261692,
+        "calibration_error": 0.15961213218141157
+    },
+    "decile_calibration_primary": [
+        {
+            "decile": 1,
+            "mean_predicted_error": 0.6242504719553924,
+            "mean_sigma": 1.19372549988998,
+            "mean_actual_error": 0.8055829362457014,
+            "rmse": 1.6246008873870021
+        },
+        {
+            "decile": 2,
+            "mean_predicted_error": 1.5490703240919612,
+            "mean_sigma": 2.962216017553202,
+            "mean_actual_error": 2.0271706221618717,
+            "rmse": 2.6805320303078224
+        },
+        {
+            "decile": 3,
+            "mean_predicted_error": 1.9051974237588225,
+            "mean_sigma": 3.6432215100161227,
+            "mean_actual_error": 3.0463697315923843,
+            "rmse": 3.7226321542670613
+        },
+        {
+            "decile": 4,
+            "mean_predicted_error": 2.0381119572854534,
+            "mean_sigma": 3.8973878664783386,
+            "mean_actual_error": 2.645539188102464,
+            "rmse": 3.6293202579660617
+        },
+        {
+            "decile": 5,
+            "mean_predicted_error": 2.267535859616376,
+            "mean_sigma": 4.336104655332062,
+            "mean_actual_error": 2.6534360829961425,
+            "rmse": 3.7414756810118748
+        },
+        {
+            "decile": 6,
+            "mean_predicted_error": 2.628806655996768,
+            "mean_sigma": 5.026946202722436,
+            "mean_actual_error": 3.0350642642908396,
+            "rmse": 3.9835092616871
+        },
+        {
+            "decile": 7,
+            "mean_predicted_error": 2.9421447372968372,
+            "mean_sigma": 5.626128221060133,
+            "mean_actual_error": 3.4287161814622156,
+            "rmse": 4.519552179970431
+        },
+        {
+            "decile": 8,
+            "mean_predicted_error": 3.2210847821385187,
+            "mean_sigma": 6.159532454500206,
+            "mean_actual_error": 3.702308439460781,
+            "rmse": 4.760688564158555
+        },
+        {
+            "decile": 9,
+            "mean_predicted_error": 3.522799857651315,
+            "mean_sigma": 6.736488332823663,
+            "mean_actual_error": 3.692679141041294,
+            "rmse": 4.664069804918332
+        },
+        {
+            "decile": 10,
+            "mean_predicted_error": 3.996425361324163,
+            "mean_sigma": 7.642180625472685,
+            "mean_actual_error": 4.13334141346003,
+            "rmse": 4.983506160667294
+        }
+    ],
+    "iso_comparison": {
+        "val_cal_error": 0.03836419985366361,
+        "p_test_cal_error": 0.016971860989151377
+    }
+}

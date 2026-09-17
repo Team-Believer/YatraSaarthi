@@ -159,3 +159,10 @@ def get_session_diagnostics(session_id: str):
         raise HTTPException(status_code=404, detail="No active engine for this session")
     return diag
 
+
+@router.get("/ml/status")
+def get_navigation_ml_status():
+    """Get real-time AI/ML model status and diagnostics."""
+    from app.ml.inference.manager import ml_manager
+    return ml_manager.get_status()
+

@@ -109,6 +109,15 @@ class NavigationState:
     nhc_active: bool = False
     zupt_active: bool = False
     map_matching_active: bool = False
+
+    # AI/ML Model Telemetry
+    ai_model_ready: bool = False
+    ai_velocity: Optional[float] = None
+    ai_uncertainty_sigma: Optional[float] = None
+    ai_variance: Optional[float] = None
+    ai_inference_latency_ms: Optional[float] = None
+    ai_window_fill_pct: float = 0.0
+    ai_total_inferences: int = 0
     
     def to_dict(self) -> dict:
         """Serialize for WebSocket transmission."""
@@ -145,5 +154,12 @@ class NavigationState:
             "orientation_available": self.orientation_available,
             "gnss_outage_duration": self.gnss_outage_duration,
             "last_gnss_time": self.last_gnss_time,
+            "ai_model_ready": self.ai_model_ready,
+            "ai_velocity": self.ai_velocity,
+            "ai_uncertainty_sigma": self.ai_uncertainty_sigma,
+            "ai_variance": self.ai_variance,
+            "ai_inference_latency_ms": self.ai_inference_latency_ms,
+            "ai_window_fill_pct": round(self.ai_window_fill_pct, 1),
+            "ai_total_inferences": self.ai_total_inferences,
             "sensor_states": {}  # Populated by session manager
         }

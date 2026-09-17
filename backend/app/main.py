@@ -20,8 +20,9 @@ from app.models.models import (
     SensorHealth, GNSSObservation, DeadReckoningState,
     MapMatchResult, Route, RoutePoint, Alert, UserSetting, SavedPlace
 )
-from app.api.v1 import auth, navigation, history, settings as settings_api, routes, sensors, idr
+from app.api.v1 import auth, navigation, history, settings as settings_api, routes, sensors, idr, ml
 from app.websocket.manager import ws_manager
+from app.ml.inference.manager import ml_manager
 
 # Track uptime
 _start_time = time.time()
@@ -29,13 +30,17 @@ _start_time = time.time()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan: initialize database on startup."""
+    """Application lifespan: initialize database and load AI/ML models on startup."""
     print(f"[YatraSaarthi] Starting application...")
     print(f"[YatraSaarthi] Database: {settings.DATABASE_URL}")
     
     # Create all tables
     Base.metadata.create_all(bind=engine)
     print(f"[YatraSaarthi] Database tables created.")
+
+    # Load production AI/ML models (E5 & U2)
+    ml_manager.load_models()
+    
     print(f"[YatraSaarthi] Application ready. No demo/simulation mode.")
     
     yield
@@ -67,6 +72,7 @@ app.include_router(settings_api.router, prefix="/api/v1")
 app.include_router(routes.router, prefix="/api/v1")
 app.include_router(sensors.router, prefix="/api/v1")
 app.include_router(idr.router, prefix="/api/v1")
+app.include_router(ml.router, prefix="/api/v1")
 
 
 
@@ -96,6 +102,7 @@ def health_check():
     return {
         "status": "healthy",
         "database": db_status,
+        "ai_ml": ml_manager.get_status(),
         "version": "1.0.0",
         "uptime_seconds": round(time.time() - _start_time, 1),
         "mode": "LIVE",

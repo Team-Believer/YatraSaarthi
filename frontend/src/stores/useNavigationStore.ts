@@ -59,6 +59,15 @@ export interface NavigationState {
   gnss_outage_duration: number;
   sensor_states: Record<string, string>;
   
+  // AI/ML Model Telemetry
+  ai_model_ready: boolean;
+  ai_velocity: number | null;
+  ai_uncertainty_sigma: number | null;
+  ai_variance: number | null;
+  ai_inference_latency_ms: number | null;
+  ai_window_fill_pct: number;
+  ai_total_inferences: number;
+
   // App specific state
   session_id: string | null;
   packets_received: number;
@@ -98,6 +107,14 @@ const defaultNavigationState: NavigationState = {
   gnss_outage_duration: 0,
   sensor_states: {},
   
+  ai_model_ready: false,
+  ai_velocity: null,
+  ai_uncertainty_sigma: null,
+  ai_variance: null,
+  ai_inference_latency_ms: null,
+  ai_window_fill_pct: 0,
+  ai_total_inferences: 0,
+
   session_id: null,
   packets_received: 0,
 };

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigationStore } from '../stores/useNavigationStore';
 import { useSensorStore } from '../stores/useSensorStore';
 import { GlobalStatusBadge } from '../components/common/GlobalStatusBadge';
@@ -9,17 +9,28 @@ import {
   Activity,
   Layers,
   Camera,
+  Brain,
+  Zap,
+  ShieldCheck,
+  Clock,
 } from 'lucide-react';
 
 import { sensorService } from '../services/api/sensorService';
+import { fetchMLStatus, type MLStatusResponse } from '../services/api/mlService';
 
 export default function SensorDiagnostics() {
   const state = useNavigationStore((s) => s.state);
   const { capabilities, permissions } = useSensorStore();
+  const [mlStatus, setMlStatus] = useState<MLStatusResponse | null>(null);
+  const [mlError, setMlError] = useState<string | null>(null);
 
   useEffect(() => {
     sensorService.getStatus()
       .catch((err) => console.warn('System diag note:', err.message));
+
+    fetchMLStatus()
+      .then((res) => setMlStatus(res))
+      .catch((err) => setMlError(err.message));
   }, []);
 
   const getSensorStatus = (cap: boolean, perm?: string) => {
@@ -44,6 +55,118 @@ export default function SensorDiagnostics() {
           </p>
         </div>
         <GlobalStatusBadge />
+      </div>
+
+      {/* AI Dead Reckoning Engine Section */}
+      <div className="bg-gradient-to-br from-brand-900 to-brand-navy rounded-3xl p-6 text-white shadow-md border border-brand-800 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-accent-cyan border border-white/15">
+              <Brain className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold tracking-tight">AI Neural Dead Reckoning Engine</h2>
+                <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full border ${
+                  mlStatus?.ready
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                    : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                }`}>
+                  {mlStatus?.ready ? 'MODELS LOADED (CPU)' : mlError ? 'ERROR' : 'CHECKING STATUS...'}
+                </span>
+              </div>
+              <p className="text-xs text-white/70 mt-0.5">
+                Physics-aware velocity estimation (E5) and decoupled uncertainty estimation (U2)
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 text-xs font-mono text-white/80 bg-black/25 px-4 py-2 rounded-2xl border border-white/10">
+            <div className="flex items-center gap-1.5">
+              <Zap className="w-4 h-4 text-accent-gold" />
+              <span>Inferences: <strong className="text-white">{state.ai_total_inferences || mlStatus?.total_inferences || 0}</strong></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-accent-cyan" />
+              <span>Latency: <strong className="text-white">{state.ai_inference_latency_ms ? `${state.ai_inference_latency_ms} ms` : mlStatus?.last_latency_ms ? `${mlStatus.last_latency_ms} ms` : 'N/A'}</strong></span>
+            </div>
+          </div>
+        </div>
+
+        {/* Real-time telemetry grid */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* E5 Velocity */}
+          <div className="bg-white/5 rounded-2xl p-4 border border-white/10 space-y-2">
+            <div className="flex justify-between items-center text-xs text-white/70">
+              <span>E5 Velocity (Forward)</span>
+              <span className="text-accent-cyan font-mono">CNN-GRU</span>
+            </div>
+            <div className="text-xl font-bold font-mono text-white">
+              {state.ai_velocity !== null
+                ? `${(state.ai_velocity * 3.6).toFixed(1)} km/h`
+                : 'Waiting for window'}
+            </div>
+            <div className="text-[11px] text-white/60">
+              {state.ai_velocity !== null
+                ? `${state.ai_velocity.toFixed(2)} m/s (135,425 params)`
+                : 'Accumulating 50 samples at 10 Hz'}
+            </div>
+          </div>
+
+          {/* U2 Uncertainty */}
+          <div className="bg-white/5 rounded-2xl p-4 border border-white/10 space-y-2">
+            <div className="flex justify-between items-center text-xs text-white/70">
+              <span>U2 Uncertainty (σ)</span>
+              <span className="text-accent-gold font-mono">MLP-Softplus</span>
+            </div>
+            <div className="text-xl font-bold font-mono text-white">
+              {state.ai_uncertainty_sigma !== null
+                ? `± ${state.ai_uncertainty_sigma.toFixed(2)} m/s`
+                : 'Waiting for window'}
+            </div>
+            <div className="text-[11px] text-white/60">
+              {state.ai_variance !== null
+                ? `Rv: ${state.ai_variance.toFixed(3)} (m/s)² (k=1.912)`
+                : 'Calibrated error variance'}
+            </div>
+          </div>
+
+          {/* Window Buffer Progress */}
+          <div className="bg-white/5 rounded-2xl p-4 border border-white/10 space-y-2">
+            <div className="flex justify-between items-center text-xs text-white/70">
+              <span>5.0s IMU Window</span>
+              <span className="text-white font-mono">{state.ai_window_fill_pct.toFixed(0)}%</span>
+            </div>
+            <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden mt-2">
+              <div
+                className="bg-accent-cyan h-full rounded-full transition-all duration-300"
+                style={{ width: `${state.ai_window_fill_pct}%` }}
+              />
+            </div>
+            <div className="text-[11px] text-white/60">
+              {state.ai_window_fill_pct >= 100
+                ? 'Window full — real-time inference active'
+                : 'Buffering sensor stream...'}
+            </div>
+          </div>
+
+          {/* InEKF Coupling */}
+          <div className="bg-white/5 rounded-2xl p-4 border border-white/10 space-y-2">
+            <div className="flex justify-between items-center text-xs text-white/70">
+              <span>Filter Integration</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            </div>
+            <div className="text-sm font-bold font-mono text-white">
+              {state.navigation_mode !== 'GNSS_AIDED' && state.ai_velocity !== null
+                ? 'ACTIVE (DR Update)'
+                : 'ACTIVE (Awaiting Outage)'}
+            </div>
+            <div className="text-[11px] text-white/60">
+              {state.navigation_mode !== 'GNSS_AIDED'
+                ? 'Constraining dead reckoning drift'
+                : 'GNSS aiding active; DR ready'}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Grid of Hardware Sensor Cards */}

@@ -167,6 +167,13 @@ class INSMechanization:
         # --- Velocity Update ---
         self.velocity += accel_nav * dt
         
+        # Clamp horizontal and vertical velocity to realistic vehicle limits (max 80 m/s ~ 288 km/h)
+        horiz_speed = np.sqrt(self.velocity[0]**2 + self.velocity[1]**2)
+        if horiz_speed > 80.0:
+            self.velocity[0] = (self.velocity[0] / horiz_speed) * 80.0
+            self.velocity[1] = (self.velocity[1] / horiz_speed) * 80.0
+        self.velocity[2] = float(np.clip(self.velocity[2], -10.0, 10.0))
+        
         # --- Position Update (WGS84 geodesic) ---
         lat = self.position_lla[0]
         alt = self.position_lla[2]
