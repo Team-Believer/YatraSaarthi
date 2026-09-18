@@ -228,9 +228,53 @@ class NavigationSessionEngine:
         is_stationary = self.zupt.update(imu.accel, imu.gyro)
         self.nav_state.zupt_active = is_stationary
         
+        # Accumulate real IMU samples into the 10Hz window buffer
+        self.window_buffer.add_sample(ts, ax, ay, az, gx, gy, gz)
+        self.nav_state.ai_window_fill_pct = self.window_buffer.fill_percentage
+        self.nav_state.ai_model_ready = self.ml_manager.is_ready()
+
+        # Execute AI velocity & uncertainty inference when window buffer is ready (50 samples @ 10Hz)
+        if self.ml_manager.is_ready() and self.window_buffer.is_ready and (ts - self._last_ai_infer_time >= self._ai_stride_sec):
+            window_50 = self.window_buffer.get_resampled_window()
+            if window_50 is not None:
+                ai_res = self.ml_manager.infer(window_50)
+                self._last_ai_infer_time = ts
+                if ai_res.valid:
+                    self.nav_state.ai_selected_model = ai_res.model_id
+                    self.nav_state.ai_model_status = ai_res.model_status
+                    self.nav_state.ai_velocity = ai_res.velocity_mps
+                    self.nav_state.ai_uncertainty_sigma = ai_res.calibrated_sigma_mps
+                    self.nav_state.ai_variance = ai_res.velocity_variance
+                    self.nav_state.ai_inference_latency_ms = ai_res.latency_ms
+                    self.nav_state.ai_total_inferences = self.ml_manager.total_inferences
+
+                    # InEKF Velocity Update: In GNSS outage or degraded mode, AI forward velocity is the primary velocity source
+                    if self.ekf.initialized and (not self.nav_state.gnss_available or self.nav_state.navigation_mode != NavigationMode.GNSS_AIDED):
+                        filter_state = self.ekf.get_state()
+                        yaw = filter_state["yaw"]
+                        pitch = filter_state["pitch"]
+                        
+                        v_fwd = ai_res.velocity_mps
+                        v_n = v_fwd * np.cos(yaw) * np.cos(pitch)
+                        v_e = v_fwd * np.sin(yaw) * np.cos(pitch)
+                        v_d = -v_fwd * np.sin(pitch)
+                        v_meas_ned = np.array([v_n, v_e, v_d])
+                        
+                        var = max(ai_res.velocity_variance, 0.01)
+                        R_vel = np.diag([var, var, var * 2.0])
+                        self.ekf.update_velocity(v_meas_ned, R_vel)
+
+                        # In dead reckoning mode, keep filter velocity bounded by AI model estimate
+                        curr_v = self.ekf.mechanization.velocity
+                        curr_speed = np.linalg.norm(curr_v[:2])
+                        if abs(curr_speed - v_fwd) > 3.0:
+                            self.ekf.mechanization.velocity[0] = v_n
+                            self.ekf.mechanization.velocity[1] = v_e
+                            self.ekf.mechanization.velocity[2] = v_d
+
         if not self.ekf.initialized:
             return
-        
+
         # Transform to vehicle frame if aligned
         accel_vehicle = imu.accel
         gyro_vehicle = imu.gyro
@@ -275,48 +319,6 @@ class NavigationSessionEngine:
         fused_h, fused_var, h_conf = self.heading_engine.fuse()
         if h_conf > 0.3:
             self.ekf.update_heading(fused_h, fused_var)
-        
-        # Accumulate real IMU samples into the 10Hz window buffer
-        self.window_buffer.add_sample(ts, ax, ay, az, gx, gy, gz)
-        self.nav_state.ai_window_fill_pct = self.window_buffer.fill_percentage
-        self.nav_state.ai_model_ready = self.ml_manager.is_ready()
-
-        # Execute AI velocity & uncertainty inference when window buffer is ready (50 samples @ 10Hz)
-        if self.ml_manager.is_ready() and self.window_buffer.is_ready and (ts - self._last_ai_infer_time >= self._ai_stride_sec):
-            window_50 = self.window_buffer.get_resampled_window()
-            if window_50 is not None:
-                ai_res = self.ml_manager.infer(window_50)
-                self._last_ai_infer_time = ts
-                if ai_res.valid:
-                    self.nav_state.ai_velocity = ai_res.velocity_mps
-                    self.nav_state.ai_uncertainty_sigma = ai_res.calibrated_sigma_mps
-                    self.nav_state.ai_variance = ai_res.velocity_variance
-                    self.nav_state.ai_inference_latency_ms = ai_res.latency_ms
-                    self.nav_state.ai_total_inferences = self.ml_manager.total_inferences
-
-                    # InEKF Velocity Update: In GNSS outage or degraded mode, AI forward velocity is the primary velocity source
-                    if self.ekf.initialized and (not self.nav_state.gnss_available or self.nav_state.navigation_mode != NavigationMode.GNSS_AIDED):
-                        filter_state = self.ekf.get_state()
-                        yaw = filter_state["yaw"]
-                        pitch = filter_state["pitch"]
-                        
-                        v_fwd = ai_res.velocity_mps
-                        v_n = v_fwd * np.cos(yaw) * np.cos(pitch)
-                        v_e = v_fwd * np.sin(yaw) * np.cos(pitch)
-                        v_d = -v_fwd * np.sin(pitch)
-                        v_meas_ned = np.array([v_n, v_e, v_d])
-                        
-                        var = max(ai_res.velocity_variance, 0.01)
-                        R_vel = np.diag([var, var, var * 2.0])
-                        self.ekf.update_velocity(v_meas_ned, R_vel)
-
-                        # In dead reckoning mode, keep filter velocity bounded by AI model estimate
-                        curr_v = self.ekf.mechanization.velocity
-                        curr_speed = np.linalg.norm(curr_v[:2])
-                        if abs(curr_speed - v_fwd) > 3.0:
-                            self.ekf.mechanization.velocity[0] = v_n
-                            self.ekf.mechanization.velocity[1] = v_e
-                            self.ekf.mechanization.velocity[2] = v_d
 
         # Motion classification
         self.ml.motion_classifier.classify(imu.accel, imu.gyro)

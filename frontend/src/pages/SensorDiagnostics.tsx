@@ -17,6 +17,7 @@ import {
 
 import { sensorService } from '../services/api/sensorService';
 import { fetchMLStatus, type MLStatusResponse } from '../services/api/mlService';
+import { ModelManagerCard } from '../components/dashboard/ModelManagerCard';
 
 export default function SensorDiagnostics() {
   const state = useNavigationStore((s) => s.state);
@@ -168,6 +169,9 @@ export default function SensorDiagnostics() {
           </div>
         </div>
       </div>
+
+      {/* Model Registry & AI Management Interface */}
+      <ModelManagerCard />
 
       {/* Grid of Hardware Sensor Cards */}
       <div className="grid md:grid-cols-3 gap-6">

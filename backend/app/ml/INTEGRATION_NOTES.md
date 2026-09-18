@@ -1,185 +1,65 @@
-# YatraSaarthi AI/ML Integration Notes & Specification Report
+# YatraSaarthi AI/ML Complete Integration Report & Model Inventory
 
-Generated: Phase 1 Repository Audit & Discovery  
-Target System: YatraSaarthi Real-Time Navigation Engine (FastAPI + React)
-
----
-
-## 1. Executive Summary & Model Identification
-
-Following a full-repository audit of `Yatra-Sarthi-AI-ML-main/`, the production models for AI-assisted dead reckoning have been identified, verified against their exact parameter checkpoints, and mathematically validated.
-
-| Component | Model Name / Identifier | Source Checkpoint Path | Architecture Class | Parameters |
-| :--- | :--- | :--- | :--- | :--- |
-| **Velocity Model (E5)** | `E5_frozen_reference` | `experiments/E5_frozen_reference/best_model.pth` | `VelocityGravityModel` | 135,425 trainable |
-| **Uncertainty Model (U2)** | `U2_decoupled_uncertainty` | `experiments/U2_decoupled_uncertainty/best_model.pth` | `DecoupledUncertaintyHead` | 10,369 trainable |
-| **Calibration** | Decile Scalar Calibration | `experiments/uncertainty_calibration/calibration_results.json` | Scalar $k$ with floor | $k=1.91225$, floor=$0.05$ |
-| **Normalization** | Training Split Statistics | `data/processed/normalization_stats.json` | Per-axis mean & std | 6 sensor axes |
-
-Both checkpoints loaded strictly with `<All keys matched successfully>`.
+**Status**: Verified & Integrated  
+**Target System**: YatraSaarthi Real-Time Navigation Engine (FastAPI + React + Mapbox)  
+**All Models Integrated**: E0, E1, E2, E3, E4, E5, E6, E7, U0, U1, U2, Calibration (12 variants)
 
 ---
 
-## 2. E5 Velocity Model Specification
+## 1. Complete Model Inventory & Status Designations
 
-### 2.1 Architecture
-The E5 model is a physics-aware 1D CNN + GRU sequential network:
-- **Input Layer**: `[B, 15, 50]` (transposed from `[B, 50, 15]`)
-- **CNN Block 1**: `Conv1d(15, 64, kernel_size=3, padding=1)` $\rightarrow$ `BatchNorm1d(64)` $\rightarrow$ `GELU()`
-- **CNN Block 2**: `Conv1d(64, 128, kernel_size=3, padding=1)` $\rightarrow$ `BatchNorm1d(128)` $\rightarrow$ `GELU()`
-- **Temporal Recurrence**: `GRU(input_size=128, hidden_size=128, num_layers=1, batch_first=True)`
-- **Feature Extraction**: Takes the final timestep output of the GRU: `features = out[:, -1, :]` $\rightarrow$ shape `[B, 128]`
-- **Regression Head**:
-  - `Linear(128, 64)` $\rightarrow$ `GELU()`
-  - `Linear(64, 1)` $\rightarrow$ `squeeze(-1)` $\rightarrow$ shape `[B]`
+All 12 model variants from the offline research repository have been audited, classified, and migrated into the primary runtime system.
 
-### 2.2 Output
-- **Value**: Scalar forward velocity $\hat{v}$.
-- **Units**: Meters per second ($\text{m/s}$).
-- **Feature Vector**: Latent representation tensor of shape `[B, 128]` passed directly to U2.
-
----
-
-## 3. U2 Decoupled Uncertainty Model Specification
-
-### 3.1 Architecture
-The U2 head is a multi-layer perceptron with smooth non-linear activation predicting absolute residual velocity error:
-- **Input**: Latent features `[B, 128]` from E5 GRU
-- **MLP Layers**:
-  - `Linear(128, 64)` $\rightarrow$ `GELU()`
-  - `Linear(64, 32)` $\rightarrow$ `GELU()`
-  - `Linear(32, 1)`
-- **Output Activation**: `Softplus()` $+ 1\times 10^{-3}$ (guarantees strictly positive error prediction)
-
-### 3.2 Output
-- **Value**: Predicted absolute velocity error $\hat{\epsilon} = |\hat{v} - v_{\text{true}}|$.
-- **Units**: Meters per second ($\text{m/s}$).
+| Model ID | Identifier / Description | Architecture Class | Input Specification | Weights Checkpoint | Parameters | Status Designation | Primary RMSE | Unseen RMSE |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **E0** | Baseline (No Aug, No Mag) | `VelocityBaselineModel` | 6-channel normalized IMU | `weights/e0_best_model.pt` | 150,849 | `REFERENCE / BASELINE` | 4.25 m/s | 8.19 m/s |
+| **E1** | Rotation Robustness (Aug Only) | `AdaptiveVelocityBaselineModel` | 6-channel with 3D aug | `weights/e1_best_model.pth` | 133,697 | `EXPERIMENTAL / FAILED / DEGRADED` | 5.12 m/s | 9.21 m/s |
+| **E2** | Rotation-Invariant Magnitudes | `AdaptiveVelocityBaselineModel` | 8-channel (IMU + mags) | `weights/e2_best_model.pth` | 134,081 | `EXPERIMENTAL / FAILED / DEGRADED` | 5.41 m/s | 9.15 m/s |
+| **E3** | Capacity / Residual Block | `VelocityRobustModel` | 8-channel with ResidualBlock | `weights/e3_best_model.pth` | 159,041 | `EXPERIMENTAL / FAILED / DEGRADED` | 4.78 m/s | 8.95 m/s |
+| **E4** | Speed Robustness (Sampler) | `AdaptiveVelocityBaselineModel` | 6-channel speed-balanced | `weights/e4_best_model.pth` | 133,697 | `DIAGNOSTIC / ROBUSTNESS` | 4.45 m/s | 7.00 m/s |
+| **E5** | Physics-Aware Velocity | `VelocityGravityModel` | 15-channel physics features | `weights/e5_best_model.pth` | 135,425 | `PRODUCTION / VALIDATED` | **3.95 m/s** | **7.09 m/s** |
+| **E6** | Phone→Vehicle Alignment | `CausalGravityAligner` | 6-ch $\to$ 12 aligned features | `models/e6_alignment.py` | Geometric EMA Filter | `EXPERIMENTAL / FAILED / DEGRADED` | N/A | N/A |
+| **E7** | Combined (E4 Sampler + E5) | `CombinedVelocityModel` | 15-channel physics features | `weights/e7_best_model.pth` | 135,425 | `EXPERIMENTAL / ABLATION` | 4.48 m/s | 7.38 m/s |
+| **U0** | Formal Deterministic Baseline | `U0DeterministicModel` | 15-channel physics features | `weights/u0_best_model.pth` | 135,425 | `REFERENCE / BASELINE` | 3.95 m/s | 7.09 m/s |
+| **U1** | Heteroscedastic Mean + Variance | `VelocityUncertaintyModel` | 15-channel, Gaussian NLL | `weights/u1_best_model.pth` | 135,490 | `EXPERIMENTAL / FAILED / DEGRADED` | 5.78 m/s | 8.76 m/s |
+| **U2** | Decoupled Uncertainty Head | `DecoupledUncertaintyHead` | 128-d latent features | `weights/u2_best_model.pth` | 10,369 | `PRODUCTION / VALIDATED` | Spearman: 0.358 | Cal Error: 0.054 |
+| **Calibration** | Decile Scalar Variance Calibrator | Scalar Decile Formula | Predicted error $\to$ std/var | `weights/calibration.json` | 2 parameters ($k, \sigma_0$) | `PRODUCTION / VALIDATED` | Cal Error: 0.054 | 95% nominal |
 
 ---
 
-## 4. Uncertainty Calibration & Variance Mapping
+## 2. Preprocessing Adapters
 
-### 4.1 Parameters
-Extracted from `experiments/uncertainty_calibration/calibration_results.json`:
-- Method: `scalar`
-- Scaling factor ($k$): `1.9122540606990217`
-- Variance floor ($\sigma_{\text{floor}}$): `0.05` $\text{m/s}$
+The `ModelInputAdapter` (`app/ml/preprocessing/adapters.py`) accepts raw 6-channel continuous IMU samples `[50, 6]` from smartphone devices and converts them into the exact required input format:
 
-### 4.2 Mathematical Mapping to Kalman Filter Noise
-$$\sigma = \max(k \cdot \hat{\epsilon}, \sigma_{\text{floor}})$$
-$$R_v = \sigma^2 \quad (\text{m}^2/\text{s}^2)$$
-
-This calibrated variance $R_v$ is supplied directly as the measurement noise covariance to `InvariantEKF.update_velocity()`.
+1. **6-Channel Adapter (E0, E1, E4)**: Normalizes raw acceleration and angular velocity using the training set means and standard deviations from `normalization_stats.json`.
+2. **8-Channel Adapter (E2, E3)**: Appends Euclidean acceleration magnitude and angular velocity magnitude to the 6 normalized IMU channels.
+3. **12-Channel Adapter (E6)**: Runs online causal Exponential Moving Average (EMA) gravity estimation and Rodrigues rotation to rotate device coordinates to the gravity vector (`[0, 0, 1]`), extracting aligned linear acceleration, horizontal acceleration, and gyro.
+4. **15-Channel Adapter (E5, E7, U0, U1)**: Computes gravity separation, linear acceleration ($a_{\text{lin}} / 2.0$), linear acceleration magnitude, accel magnitude, and gyro magnitude.
+5. **Latent Adapter (U2)**: Extracts the 128-dimensional hidden state vector from the final timestep of the E5/U0 GRU layer.
 
 ---
 
-## 5. Input Data & Preprocessing Pipeline
+## 3. Production Pipeline (E5 + U2 + Calibration)
 
-### 5.1 Raw Input Channels
-Receives 6 real smartphone IMU channels from browser `DeviceMotionEvent`:
-1. `accel_x` ($\text{m/s}^2$)
-2. `accel_y` ($\text{m/s}^2$)
-3. `accel_z` ($\text{m/s}^2$)
-4. `gyro_x` ($\text{rad/s}$)
-5. `gyro_y` ($\text{rad/s}$)
-6. `gyro_z` ($\text{rad/s}$)
-
-### 5.2 Sampling Rate & Windowing
-- **Sampling Frequency**: $10\,\text{Hz}$ ($dt = 0.1\,\text{s} = 100\,\text{ms}$).
-- **Window Length**: $T = 50$ samples ($5.0\,\text{seconds}$).
-- **Window Stride**: Sliding window, inference performed every 1 to 5 samples ($0.1\,\text{s}$ to $0.5\,\text{s}$).
-
-### 5.3 15-Feature Engineering
-The input tensor of shape `[1, 50, 15]` is constructed as follows:
-
-1. **Standardized IMU (Features 0 to 5)**:
-   $$x_{\text{norm}, i} = \frac{x_{\text{raw}, i} - \mu_i}{\sigma_i + 10^{-6}}$$
-   Using statistics from `normalization_stats.json`:
-   - `accel_x`: $\mu = 0.031600$, $\sigma = 1.856510$
-   - `accel_y`: $\mu = -0.092167$, $\sigma = 1.782833$
-   - `accel_z`: $\mu = 9.836938$, $\sigma = 0.834444$
-   - `gyro_x`: $\mu = 0.000185$, $\sigma = 0.119974$
-   - `gyro_y`: $\mu = -0.002462$, $\sigma = 0.258653$
-   - `gyro_z`: $\mu = 0.000254$, $\sigma = 0.160434$
-
-2. **Causal Gravity Estimation (Features 6 to 8)**:
-   Exponential Moving Average (EMA) over the window with $\alpha = 0.02$:
-   $$g_0 = a_0, \quad g_t = 0.02 \cdot a_t + 0.98 \cdot g_{t-1}$$
-   Scaled: $\frac{g}{9.81}$
-
-3. **Linear Acceleration (Features 9 to 11)**:
-   $$a_{\text{lin}} = a - g$$
-   Scaled: $\frac{a_{\text{lin}}}{2.0}$
-
-4. **Linear Acceleration Magnitude (Feature 12)**:
-   $$|a_{\text{lin}}| = \sqrt{a_{\text{lin}, x}^2 + a_{\text{lin}, y}^2 + a_{\text{lin}, z}^2}$$
-   Normalized: $\frac{|a_{\text{lin}}| - 1.0}{2.0}$
-
-5. **Total Acceleration Magnitude (Feature 13)**:
-   $$|a| = \sqrt{a_x^2 + a_y^2 + a_z^2}$$
-   Normalized: $\frac{|a| - 10.0}{1.0}$
-
-6. **Total Gyroscope Magnitude (Feature 14)**:
-   $$|\omega| = \sqrt{\omega_x^2 + \omega_y^2 + \omega_z^2}$$
-   Normalized: $\frac{|\omega| - 0.2}{0.2}$
-
-Total features: $6 + 3 + 3 + 1 + 1 + 1 = 15$ channels.
-
----
-
-## 6. Integration Architecture with InEKF / Navigation
-
+The default validated navigation pipeline operates as follows:
 ```
-                       REAL GNSS
-                           │
-                           ▼
-REAL IMU (10Hz) ──► Window Buffer (50 samples)
-                           │
-                           ▼
-                  Feature Pipeline (15 features)
-                           │
-                           ▼
-                      E5 Model
-                     /        \
-                    /          \
-                   ▼            ▼
-             Velocity (v)    Latent Features (128)
-                   │            │
-                   │            ▼
-                   │         U2 Model
-                   │            │
-                   │            ▼
-                   │     Uncertainty (ε)
-                   │            │
-                   │            ▼
-                   │     Calibration (σ, Rv)
-                   │            │
-                   ▼            ▼
-               InEKF Velocity Update (v_meas, R_vel)
-                           │
-                           ▼
-               Invariant Extended Kalman Filter
-               (State: δp, δv, δθ, δba, δbg)
-                           │
-                           ├──► NHC (Non-Holonomic Constraints)
-                           ├──► ZUPT (Stationary Detection)
-                           ├──► Map Matching
-                           │
-                           ▼
-                    Fused Navigation State
-                           │
-                           ▼
-                    WebSocket Broadcast
-                           │
-                           ▼
-                    React UI / Mapbox
+Raw Smartphone IMU [50, 6]
+         ↓
+15-Channel Physics Preprocessing
+         ↓
+E5 Velocity Model (CNN-GRU) ────→ Predicted Speed [m/s]
+         ↓ Latent Features [1, 128]
+U2 Decoupled Head (MLP-Softplus) ──→ Predicted Error [m/s]
+         ↓
+Decile Scalar Calibration (k=1.91225, floor=0.05) ──→ 1-Sigma Uncertainty & Variance
+         ↓
+InEKF Navigation Filter & Outage Manager
 ```
 
 ---
 
-## 7. Runtime Dependencies & Environment
+## 4. Diagnostics, Model Selection & Benchmarking
 
-- **PyTorch**: Required for CPU inference (`torch >= 2.0.0`).
-- **No GPU Required**: Forward pass takes $< 3\,\text{ms}$ on CPU.
-- **Dependencies Removed/Excluded**: No need for `torchvision`, `torchaudio`, `matplotlib`, `pyarrow` at runtime.
-- **Model Pathing**: Dynamic resolution relative to backend application root via `settings.py` / `ML_MODEL_DIR`.
+- **Dynamic Model Selection**: `POST /api/v1/ml/select` allows activating any model (E0–E7, U0–U2) without restarting the server or breaking live navigation sessions.
+- **Comparative Benchmarking**: `POST /api/v1/ml/benchmark` runs all models simultaneously on the same 5-second sensor window and returns side-by-side latency, predicted speed, and error estimates.
+- **WebSocket Telemetry**: Fused navigation packets stream `ai_selected_model`, `ai_model_status`, `ai_velocity`, `ai_uncertainty_sigma`, `ai_variance`, and `ai_inference_latency_ms` to the frontend at real-time cadence.

@@ -112,6 +112,8 @@ class NavigationState:
 
     # AI/ML Model Telemetry
     ai_model_ready: bool = False
+    ai_selected_model: str = "E5"
+    ai_model_status: str = "PRODUCTION / VALIDATED"
     ai_velocity: Optional[float] = None
     ai_uncertainty_sigma: Optional[float] = None
     ai_variance: Optional[float] = None
@@ -155,6 +157,8 @@ class NavigationState:
             "gnss_outage_duration": self.gnss_outage_duration,
             "last_gnss_time": self.last_gnss_time,
             "ai_model_ready": self.ai_model_ready,
+            "ai_selected_model": self.ai_selected_model,
+            "ai_model_status": self.ai_model_status,
             "ai_velocity": self.ai_velocity,
             "ai_uncertainty_sigma": self.ai_uncertainty_sigma,
             "ai_variance": self.ai_variance,
