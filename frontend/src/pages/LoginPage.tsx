@@ -47,8 +47,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-50 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-md rounded-3xl p-8 shadow-xl border border-brand-100 space-y-6">
+    <div className="min-h-screen bg-brand-50 flex items-center justify-center p-4 safe-bottom">
+      <div className="bg-white w-full max-w-md rounded-2xl md:rounded-3xl p-6 md:p-8 shadow-xl border border-brand-100 space-y-5 md:space-y-6">
         <div className="text-center space-y-2">
           <div className="w-12 h-12 bg-brand-50 rounded-2xl flex items-center justify-center mx-auto text-brand-600">
             <Navigation className="w-7 h-7 fill-brand-600" />

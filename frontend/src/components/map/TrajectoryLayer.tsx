@@ -73,6 +73,14 @@ export const TrajectoryLayer: React.FC<TrajectoryLayerProps> = ({
     updateLineSource('dr-track', drTrack, '#f59e0b', [2, 1]);    // Amber dashed for DR track
     updateLineSource('fused-track', fusedTrack, '#0284c7');      // Brand Blue for fused track
 
+    return () => {
+      ['gnss-raw', 'dr-track', 'fused-track'].forEach(id => {
+        const layerId = `layer-${id}`;
+        const sourceId = `source-${id}`;
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
+      });
+    };
   }, [map, gnssTrack, drTrack, fusedTrack]);
 
   return null;

@@ -9,6 +9,8 @@ import {
   VehicleMarker,
   TrajectoryLayer,
   MapControls,
+  DestinationSearch,
+  RouteLayer,
 } from '../components/map';
 import { GlobalStatusBadge } from '../components/common/GlobalStatusBadge';
 import {
@@ -20,6 +22,7 @@ import {
   CheckCircle2,
   X,
   Activity,
+  Search,
 } from 'lucide-react';
 import type { Map as MapboxMap } from 'mapbox-gl';
 
@@ -47,6 +50,7 @@ export default function LiveMap() {
     journeySummary,
     state,
     setJourneySummary,
+    routeCoordinates,
   } = useNavigationStore();
 
   // Ensure location tracking is active
@@ -120,31 +124,31 @@ export default function LiveMap() {
   }
 
   return (
-    <div className="h-[calc(100vh-6rem)] w-full relative flex flex-col rounded-3xl overflow-hidden shadow-sm border border-brand-50 bg-white">
-      {/* Journey Completed Notification Modal / Toast */}
+    <div className="h-[calc(100vh-3.5rem)] md:h-[calc(100vh-6rem)] w-full relative flex flex-col rounded-none md:rounded-3xl overflow-hidden shadow-sm md:border md:border-brand-50 bg-white">
+      {/* Journey Completed Toast */}
       {journeySummary && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in">
-          <CheckCircle2 className="w-5 h-5" />
-          <div className="text-xs">
+        <div className="absolute top-4 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:left-auto md:right-auto z-50 bg-emerald-600 text-white px-4 md:px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in">
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
+          <div className="text-xs flex-1">
             <span className="font-bold">Journey Completed</span> •{' '}
             {journeySummary.distance_m
-              ? `Distance: ${(journeySummary.distance_m / 1000).toFixed(2)} km`
-              : 'Zero displacement recorded'}{' '}
+              ? `${(journeySummary.distance_m / 1000).toFixed(2)} km`
+              : 'Zero displacement'}{' '}
             •{' '}
             {journeySummary.duration_s
-              ? `Duration: ${Math.round(journeySummary.duration_s)}s`
-              : 'Duration: <1s'}
+              ? `${Math.round(journeySummary.duration_s)}s`
+              : '<1s'}
           </div>
           <button
             onClick={() => setJourneySummary(null)}
-            className="ml-2 hover:bg-white/20 p-1 rounded-lg transition-colors"
+            className="hover:bg-white/20 p-1 rounded-lg transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* MAP CANVAS (MAP-FIRST: 80%+ Viewport) */}
+      {/* MAP CANVAS */}
       <div className="flex-1 w-full h-full relative">
         <MapContainer
           onMapLoaded={(map) => {
@@ -152,7 +156,6 @@ export default function LiveMap() {
           }}
           className="w-full h-full"
         >
-          {/* Follow camera only when actively live navigating */}
           <MapController
             latitude={displayLat ?? 0}
             longitude={displayLon ?? 0}
@@ -169,51 +172,64 @@ export default function LiveMap() {
             />
           )}
 
+          {routeCoordinates && <RouteLayer geometry={routeCoordinates} />}
+
           {isLive && trajectory.length > 0 && (
             <TrajectoryLayer fusedTrack={trajectory} />
           )}
 
-          <MapControls onRecenter={handleRecenter} />
+          <MapControls onRecenter={handleRecenter} className="absolute top-24 right-4 z-10 flex flex-col items-end" />
         </MapContainer>
 
-        {/* Empty / Acquiring Location Overlay */}
+        {/* Acquiring Location Overlay */}
         {!hasCoordinates && (
-          <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center pointer-events-none p-6 text-center">
-            <div className="bg-white/95 p-6 rounded-3xl border border-brand-100 shadow-xl space-y-2 max-w-sm">
-              <Activity className="w-8 h-8 text-brand-600 animate-pulse mx-auto" />
-              <h4 className="font-bold text-sm text-brand-navy">{locationStatusText}</h4>
-              <p className="text-xs text-gray-500">
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center pointer-events-none p-4 md:p-6 text-center">
+            <div className="bg-white/95 p-5 md:p-6 rounded-2xl md:rounded-3xl border border-brand-100 shadow-xl space-y-2 max-w-sm">
+              <Activity className="w-7 h-7 md:w-8 md:h-8 text-brand-600 animate-pulse mx-auto" />
+              <h4 className="font-bold text-xs md:text-sm text-brand-navy">{locationStatusText}</h4>
+              <p className="text-[10px] md:text-xs text-gray-500">
                 {locPermission === 'denied'
-                  ? 'Please allow browser location permissions in your site settings to enable live positioning.'
-                  : 'Connecting to real browser geolocation sensors...'}
+                  ? 'Allow location permissions to enable live positioning.'
+                  : 'Connecting to geolocation sensors...'}
               </p>
             </div>
           </div>
         )}
 
-        {/* TOP NAVIGATION INSTRUCTION OVERLAY */}
-        <div className="absolute top-4 left-4 right-4 md:left-6 md:right-auto z-10 md:w-96">
-          <div className="bg-white/95 backdrop-blur-md p-4 rounded-3xl border border-brand-100 shadow-xl flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-brand-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-brand-500/30">
-              <ArrowUpRight className="w-6 h-6" />
+        {/* TOP OVERLAYS */}
+        <div className="absolute top-4 left-4 right-4 md:left-6 md:right-auto z-10 md:w-96 space-y-2">
+          {!isLive ? (
+            <DestinationSearch />
+          ) : (
+            <div className="bg-white/95 backdrop-blur-md p-3 md:p-4 rounded-2xl md:rounded-3xl border border-brand-100 shadow-xl flex items-center gap-3 md:gap-4">
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-brand-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-brand-500/30">
+                <ArrowUpRight className="w-5 h-5 md:w-6 md:h-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-brand-600">
+                  Active Navigation
+                </span>
+                <h3 className="font-bold text-brand-navy text-xs md:text-sm truncate">
+                  Following InEKF Fused Trajectory
+                </h3>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600">
-                {isLive ? 'Active Navigation' : 'Standby Mode'}
-              </span>
-              <h3 className="font-bold text-brand-navy text-sm truncate">
-                {isLive ? 'Following InEKF Fused Trajectory' : 'Ready to Start Session'}
-              </h3>
-              <p className="text-xs text-gray-500 truncate">
-                {isLive
-                  ? 'Keep moving along nominal path'
-                  : 'Click Start Live to stream real 6-DoF telemetry'}
-              </p>
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* RIGHT TELEMETRY OVERLAY CARD */}
+        {/* MOBILE SPEED INDICATOR (Bottom-left circle) */}
+        {isLive && (
+          <div className="absolute bottom-28 left-4 z-10 md:hidden">
+            <div className="w-16 h-16 bg-white/95 backdrop-blur-md rounded-full shadow-xl border border-brand-100 flex flex-col items-center justify-center">
+              <span className="text-xl font-bold text-brand-navy leading-none">
+                {(state.speed * 3.6).toFixed(0)}
+              </span>
+              <span className="text-[8px] text-gray-500 font-medium">km/h</span>
+            </div>
+          </div>
+        )}
+
+        {/* DESKTOP TELEMETRY OVERLAY CARD */}
         <div className="absolute top-4 right-4 z-10 hidden md:block w-72">
           <div className="bg-white/95 backdrop-blur-md p-5 rounded-3xl border border-brand-100 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
@@ -269,41 +285,53 @@ export default function LiveMap() {
 
         {/* BOTTOM TRIP CONTROL BAR */}
         <div className="absolute bottom-4 left-4 right-4 md:left-24 md:right-24 z-10">
-          <div className="bg-white/95 backdrop-blur-md p-4 rounded-3xl border border-brand-100 shadow-2xl flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-brand-50 flex items-center justify-center text-brand-600">
-                <MapPin className="w-5 h-5" />
+          <div className="bg-white/95 backdrop-blur-md p-3 md:p-4 rounded-2xl md:rounded-3xl border border-brand-100 shadow-2xl flex items-center justify-between gap-3 md:gap-4">
+            <div className="flex items-center gap-2 md:gap-3 min-w-0">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-brand-50 flex items-center justify-center text-brand-600 shrink-0">
+                <MapPin className="w-4 h-4 md:w-5 md:h-5" />
               </div>
-              <div>
-                <div className="text-xs font-bold text-brand-navy">{locationStatusText}</div>
-                <div className="text-[11px] font-mono text-gray-500">
+              <div className="min-w-0">
+                <div className="text-[10px] md:text-xs font-bold text-brand-navy truncate">{locationStatusText}</div>
+                <div className="text-[9px] md:text-[11px] font-mono text-gray-500 truncate">
                   {hasCoordinates
                     ? `${displayLat.toFixed(5)}, ${displayLon.toFixed(5)}`
-                    : 'Coordinates acquiring...'}
+                    : 'Acquiring...'}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3 shrink-0">
+              {/* Mobile: show distance & ETA when live */}
+              {isLive && (
+                <div className="md:hidden text-right mr-1">
+                  <div className="text-xs font-bold text-brand-navy">{(state.speed * 3.6).toFixed(0)} km/h</div>
+                  <div className="text-[9px] text-gray-500">± {state.horizontal_accuracy.toFixed(0)}m</div>
+                </div>
+              )}
+
               {isLive ? (
                 <button
                   onClick={handleEndSession}
                   disabled={isEnding}
-                  className="bg-status-danger hover:bg-red-600 disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-2xl text-xs flex items-center gap-2 transition-all shadow-md"
+                  className="bg-status-danger hover:bg-red-600 disabled:opacity-50 text-white font-semibold px-4 md:px-6 py-2 md:py-2.5 rounded-xl md:rounded-2xl text-[10px] md:text-xs flex items-center gap-1.5 md:gap-2 transition-all shadow-md press-scale"
                 >
-                  <Square className="w-4 h-4 fill-white" />
-                  {isEnding ? 'Ending Journey...' : 'End Live Navigation Session'}
+                  <Square className="w-3.5 h-3.5 md:w-4 md:h-4 fill-white" />
+                  <span className="hidden sm:inline">{isEnding ? 'Ending...' : 'End Live'}</span>
+                  <span className="sm:hidden">{isEnding ? '...' : 'End'}</span>
                 </button>
               ) : (
                 <button
                   onClick={handleStartSession}
                   disabled={sessionStatus === 'STARTING'}
-                  className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-2xl text-xs flex items-center gap-2 transition-all shadow-lg shadow-brand-500/20"
+                  className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold px-4 md:px-6 py-2 md:py-2.5 rounded-xl md:rounded-2xl text-[10px] md:text-xs flex items-center gap-1.5 md:gap-2 transition-all shadow-lg shadow-brand-500/20 press-scale"
                 >
-                  <Play className="w-4 h-4 fill-white" />
-                  {sessionStatus === 'STARTING'
-                    ? 'Starting Live Session...'
-                    : 'Start Live Navigation Session'}
+                  <Play className="w-3.5 h-3.5 md:w-4 md:h-4 fill-white" />
+                  <span className="hidden sm:inline">
+                    {sessionStatus === 'STARTING' ? 'Starting...' : 'Start Live'}
+                  </span>
+                  <span className="sm:hidden">
+                    {sessionStatus === 'STARTING' ? '...' : 'Start'}
+                  </span>
                 </button>
               )}
             </div>

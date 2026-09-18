@@ -137,6 +137,9 @@ interface NavigationStore {
 
   // Detailed telemetry for diagnostics & backward compatibility
   state: NavigationState;
+  // Destination and Routing
+  destination: { name: string; coordinates: [number, number] } | null;
+  routeCoordinates: [number, number][] | null;
 
   // Lifecycle & State Actions
   setSessionStatus: (status: NavigationSessionStatus) => void;
@@ -146,6 +149,9 @@ interface NavigationStore {
   setErrorMessage: (msg: string | null) => void;
   setSessionId: (id: string | null) => void;
   
+  setDestination: (dest: { name: string; coordinates: [number, number] } | null) => void;
+  setRouteCoordinates: (coords: [number, number][] | null) => void;
+
   updateState: (newState: Partial<NavigationState>) => void;
   clearActiveSession: () => void;
   resetState: () => void;
@@ -165,6 +171,9 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
   journeySummary: null,
   errorMessage: null,
   state: { ...defaultNavigationState },
+  
+  destination: null,
+  routeCoordinates: null,
 
   setSessionStatus: (sessionStatus) => set((store) => ({
     sessionStatus,
@@ -188,6 +197,9 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
     isLive: activeSessionId !== null,
     isEnding: false,
   })),
+
+  setDestination: (dest) => set({ destination: dest }),
+  setRouteCoordinates: (coords) => set({ routeCoordinates: coords }),
 
   updateState: (newState) => set((store) => {
     const updated = { ...store.state, ...newState };

@@ -1,4 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import SplashScreen from './pages/SplashScreen';
+import OnboardingPage from './pages/OnboardingPage';
 import LandingPage from './pages/LandingPage';
 import AppLayout from './components/layout/AppLayout';
 import Dashboard from './pages/Dashboard';
@@ -9,12 +11,16 @@ import History from './pages/History';
 import LearningInsights from './pages/LearningInsights';
 import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
+import ProfilePage from './pages/ProfilePage';
+import NavigationMemoryPage from './pages/NavigationMemoryPage';
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<SplashScreen />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/landing" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         
         <Route path="/app" element={<AppLayout />}>
@@ -25,6 +31,8 @@ function App() {
           <Route path="learning" element={<LearningInsights />} />
           <Route path="diagnostics" element={<SensorDiagnostics />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="profile" element={<ProfilePage />} />
+          <Route path="memory" element={<NavigationMemoryPage />} />
         </Route>
       </Routes>
     </Router>
@@ -32,4 +40,3 @@ function App() {
 }
 
 export default App;
-

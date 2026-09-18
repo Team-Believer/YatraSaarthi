@@ -1,4 +1,4 @@
-import { Settings as SettingsIcon, Car, Truck, Bike, Shield, Gauge } from 'lucide-react';
+import { Settings as SettingsIcon, Car, Truck, Bike, Shield, Gauge, ChevronRight, Map, Radio, Layers, Bell, Lock, Info } from 'lucide-react';
 import { useSettingsStore, type UserSettings } from '../stores/useSettingsStore';
 
 export default function SettingsPage() {
@@ -9,18 +9,68 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 bg-brand-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-500/20">
-          <SettingsIcon className="w-6 h-6" />
+    <div className="max-w-4xl mx-auto space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 md:pb-8">
+      {/* Header */}
+      <div className="flex items-center gap-3 md:gap-4">
+        <div className="w-10 h-10 md:w-12 md:h-12 bg-brand-600 rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-500/20">
+          <SettingsIcon className="w-5 h-5 md:w-6 md:h-6" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-brand-navy">System Settings</h1>
-          <p className="text-gray-500 text-sm">Configure sensor fusion parameters, vehicle dynamics models, and telemetry preferences.</p>
+          <h1 className="text-xl md:text-2xl font-bold text-brand-navy">Settings</h1>
+          <p className="text-gray-500 text-[10px] md:text-sm">Configure navigation & app preferences</p>
         </div>
       </div>
 
-      <div className="space-y-6">
+      {/* Mobile: Navigation settings group */}
+      <div className="md:hidden space-y-4">
+        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider px-1">Navigation</h3>
+        <div className="bg-white rounded-2xl border border-brand-50 shadow-sm overflow-hidden divide-y divide-gray-100">
+          {[
+            { label: 'Map Preferences', icon: Map, subtitle: 'Style, layers, labels' },
+            { label: 'GNSS / NavIC Settings', icon: Radio, subtitle: 'Satellite constellation' },
+            { label: 'Sensor Fusion', icon: Layers, subtitle: 'IMU, magnetometer config' },
+            { label: 'Route Preferences', icon: ChevronRight, subtitle: 'Avoid tolls, highways' },
+            { label: 'Units & Display', icon: Gauge, subtitle: `${settings.distance_unit} / ${settings.speed_unit}` },
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <div key={item.label} className="flex items-center gap-4 px-4 py-3.5">
+                <div className="w-9 h-9 bg-brand-50 rounded-xl flex items-center justify-center text-brand-600 shrink-0">
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-brand-navy">{item.label}</div>
+                  <div className="text-[10px] text-gray-500">{item.subtitle}</div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </div>
+            );
+          })}
+        </div>
+
+        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider px-1 pt-2">App</h3>
+        <div className="bg-white rounded-2xl border border-brand-50 shadow-sm overflow-hidden divide-y divide-gray-100">
+          {[
+            { label: 'Notifications', icon: Bell },
+            { label: 'Data & Privacy', icon: Lock },
+            { label: 'About YatraSaarthi', icon: Info },
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <div key={item.label} className="flex items-center gap-4 px-4 py-3.5">
+                <div className="w-9 h-9 bg-brand-50 rounded-xl flex items-center justify-center text-brand-600 shrink-0">
+                  <Icon className="w-4 h-4" />
+                </div>
+                <span className="flex-1 text-sm font-semibold text-brand-navy">{item.label}</span>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Desktop: Full settings panels */}
+      <div className="hidden md:block space-y-6">
         {/* Vehicle Selection */}
         <div className="bg-white rounded-3xl p-6 border border-brand-50 shadow-sm space-y-4">
           <h3 className="font-bold text-brand-navy text-lg flex items-center gap-2">

@@ -16,7 +16,7 @@ export default function Sidebar() {
   const location = useLocation();
 
   return (
-    <div className="w-64 bg-white border-r border-brand-100 flex flex-col">
+    <div className="w-64 bg-white border-r border-brand-100 flex flex-col h-full">
       <div className="h-16 flex items-center px-6 border-b border-brand-100">
         <Link to="/app" className="flex items-center gap-2 text-brand-600">
           <Navigation className="w-8 h-8 fill-brand-600" />

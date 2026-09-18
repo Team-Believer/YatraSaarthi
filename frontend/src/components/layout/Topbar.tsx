@@ -27,7 +27,7 @@ export default function Topbar() {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-brand-100 flex items-center justify-between px-6 shrink-0">
+    <header className="h-16 bg-white border-b border-brand-100 flex items-center justify-between px-6 shrink-0 w-full">
       <div className="flex items-center gap-4">
         <h2 className="text-lg font-bold text-brand-navy">{getPageTitle(location.pathname)}</h2>
         <GlobalStatusBadge />

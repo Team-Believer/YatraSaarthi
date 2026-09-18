@@ -65,6 +65,13 @@ export const RouteLayer: React.FC<RouteLayerProps> = ({ geometry = [] }) => {
         },
       });
     }
+
+    // Cleanup function on unmount
+    return () => {
+      if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
+      if (map.getLayer(casingLayerId)) map.removeLayer(casingLayerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+    };
   }, [map, geometry]);
 
   return null;
