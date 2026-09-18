@@ -22,7 +22,6 @@ import {
   CheckCircle2,
   X,
   Activity,
-  Search,
 } from 'lucide-react';
 import type { Map as MapboxMap } from 'mapbox-gl';
 

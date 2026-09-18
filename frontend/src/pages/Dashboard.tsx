@@ -27,7 +27,6 @@ import {
   MapPin,
   CheckCircle2,
   X,
-  Search,
 } from 'lucide-react';
 import type { Map as MapboxMap } from 'mapbox-gl';
 

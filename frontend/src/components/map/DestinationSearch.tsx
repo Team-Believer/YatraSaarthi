@@ -17,7 +17,7 @@ export const DestinationSearch = () => {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const searchTimeout = useRef<NodeJS.Timeout>();
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { latitude: currentLat, longitude: currentLon } = useLocationStore();
   const { destination, setDestination, setRouteCoordinates } = useNavigationStore();
@@ -58,7 +58,9 @@ export const DestinationSearch = () => {
       }
     }, 400);
 
-    return () => clearTimeout(searchTimeout.current);
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
   }, [query, currentLat, currentLon]);
 
   const fetchRoute = async (destCoords: [number, number]) => {
