@@ -10,9 +10,7 @@ import {
   ShieldCheck,
   Activity,
   Gauge,
-  Clock,
   Navigation,
-  Sliders,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -38,7 +36,7 @@ export const NavStatusDrawer: React.FC<NavStatusDrawerProps> = ({ isOpen, onClos
     return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  // State flags
+  // State flags (Preserved from Phase 6A)
   const isStarting = sessionStatus === 'STARTING';
   const isEnding = sessionStatus === 'ENDING';
   const isLiveNav = isLive || sessionStatus === 'LIVE';
@@ -54,102 +52,102 @@ export const NavStatusDrawer: React.FC<NavStatusDrawerProps> = ({ isOpen, onClos
   const isDrActive = isLiveNav && (navMode.includes('DEAD_RECKONING') || navMode.includes('LOST') || !gnssAvailable || state.environment_state === 'TUNNEL');
   const isDegraded = isLiveNav && !isDrActive && !isRecovering && (navMode.includes('DEGRADING') || gnssQuality === 'POOR' || gnssQuality === 'FAIR');
 
-  // Primary State Banner Derivation
+  // Primary State Banner Derivation (Clean Factual Wording)
   let statusTitle = 'SYSTEM READY';
   let statusBadge = 'IDLE';
-  let statusBadgeClass = 'bg-slate-700 text-white';
-  let statusBgClass = 'bg-slate-50 border-slate-200 text-slate-900';
+  let statusBadgeClass = 'bg-slate-200 text-slate-800';
+  let statusBgClass = 'bg-slate-50 border-slate-200/90 text-slate-900';
   let statusIcon = <ShieldCheck className="w-5 h-5 text-brand-600" />;
-  let statusDesc = 'Ready to start navigation. Hardware sensors calibrated and navigation engine on standby.';
+  let statusDesc = 'Ready to start navigation';
 
   if (locPermission === 'denied') {
     statusTitle = 'LOCATION PERMISSION REQUIRED';
     statusBadge = 'PERMISSION';
-    statusBadgeClass = 'bg-rose-500 text-white';
-    statusBgClass = 'bg-rose-50 border-rose-200 text-rose-950';
+    statusBadgeClass = 'bg-rose-100 text-rose-800 border border-rose-200';
+    statusBgClass = 'bg-rose-50/90 border-rose-200 text-rose-950';
     statusIcon = <AlertTriangle className="w-5 h-5 text-rose-600" />;
-    statusDesc = 'Browser location permission is disabled. Please allow location access in your browser settings to proceed.';
+    statusDesc = 'Browser location permission required';
   } else if (isStarting || (isLiveNav && !hasTelemetry)) {
     statusTitle = 'NAVIGATION INITIALIZING';
     statusBadge = 'STARTING';
-    statusBadgeClass = 'bg-blue-500 text-white animate-pulse';
-    statusBgClass = 'bg-blue-50 border-blue-200 text-blue-950';
+    statusBadgeClass = 'bg-blue-100 text-blue-800 border border-blue-200 animate-pulse';
+    statusBgClass = 'bg-blue-50/80 border-blue-200 text-blue-950';
     statusIcon = <Activity className="w-5 h-5 text-blue-600" />;
-    statusDesc = 'Connecting to real-time navigation server and establishing sensor fusion...';
+    statusDesc = 'Connecting to navigation telemetry';
   } else if (isRecovering) {
     statusTitle = 'GNSS RECOVERING';
     statusBadge = 'RECOVERING';
-    statusBadgeClass = 'bg-sky-500 text-white animate-pulse';
-    statusBgClass = 'bg-sky-50 border-sky-200 text-sky-950';
+    statusBadgeClass = 'bg-sky-100 text-sky-800 border border-sky-200 animate-pulse';
+    statusBgClass = 'bg-sky-50/80 border-sky-200 text-sky-950';
     statusIcon = <RotateCw className="w-5 h-5 text-sky-600 animate-spin" />;
-    statusDesc = 'GNSS satellite signals reacquired. Validating positional consistency before restoring full GNSS navigation.';
+    statusDesc = 'Validating GNSS recovery';
   } else if (isDrActive) {
     statusTitle = 'DEAD RECKONING ACTIVE';
     statusBadge = 'DEAD RECKONING';
-    statusBadgeClass = 'bg-amber-500 text-white animate-pulse';
-    statusBgClass = 'bg-amber-50 border-amber-200 text-amber-950';
+    statusBadgeClass = 'bg-amber-100 text-amber-900 border border-amber-300 font-mono';
+    statusBgClass = 'bg-amber-50/90 border-amber-200 text-amber-950';
     statusIcon = <Compass className="w-5 h-5 text-amber-600" />;
-    statusDesc = 'GNSS satellite signal is currently unavailable. Continuing uninterrupted navigation using high-rate IMU dead reckoning and kinematic motion constraints.';
+    statusDesc = 'Continuing navigation without GNSS';
   } else if (isDegraded) {
     statusTitle = 'GNSS DEGRADED';
     statusBadge = 'DEGRADED';
-    statusBadgeClass = 'bg-amber-500 text-white';
-    statusBgClass = 'bg-amber-50 border-amber-200 text-amber-950';
+    statusBadgeClass = 'bg-amber-100 text-amber-800 border border-amber-200';
+    statusBgClass = 'bg-amber-50/80 border-amber-200 text-amber-950';
     statusIcon = <AlertTriangle className="w-5 h-5 text-amber-600" />;
-    statusDesc = 'GNSS satellite signal quality is degraded. Inertial sensors are actively aiding positioning to maintain accuracy.';
+    statusDesc = 'GNSS signal degraded · Inertial aiding active';
   } else if (isLiveNav && hasTelemetry) {
     statusTitle = 'GNSS-AIDED NAVIGATION';
     statusBadge = 'LIVE';
-    statusBadgeClass = 'bg-emerald-500 text-white';
-    statusBgClass = 'bg-emerald-50 border-emerald-200 text-emerald-950';
+    statusBadgeClass = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+    statusBgClass = 'bg-emerald-50/80 border-emerald-200 text-emerald-950';
     statusIcon = <Satellite className="w-5 h-5 text-emerald-600" />;
-    statusDesc = 'High-precision multi-constellation GNSS positioning fused with continuous InEKF dead reckoning.';
+    statusDesc = 'Navigation is receiving live GNSS data';
   }
 
   // Confidence & Accuracy Formatting
   let confidenceDisplay = 'Standby';
-  let confidenceSubtext = 'Available when navigation starts';
-  let confidenceClass = 'text-slate-600 font-semibold';
+  let confidenceSubtext = 'Available during navigation';
+  let confidenceClass = 'text-slate-500 font-semibold text-xl';
 
   if (isStandby) {
     confidenceDisplay = 'Standby';
-    confidenceSubtext = 'Available when navigation starts';
-    confidenceClass = 'text-slate-500 font-semibold text-lg sm:text-xl';
+    confidenceSubtext = 'Available during navigation';
+    confidenceClass = 'text-slate-500 font-semibold text-xl';
   } else if (isStarting || !hasTelemetry) {
     confidenceDisplay = 'Estimating...';
-    confidenceSubtext = 'Waiting for navigation telemetry';
-    confidenceClass = 'text-blue-600 font-semibold text-lg sm:text-xl';
+    confidenceSubtext = 'Waiting for telemetry';
+    confidenceClass = 'text-blue-600 font-semibold text-xl';
   } else if (hasTelemetry && typeof state.position_confidence === 'number' && state.position_confidence > 0) {
     const pct = Math.round(state.position_confidence * 100);
     confidenceDisplay = `${pct}%`;
-    confidenceClass = 'text-slate-900 font-bold font-mono text-xl sm:text-2xl';
+    confidenceClass = 'text-slate-900 font-bold font-mono text-2xl';
     confidenceSubtext = pct >= 80 ? 'High position fidelity' : pct >= 50 ? 'Moderate estimation' : 'Inertial estimation';
   } else {
     confidenceDisplay = 'Estimating...';
     confidenceSubtext = 'Inertial position filter active';
-    confidenceClass = 'text-slate-700 font-semibold text-lg sm:text-xl';
+    confidenceClass = 'text-slate-700 font-semibold text-xl';
   }
 
   let accuracyDisplay = 'Standby';
   let accuracySubtext = 'Available during navigation';
-  let accuracyClass = 'text-slate-600 font-semibold';
+  let accuracyClass = 'text-slate-500 font-semibold text-xl';
 
   if (isStandby) {
     accuracyDisplay = 'Standby';
     accuracySubtext = 'Available during navigation';
-    accuracyClass = 'text-slate-500 font-semibold text-lg sm:text-xl';
+    accuracyClass = 'text-slate-500 font-semibold text-xl';
   } else if (isStarting || !hasTelemetry) {
     accuracyDisplay = 'Estimating...';
     accuracySubtext = 'Validating error bounds';
-    accuracyClass = 'text-blue-600 font-semibold text-lg sm:text-xl';
+    accuracyClass = 'text-blue-600 font-semibold text-xl';
   } else if (hasTelemetry && typeof state.horizontal_accuracy === 'number' && state.horizontal_accuracy > 0) {
     accuracyDisplay = `±${state.horizontal_accuracy.toFixed(1)} m`;
-    accuracyClass = 'text-slate-900 font-bold font-mono text-xl sm:text-2xl';
+    accuracyClass = 'text-slate-900 font-bold font-mono text-2xl';
     accuracySubtext = 'Horizontal error bounds';
   } else {
     accuracyDisplay = 'Validating...';
     accuracySubtext = 'Estimating position bounds';
-    accuracyClass = 'text-slate-700 font-semibold text-lg sm:text-xl';
+    accuracyClass = 'text-slate-700 font-semibold text-xl';
   }
 
   // Environment Display Helper
@@ -180,10 +178,10 @@ export const NavStatusDrawer: React.FC<NavStatusDrawerProps> = ({ isOpen, onClos
   const getGnssSignalDisplay = () => {
     if (isStandby) return { text: 'Standby', className: 'text-slate-500' };
     if (!hasTelemetry) return { text: 'Waiting...', className: 'text-blue-600' };
-    if (isRecovering) return { text: 'Recovering', className: 'text-sky-600 font-bold' };
-    if (isDrActive) return { text: 'Unavailable', className: 'text-amber-600 font-bold' };
-    if (isDegraded) return { text: 'Degraded', className: 'text-amber-600 font-bold' };
-    if (gnssAvailable) return { text: 'Available', className: 'text-emerald-600 font-bold' };
+    if (isRecovering) return { text: 'Recovering', className: 'text-sky-600 font-semibold' };
+    if (isDrActive) return { text: 'Unavailable', className: 'text-amber-600 font-semibold' };
+    if (isDegraded) return { text: 'Degraded', className: 'text-amber-600 font-semibold' };
+    if (gnssAvailable) return { text: 'Available', className: 'text-emerald-600 font-semibold' };
     return { text: 'Standby', className: 'text-slate-500' };
   };
 
@@ -191,15 +189,15 @@ export const NavStatusDrawer: React.FC<NavStatusDrawerProps> = ({ isOpen, onClos
   const getGnssQualityDisplay = () => {
     if (isStandby) return { text: 'Standby', className: 'text-slate-500' };
     if (!hasTelemetry) return { text: 'Detecting...', className: 'text-blue-600' };
-    if (isDrActive) return { text: 'Lost', className: 'text-amber-600 font-bold' };
+    if (isDrActive) return { text: 'Lost', className: 'text-amber-600 font-semibold' };
     if (gnssQuality && gnssQuality !== 'UNKNOWN') {
       if (gnssQuality === 'EXCELLENT' || gnssQuality === 'GOOD') {
-        return { text: gnssQuality, className: 'text-emerald-600 font-bold' };
+        return { text: gnssQuality, className: 'text-emerald-600 font-semibold' };
       }
       if (gnssQuality === 'FAIR' || gnssQuality === 'POOR') {
-        return { text: gnssQuality, className: 'text-amber-600 font-bold' };
+        return { text: gnssQuality, className: 'text-amber-600 font-semibold' };
       }
-      return { text: gnssQuality, className: 'text-slate-800 font-bold' };
+      return { text: gnssQuality, className: 'text-slate-800 font-semibold' };
     }
     return { text: 'Standby', className: 'text-slate-500' };
   };
@@ -208,14 +206,14 @@ export const NavStatusDrawer: React.FC<NavStatusDrawerProps> = ({ isOpen, onClos
   const getNhcDisplay = () => {
     if (isStandby || !hasTelemetry) return { text: 'Standby', className: 'text-slate-500' };
     return state.nhc_active
-      ? { text: 'Active', className: 'text-emerald-600 font-bold' }
+      ? { text: 'Active', className: 'text-emerald-600 font-semibold' }
       : { text: 'Inactive', className: 'text-slate-400' };
   };
 
   const getZuptDisplay = () => {
     if (isStandby || !hasTelemetry) return { text: 'Standby', className: 'text-slate-500' };
     return state.zupt_active
-      ? { text: 'Engaged', className: 'text-emerald-600 font-bold' }
+      ? { text: 'Engaged', className: 'text-emerald-600 font-semibold' }
       : { text: 'Inactive', className: 'text-slate-400' };
   };
 
@@ -224,10 +222,10 @@ export const NavStatusDrawer: React.FC<NavStatusDrawerProps> = ({ isOpen, onClos
     if (isStandby) return { text: 'Standby', className: 'text-slate-500' };
     if (!hasTelemetry) return { text: 'Aligning...', className: 'text-blue-600' };
     const status = state.alignment_status;
-    if (status === 'ALIGNED') return { text: 'Aligned', className: 'text-emerald-600 font-bold' };
+    if (status === 'ALIGNED') return { text: 'Aligned', className: 'text-emerald-600 font-semibold' };
     if (status === 'ALIGNING') return { text: 'Aligning...', className: 'text-blue-600' };
-    if (status === 'UNALIGNED') return { text: 'Unaligned', className: 'text-amber-600 font-bold' };
-    return { text: status ? status.replace(/_/g, ' ') : 'Aligned', className: 'text-slate-800' };
+    if (status === 'UNALIGNED') return { text: 'Unaligned', className: 'text-amber-600 font-semibold' };
+    return { text: status ? status.replace(/_/g, ' ') : 'Aligned', className: 'text-slate-800 font-semibold' };
   };
 
   const gnssSignal = getGnssSignalDisplay();
@@ -237,173 +235,126 @@ export const NavStatusDrawer: React.FC<NavStatusDrawerProps> = ({ isOpen, onClos
   const env = getEnvironmentDisplay();
   const alignment = getAlignmentDisplay();
 
+  const telemetryRows = [
+    { label: 'GNSS Signal', ...gnssSignal },
+    { label: 'GNSS Quality', ...gnssQual },
+    { label: 'Motion Constraint (NHC)', ...nhc },
+    { label: 'Stationary Hold (ZUPT)', ...zupt },
+    { label: 'Environment', ...env },
+    { label: 'Filter Alignment', ...alignment },
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-150">
       {/* Backdrop touch dismiss */}
       <div className="absolute inset-0" onClick={onClose} />
 
-      {/* Main Drawer/Sheet Card */}
+      {/* Main Surface */}
       <div
         className={clsx(
-          'relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200/90 z-10 transition-transform animate-in slide-in-from-bottom-6 duration-300 p-4.5 sm:p-5 select-none flex flex-col gap-4'
+          'relative w-full max-w-lg max-h-[85vh] overflow-y-auto bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200/90 z-10 transition-transform animate-in slide-in-from-bottom-4 duration-200 p-5 sm:p-6 select-none flex flex-col gap-4.5'
         )}
       >
-        {/* Header */}
+        {/* 1. Compact Header */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-brand-50 text-brand-600 border border-brand-100">
-              <Navigation className="w-5 h-5" />
+            <div className="w-8.5 h-8.5 rounded-xl bg-brand-50 text-brand-600 border border-brand-100 flex items-center justify-center shrink-0">
+              <Navigation className="w-4.5 h-4.5" />
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
                 Navigation Status
               </h2>
-              <p className="text-xs text-slate-500">
-                Real-time InEKF navigation & GNSS telemetry
+              <p className="text-[11px] text-slate-500 leading-none mt-0.5">
+                Real-time navigation telemetry
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             aria-label="Close navigation status"
-            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors press-scale cursor-pointer"
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-colors flex items-center justify-center cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Primary State Banner */}
-        <div className={clsx('p-3.5 sm:p-4 rounded-2xl border flex flex-col gap-2', statusBgClass)}>
+        {/* 2. Current State Banner */}
+        <div className={clsx('p-3.5 sm:p-4 rounded-2xl border flex flex-col gap-1.5 transition-colors duration-200', statusBgClass)}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {statusIcon}
-              <span className="font-bold text-sm tracking-tight">{statusTitle}</span>
+              <span className="font-bold text-xs sm:text-sm tracking-tight">{statusTitle}</span>
             </div>
-            <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full uppercase', statusBadgeClass)}>
-              {statusBadge}
-            </span>
+            <div className="flex items-center gap-2">
+              {outageDuration > 0 && isDrActive && (
+                <span className="font-mono text-xs font-bold text-amber-900 bg-amber-200/60 px-2 py-0.5 rounded-md border border-amber-300">
+                  {formatOutage(outageDuration)}
+                </span>
+              )}
+              <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider', statusBadgeClass)}>
+                {statusBadge}
+              </span>
+            </div>
           </div>
-          <p className="text-xs leading-relaxed opacity-90">{statusDesc}</p>
-
-          {/* Outage Duration Highlight if Active */}
-          {outageDuration > 0 && (
-            <div className="mt-1 pt-2 border-t border-amber-200/60 flex items-center justify-between text-xs font-medium text-amber-900">
-              <span className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-amber-700" />
-                GNSS Outage Duration:
-              </span>
-              <span className="font-mono font-bold text-sm text-amber-950 bg-amber-200/50 px-2 py-0.5 rounded-lg border border-amber-300">
-                {formatOutage(outageDuration)}
-              </span>
-            </div>
-          )}
+          <p className="text-xs text-slate-600 leading-relaxed font-normal">{statusDesc}</p>
         </div>
 
-        {/* Grid: Confidence & Accuracy */}
+        {/* 3. Key Metrics: Confidence & Estimated Accuracy */}
         <div className="grid grid-cols-2 gap-3">
           {/* Confidence */}
-          <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 flex flex-col gap-0.5">
-            <div className="flex items-center justify-between text-slate-500 text-xs">
-              <span className="font-medium">Confidence</span>
-              <ShieldCheck className="w-4 h-4 text-brand-600" />
+          <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 flex flex-col justify-between min-h-[90px]">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <span>Confidence</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-brand-600" />
             </div>
-            <div className={clsx('mt-1 leading-tight', confidenceClass)}>
+            <div className={clsx('mt-1 leading-none', confidenceClass)}>
               {confidenceDisplay}
             </div>
-            <span className="text-[10px] text-slate-400 mt-0.5 truncate">
+            <span className="text-[10.5px] text-slate-400 mt-1 truncate">
               {confidenceSubtext}
             </span>
           </div>
 
           {/* Estimated Accuracy */}
-          <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 flex flex-col gap-0.5">
-            <div className="flex items-center justify-between text-slate-500 text-xs">
-              <span className="font-medium">Est. Accuracy</span>
-              <Gauge className="w-4 h-4 text-brand-600" />
+          <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/70 flex flex-col justify-between min-h-[90px]">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <span>Estimated Accuracy</span>
+              <Gauge className="w-3.5 h-3.5 text-brand-600" />
             </div>
-            <div className={clsx('mt-1 leading-tight', accuracyClass)}>
+            <div className={clsx('mt-1 leading-none', accuracyClass)}>
               {accuracyDisplay}
             </div>
-            <span className="text-[10px] text-slate-400 mt-0.5 truncate">
+            <span className="text-[10.5px] text-slate-400 mt-1 truncate">
               {accuracySubtext}
             </span>
           </div>
         </div>
 
-        {/* Technical Telemetry Details */}
-        <div className="bg-slate-50 rounded-2xl border border-slate-200/80 p-3.5 space-y-2.5">
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
-            <Sliders className="w-3.5 h-3.5 text-brand-600" />
-            System Telemetry Breakdown
+        {/* 4. Telemetry Breakdown Rows */}
+        <div className="space-y-1 pt-1">
+          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-0.5 mb-1.5">
+            System Telemetry
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            {/* GNSS Availability */}
-            <div className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200/60">
-              <span className="text-slate-500">GNSS Signal</span>
-              <span className={clsx('text-xs', gnssSignal.className)}>
-                {gnssSignal.text}
-              </span>
-            </div>
-
-            {/* GNSS Quality */}
-            <div className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200/60">
-              <span className="text-slate-500">GNSS Quality</span>
-              <span className={clsx('text-xs', gnssQual.className)}>
-                {gnssQual.text}
-              </span>
-            </div>
-
-            {/* Non-Holonomic Constraint */}
-            <div className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200/60">
-              <span className="text-slate-500">Motion Constraint (NHC)</span>
-              <span className={clsx('text-xs', nhc.className)}>
-                {nhc.text}
-              </span>
-            </div>
-
-            {/* Stationary Hold (ZUPT) */}
-            <div className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200/60">
-              <span className="text-slate-500">Stationary Hold (ZUPT)</span>
-              <span className={clsx('text-xs', zupt.className)}>
-                {zupt.text}
-              </span>
-            </div>
-
-            {/* Environment */}
-            <div className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200/60">
-              <span className="text-slate-500">Environment</span>
-              <span className={clsx('text-xs truncate max-w-[130px]', env.className)} title={env.text}>
-                {env.text}
-              </span>
-            </div>
-
-            {/* Filter Alignment */}
-            <div className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200/60">
-              <span className="text-slate-500">Filter Alignment</span>
-              <span className={clsx('text-xs', alignment.className)}>
-                {alignment.text}
-              </span>
-            </div>
+          <div className="divide-y divide-slate-100 border-t border-b border-slate-100">
+            {telemetryRows.map((row) => (
+              <div key={row.label} className="py-2.5 px-0.5 flex items-center justify-between text-xs">
+                <span className="text-slate-600 font-medium">{row.label}</span>
+                <span className={clsx('text-xs truncate max-w-[150px]', row.className)} title={row.text}>
+                  {row.text}
+                </span>
+              </div>
+            ))}
           </div>
 
           {/* Fused Coordinates (Only when real coordinates exist) */}
           {hasTelemetry && fusedPosition && (
-            <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px] font-mono text-slate-500">
-              <span>Position: {fusedPosition.latitude.toFixed(6)}, {fusedPosition.longitude.toFixed(6)}</span>
+            <div className="pt-2 px-0.5 flex items-center justify-between text-[11px] font-mono text-slate-400">
+              <span>Pos: {fusedPosition.latitude.toFixed(5)}, {fusedPosition.longitude.toFixed(5)}</span>
               <span>Speed: {(fusedPosition.speed * 3.6).toFixed(1)} km/h</span>
             </div>
           )}
-        </div>
-
-        {/* Footer Actions */}
-        <div className="flex items-center justify-end pt-1">
-          <button
-            onClick={onClose}
-            className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors press-scale cursor-pointer"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>
