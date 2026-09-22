@@ -48,7 +48,7 @@ export default function AppLayout() {
         )}
 
         {/* Floating Menu Trigger Button on Map Pages */}
-        {isMapPage && (
+        {isMapPage && location.pathname !== '/app/tunnel' && (
           <div className="absolute top-4 sm:top-6 left-4 sm:left-6 z-30 flex items-center gap-2">
             <button
               onClick={() => setDrawerOpen(true)}
