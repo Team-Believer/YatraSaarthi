@@ -68,10 +68,8 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) => {
   const location = useLocation();
 
-  // Real store state
+  // Store state for bottom engine status
   const isLive = useNavigationStore((s) => s.isLive);
-  const navMode = useNavigationStore((s) => s.state.navigation_mode);
-  const gnssAvailable = useNavigationStore((s) => s.state.gnss_available);
 
   const isItemActive = (itemPath: string) => {
     if (itemPath === '/app') {
@@ -80,35 +78,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
     return location.pathname === itemPath || location.pathname.startsWith(`${itemPath}/`);
   };
 
-  // Derive navigation-oriented system status
-  const isDrActive = isLive && (!gnssAvailable || navMode.includes('DEAD_RECKONING') || navMode.includes('LOST'));
-  const isRecovering = isLive && (navMode.includes('REACQUISITION') || navMode.includes('RECOVERY'));
-
-  const getStatusTitle = () => {
-    if (isDrActive) return 'Dead reckoning active';
-    if (isRecovering) return 'GNSS recovering';
-    if (isLive) return 'Navigation active';
-    return 'Navigation ready';
-  };
-
-  const getStatusSubtitle = () => {
-    if (isDrActive) return 'Inertial dead reckoning';
-    if (isRecovering) return 'Reacquiring satellite fix';
-    if (isLive) return 'Navigation in progress';
-    return 'Ready to navigate';
-  };
-
   return (
     <aside className="w-[88vw] max-w-[300px] sm:w-[300px] bg-white border-r border-border-clean flex flex-col h-full select-none shrink-0 shadow-nav-floating z-50 overflow-hidden">
       {/* 1. Header: Official Brand Logo */}
-      <div className="h-16 px-4 flex items-center justify-between border-b border-border-clean shrink-0 bg-white">
+      <div className="h-20 px-4 flex items-center justify-between border-b border-border-clean shrink-0 bg-white">
         <Link
           to="/app"
           onClick={onClose}
-          className="flex items-center group transition-opacity hover:opacity-90 focus:outline-none"
+          className="flex items-center group transition-opacity hover:opacity-90 focus:outline-none py-1 min-w-0"
           title="YatraSaarthi"
         >
-          <YatraSaarthiLogo variant="compact" height={42} />
+          <YatraSaarthiLogo variant="compact" height={52} />
         </Link>
 
         {isDrawer && onClose && (
@@ -116,68 +96,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
             type="button"
             onClick={onClose}
             aria-label="Close navigation drawer"
-            className="p-2 rounded-full text-ink-body hover:text-ink hover:bg-canvas-soft transition-colors cursor-pointer"
+            className="p-2 rounded-full text-ink-body hover:text-ink hover:bg-canvas-soft transition-colors cursor-pointer shrink-0 ml-1"
           >
             <X className="w-4.5 h-4.5" />
           </button>
         )}
       </div>
 
-      {/* 2. Compact System Status Card */}
-      <div className="px-3 pt-3 pb-1 shrink-0">
-        <Link
-          to="/app/diagnostics"
-          onClick={onClose}
-          className="p-3 bg-white hover:bg-canvas-softer rounded-2xl border border-border-clean flex items-center justify-between transition-colors group cursor-pointer shadow-2xs"
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="relative flex h-2.5 w-2.5 shrink-0">
-              <span
-                className={clsx(
-                  'animate-ping absolute inline-flex h-full w-full rounded-full opacity-75',
-                  isDrActive
-                    ? 'bg-amber-400'
-                    : isRecovering
-                    ? 'bg-cyan-400'
-                    : isLive
-                    ? 'bg-emerald-400'
-                    : 'bg-emerald-400'
-                )}
-              />
-              <span
-                className={clsx(
-                  'relative inline-flex rounded-full h-2.5 w-2.5',
-                  isDrActive
-                    ? 'bg-amber-500'
-                    : isRecovering
-                    ? 'bg-cyan-500'
-                    : isLive
-                    ? 'bg-emerald-500'
-                    : 'bg-emerald-500'
-                )}
-              />
-            </span>
-
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-semibold text-ink leading-tight truncate">
-                {getStatusTitle()}
-              </span>
-              <span className="text-[11px] text-ink-body font-normal leading-tight truncate mt-0.5">
-                {getStatusSubtitle()}
-              </span>
-            </div>
-          </div>
-
-          <ChevronRight className="w-3.5 h-3.5 text-ink-mute group-hover:text-ink group-hover:translate-x-0.5 transition-all shrink-0 ml-1" />
-        </Link>
-      </div>
-
-      {/* 3. Grouped Navigation Items */}
-      <nav className="flex-1 py-2 px-3 space-y-3 overflow-y-auto hide-scrollbar">
+      {/* 2. Grouped Navigation Items */}
+      <nav className="flex-1 py-3 px-3 space-y-5 overflow-y-auto hide-scrollbar">
         {navGroups.map((group) => (
-          <div key={group.label} className="space-y-0.5">
+          <div key={group.label} className="space-y-1">
             {/* Group Label */}
-            <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-ink-mute select-none">
+            <div className="px-3.5 pb-1 text-[11px] font-bold uppercase tracking-wider text-ink-mute select-none">
               {group.label}
             </div>
 
@@ -192,33 +123,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                   to={item.path}
                   onClick={onClose}
                   className={clsx(
-                    'group relative flex items-center justify-between px-3 h-10 rounded-xl text-[13px] font-medium transition-all duration-150 cursor-pointer',
+                    'group flex items-center justify-between px-3.5 h-11 rounded-xl text-[14px] transition-colors duration-150 ease-out cursor-pointer',
                     isActive
-                      ? 'bg-canvas-soft text-ink font-semibold'
-                      : 'text-ink-body hover:bg-canvas-softer hover:text-ink'
+                      ? 'bg-[#F3F3F3] text-ink font-medium'
+                      : 'text-ink-body hover:bg-[#F7F7F7] hover:text-ink font-normal'
                   )}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    {/* Active Vertical Bar Indicator */}
-                    {isActive && (
-                      <span
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4.5 bg-ink rounded-r-full"
-                        aria-hidden="true"
-                      />
-                    )}
-
+                  <div className="flex items-center gap-3 min-w-0">
                     <Icon
                       className={clsx(
-                        'w-4 h-4 shrink-0 transition-colors duration-150',
+                        'w-4.5 h-4.5 shrink-0 transition-colors duration-150',
                         isActive ? 'text-ink' : 'text-ink-mute group-hover:text-ink'
                       )}
-                      strokeWidth={isActive ? 2.2 : 1.8}
+                      strokeWidth={isActive ? 2 : 1.75}
                     />
 
                     <span className="truncate">{item.name}</span>
                   </div>
 
-                  {/* Badge or subtle hover chevron */}
+                  {/* Badge or stationary chevron */}
                   {item.badge ? (
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-ink text-white">
                       {item.badge}
@@ -226,10 +149,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                   ) : (
                     <ChevronRight
                       className={clsx(
-                        'w-3.5 h-3.5 transition-all shrink-0',
-                        isActive
-                          ? 'text-ink opacity-80'
-                          : 'text-ink-mute opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5'
+                        'w-4 h-4 shrink-0 transition-colors duration-150',
+                        isActive ? 'text-ink opacity-100' : 'text-ink-mute/40 group-hover:text-ink-mute'
                       )}
                     />
                   )}

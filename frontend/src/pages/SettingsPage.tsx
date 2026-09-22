@@ -215,7 +215,7 @@ export default function SettingsPage() {
         <div className="flex items-center gap-3">
           <Info className="w-5 h-5 text-ink shrink-0" />
           <div>
-            <div className="font-semibold text-ink">YatraSaarthi build</div>
+            <div className="font-semibold text-ink">Yatra-Sarthi build</div>
             <div className="text-[11px] text-ink-body mt-0.5">
               Lie-Group Invariant Extended Kalman Filter (InEKF) • E5 Dilated Temporal ConvNet
             </div>

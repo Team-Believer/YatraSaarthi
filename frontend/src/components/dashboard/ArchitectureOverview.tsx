@@ -21,7 +21,7 @@ export function ArchitectureOverview() {
             <span>Technical Architecture & AI/ML Pipeline</span>
           </div>
           <h2 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
-            How YatraSaarthi Achieves Beyond-GPS Precision
+            How Yatra-Sarthi Achieves Beyond-GPS Precision
           </h2>
           <p className="text-xs md:text-[13px] text-slate-500 mt-1 max-w-2xl leading-relaxed">
             A physics-informed fusion engine pairing W3C Web Hardware Sensors with Lie-group Invariant Kalman Filtering (InEKF) and AI/ML residual displacement models.
@@ -194,7 +194,7 @@ export function ArchitectureOverview() {
             </div>
             <h3 className="font-bold text-slate-900 text-sm tracking-tight">Phone Auto-Alignment</h3>
             <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-              Drivers mount phones at arbitrary angles on dashboards or windshields. YatraSaarthi dynamically estimates the rotational transform between the smartphone sensor coordinate frame and the vehicle moving frame.
+              Drivers mount phones at arbitrary angles on dashboards or windshields. Yatra-Sarthi dynamically estimates the rotational transform between the smartphone sensor coordinate frame and the vehicle moving frame.
             </p>
           </div>
           <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-brand-700">

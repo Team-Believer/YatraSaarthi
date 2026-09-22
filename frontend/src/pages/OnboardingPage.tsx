@@ -15,7 +15,7 @@ const slides = [
   {
     title: 'Your journey, our priority',
     description:
-      'YatraSaarthi uses smartphone inertial sensors, neural motion estimation, and vehicle kinematics to maintain pinpoint navigation — even during GNSS signal dropouts.',
+      'Yatra-Sarthi uses smartphone inertial sensors, neural motion estimation, and vehicle kinematics to maintain pinpoint navigation — even during GNSS signal dropouts.',
     icons: [
       { Icon: Wifi, label: 'GNSS' },
       { Icon: Cpu, label: 'IMU' },

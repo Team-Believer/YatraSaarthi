@@ -1,13 +1,13 @@
 {
-  "name": "YatraSaarthi — Beyond GPS. Always With You.",
-  "short_name": "YatraSaarthi",
+  "name": "Yatra-Sarthi — Beyond GPS. Always With You.",
+  "short_name": "Yatra-Sarthi",
   "description": "AI-powered intelligent navigation with sensor fusion, dead reckoning, and real-time positioning — even when GPS fails.",
   "start_url": "/app",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "theme_color": "#2563eb",
-  "background_color": "#f0f7ff",
+  "theme_color": "#FFFFFF",
+  "background_color": "#FFFFFF",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",

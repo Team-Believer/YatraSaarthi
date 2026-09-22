@@ -369,7 +369,7 @@ export default function TunnelMode() {
             </div>
 
             <p className="text-xs text-ink-body leading-relaxed">
-              Test how YatraSaarthi behaves when satellite signals are obstructed (e.g., entering an underpass, tunnel, or urban canyon).
+              Test how Yatra-Sarthi behaves when satellite signals are obstructed (e.g., entering an underpass, tunnel, or urban canyon).
             </p>
 
             <div className="space-y-2.5 pt-1">
@@ -474,7 +474,7 @@ export default function TunnelMode() {
               Evaluation Benchmark Standard
             </div>
             <p className="text-slate-600 leading-relaxed text-[11px]">
-              GNSS outage testing demonstrates how YatraSaarthi maintains continuous navigation across 60s+ satellite-denied tunnels without track jumping or map snapping anomalies.
+              GNSS outage testing demonstrates how Yatra-Sarthi maintains continuous navigation across 60s+ satellite-denied tunnels without track jumping or map snapping anomalies.
             </p>
           </div>
         </div>

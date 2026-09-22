@@ -401,7 +401,7 @@ export default function LearningInsights() {
               Why AI Does Not Dictate Position Directly
             </h3>
             <p className="text-xs sm:text-[13px] text-slate-600 leading-relaxed mt-2">
-              YatraSaarthi maintains technical safety by separating prediction from estimation. The AI model predicts forward motion information and calibrated uncertainty ($\sigma$).
+              Yatra-Sarthi maintains technical safety by separating prediction from estimation. The AI model predicts forward motion information and calibrated uncertainty ($\sigma$).
             </p>
             <div className="space-y-2.5 mt-4 text-xs text-slate-700">
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-start gap-2.5">

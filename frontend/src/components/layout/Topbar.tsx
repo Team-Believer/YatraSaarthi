@@ -24,7 +24,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
       case '/app/settings': return 'Settings';
       case '/app/profile': return 'Profile';
       case '/app/memory': return 'Saved Routes';
-      default: return 'YatraSaarthi';
+      default: return 'Yatra-Sarthi';
     }
   };
 
