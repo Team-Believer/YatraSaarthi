@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { clsx } from 'clsx';
 import { useNavigationStore } from '../stores/useNavigationStore';
 import { useLocationStore } from '../stores/useLocationStore';
 import { locationService } from '../services/location/locationService';
@@ -194,26 +195,58 @@ export default function Dashboard() {
 
         {/* FLOATING TOP OVERLAY BAR */}
         <div className="absolute top-4 left-16 right-4 md:left-20 md:right-6 z-20 flex items-center justify-between gap-3 pointer-events-none">
-          {/* Destination Search Box */}
+          {/* Destination Search Box / Active Drive Badge */}
           <div className="pointer-events-auto flex-1 max-w-md">
             {!isLive ? (
               <DestinationSearch />
             ) : (
-              <div className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-slate-200/90 shadow-nav-floating flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center shrink-0">
-                  <ArrowUpRight className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 block leading-none">
-                    Active Drive
-                  </span>
-                  <h3 className="font-bold text-slate-900 text-xs truncate mt-0.5">
-                    {state.navigation_mode.includes('DEAD_RECKONING')
-                      ? 'InEKF Dead Reckoning Active'
-                      : 'GNSS Satellite Navigation'}
-                  </h3>
-                </div>
-              </div>
+              (() => {
+                const modeUpper = (state.navigation_mode || '').toUpperCase();
+                let title = 'GNSS Navigation Active';
+                let subtitle = 'Multi-constellation tracking';
+                let iconColor = 'bg-brand-600';
+
+                if (modeUpper.includes('REACQUISITION') || modeUpper.includes('RECOVERY')) {
+                  title = 'GNSS Signal Recovering';
+                  subtitle = 'Validating satellite fix';
+                  iconColor = 'bg-sky-600';
+                } else if (
+                  modeUpper.includes('DEAD_RECKONING') ||
+                  modeUpper.includes('LOST') ||
+                  modeUpper.includes('INEKF') ||
+                  modeUpper.includes('INERTIAL') ||
+                  !state.gnss_available
+                ) {
+                  title = 'Dead Reckoning Active';
+                  subtitle = typeof state.gnss_outage_duration === 'number' && state.gnss_outage_duration > 0
+                    ? `Inertial navigation · Outage ${state.gnss_outage_duration.toFixed(0)}s`
+                    : 'Inertial navigation active';
+                  iconColor = 'bg-amber-600';
+                } else if (modeUpper.includes('DEGRADING') || state.gnss_quality === 'POOR' || state.gnss_quality === 'FAIR') {
+                  title = 'GNSS Degraded';
+                  subtitle = 'Inertial aiding active';
+                  iconColor = 'bg-amber-600';
+                }
+
+                return (
+                  <div className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-slate-200/90 shadow-nav-floating flex items-center gap-3">
+                    <div className={clsx('w-8 h-8 rounded-xl text-white flex items-center justify-center shrink-0 shadow-xs', iconColor)}>
+                      <ArrowUpRight className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block leading-none">
+                        Active Drive
+                      </span>
+                      <h3 className="font-bold text-slate-900 text-xs truncate mt-0.5">
+                        {title}
+                      </h3>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                        {subtitle}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()
             )}
           </div>
 

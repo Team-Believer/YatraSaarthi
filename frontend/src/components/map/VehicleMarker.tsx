@@ -30,10 +30,34 @@ export const VehicleMarker: React.FC<VehicleMarkerProps> = ({
       return;
     }
 
+    const modeUpper = (mode || '').toUpperCase();
+    const isRecovering = modeUpper.includes('REACQUISITION') || modeUpper.includes('RECOVERY');
     const isDr =
-      mode.toUpperCase().includes('DEAD_RECKONING') ||
-      mode.toUpperCase().includes('INEKF') ||
-      mode.toUpperCase().includes('INERTIAL');
+      !isRecovering &&
+      (modeUpper.includes('DEAD_RECKONING') ||
+        modeUpper.includes('LOST') ||
+        modeUpper.includes('INEKF') ||
+        modeUpper.includes('INERTIAL'));
+
+    const getDiscClass = () => {
+      if (isRecovering) {
+        return 'w-11 h-11 rounded-full bg-gradient-to-tr from-sky-600 via-cyan-500 to-sky-400 border-[3px] border-white shadow-nav-floating flex items-center justify-center text-white z-10 transition-colors duration-300';
+      }
+      if (isDr) {
+        return 'w-11 h-11 rounded-full bg-gradient-to-tr from-amber-600 to-amber-500 border-[3px] border-white shadow-nav-floating flex items-center justify-center text-white z-10 transition-colors duration-300';
+      }
+      return 'w-11 h-11 rounded-full bg-gradient-to-tr from-sky-600 to-sky-400 border-[3px] border-white shadow-nav-floating flex items-center justify-center text-white z-10 transition-colors duration-300';
+    };
+
+    const getRingClass = () => {
+      if (isRecovering) {
+        return 'absolute inset-1.5 rounded-full bg-sky-500/25 border border-sky-400/50 animate-pulse transition-all duration-300';
+      }
+      if (isDr) {
+        return 'absolute inset-2 rounded-full bg-amber-500/20 border border-amber-400/40 animate-dr-pulse transition-all duration-300';
+      }
+      return 'absolute inset-2 rounded-full bg-sky-500/20 border border-sky-400/40 animate-gnss-pulse transition-all duration-300';
+    };
 
     if (!markerRef.current) {
       // Create main marker container
@@ -44,16 +68,12 @@ export const VehicleMarker: React.FC<VehicleMarkerProps> = ({
 
       // 1. Soft Position Accuracy Footprint Disc
       const accuracyRing = document.createElement('div');
-      accuracyRing.className = isDr
-        ? 'absolute inset-2 rounded-full bg-amber-500/20 border border-amber-400/40 animate-dr-pulse'
-        : 'absolute inset-2 rounded-full bg-sky-500/20 border border-sky-400/40 animate-gnss-pulse';
+      accuracyRing.className = getRingClass();
       container.appendChild(accuracyRing);
 
       // 2. Core Navigation Marker Disc
       const pinDisc = document.createElement('div');
-      pinDisc.className = isDr
-        ? 'w-11 h-11 rounded-full bg-gradient-to-tr from-amber-600 to-amber-500 border-[3px] border-white shadow-nav-floating flex items-center justify-center text-white z-10'
-        : 'w-11 h-11 rounded-full bg-gradient-to-tr from-sky-600 to-sky-400 border-[3px] border-white shadow-nav-floating flex items-center justify-center text-white z-10';
+      pinDisc.className = getDiscClass();
 
       // 3. Forward-Pointing Navigation Chevron
       const chevron = document.createElement('div');
@@ -94,18 +114,13 @@ export const VehicleMarker: React.FC<VehicleMarkerProps> = ({
       chevronRef.current.style.transform = `rotate(${smoothHeading}deg)`;
     }
 
-    // Update marker styling when state switches between GNSS and DR
+    // Update marker styling on mode transitions
     if (elementRef.current) {
       const accuracyRing = elementRef.current.children[0] as HTMLElement;
       const pinDisc = elementRef.current.children[1] as HTMLElement;
       if (pinDisc && accuracyRing) {
-        if (isDr) {
-          pinDisc.className = 'w-11 h-11 rounded-full bg-gradient-to-tr from-amber-600 to-amber-500 border-[3px] border-white shadow-nav-floating flex items-center justify-center text-white z-10';
-          accuracyRing.className = 'absolute inset-2 rounded-full bg-amber-500/20 border border-amber-400/40 animate-dr-pulse';
-        } else {
-          pinDisc.className = 'w-11 h-11 rounded-full bg-gradient-to-tr from-sky-600 to-sky-400 border-[3px] border-white shadow-nav-floating flex items-center justify-center text-white z-10';
-          accuracyRing.className = 'absolute inset-2 rounded-full bg-sky-500/20 border border-sky-400/40 animate-gnss-pulse';
-        }
+        pinDisc.className = getDiscClass();
+        accuracyRing.className = getRingClass();
       }
     }
 
