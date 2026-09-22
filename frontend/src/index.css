@@ -3,7 +3,7 @@
 
 @layer base {
   body {
-    @apply bg-brand-50 text-brand-navy font-sans antialiased;
+    @apply bg-slate-900 text-slate-900 font-sans antialiased overflow-hidden;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
   }
@@ -12,6 +12,7 @@
   html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+    height: 100%;
   }
 
   /* Hide scrollbars on mobile but keep scrollability */
@@ -25,49 +26,69 @@
 }
 
 @layer utilities {
-  .glass-panel {
-    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-lg;
+  .nav-glass {
+    @apply bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-nav-floating;
+  }
+
+  .nav-glass-dark {
+    @apply bg-slate-900/95 backdrop-blur-md border border-slate-700/60 text-white shadow-nav-floating;
+  }
+
+  .nav-pill-base {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md shadow-nav-pill border transition-all duration-200;
   }
 
   /* Safe area padding for notched phones */
   .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 12px);
   }
 
   .safe-top {
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: max(env(safe-area-inset-top, 0px), 12px);
   }
 
   /* Haptic-style press animation */
   .press-scale {
-    @apply active:scale-[0.97] transition-transform;
+    @apply active:scale-[0.96] transition-transform duration-100 ease-out;
   }
 }
 
-/* Animate.css-like utilities for Tailwind */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+/* Radar pulse animation for GNSS & Dead Reckoning */
+@keyframes navRadarPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
 }
 
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes navDrPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgba(245, 158, 11, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
 }
 
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-16px); }
-  to { opacity: 1; transform: translateY(0); }
+.animate-gnss-pulse {
+  animation: navRadarPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.3s ease forwards;
+.animate-dr-pulse {
+  animation: navDrPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.animate-slide-up {
-  animation: slideUp 0.4s ease forwards;
-}
-
-.animate-slide-down {
-  animation: slideDown 0.4s ease forwards;
-}

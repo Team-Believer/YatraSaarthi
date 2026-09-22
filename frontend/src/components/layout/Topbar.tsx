@@ -1,22 +1,28 @@
-import { User, LogOut, LogIn } from 'lucide-react';
+import { User, LogOut, LogIn, Menu, Navigation } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { GlobalStatusBadge } from '../common/GlobalStatusBadge';
+import { NavStatusPill } from '../navigation/NavStatusPill';
 
-export default function Topbar() {
+interface TopbarProps {
+  onMenuClick?: () => void;
+}
+
+export default function Topbar({ onMenuClick }: TopbarProps) {
   const { user, isAuthenticated, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
 
   const getPageTitle = (path: string) => {
     switch (path) {
-      case '/app': return 'Dashboard';
+      case '/app': return 'Navigation Cockpit';
       case '/app/map': return 'Live Navigation Map';
-      case '/app/tunnel': return 'Tunnel & Outage Mode';
+      case '/app/tunnel': return 'Tunnel & Outage Simulation';
       case '/app/history': return 'Journey History';
       case '/app/learning': return 'Learning Insights';
       case '/app/diagnostics': return 'Sensor Diagnostics';
       case '/app/settings': return 'System Settings';
+      case '/app/profile': return 'Driver Profile';
+      case '/app/memory': return 'Navigation Memory';
       default: return 'YatraSaarthi Platform';
     }
   };
@@ -27,13 +33,32 @@ export default function Topbar() {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-6 shrink-0 w-full select-none">
-      <div className="flex items-center gap-3.5">
-        <h2 className="text-[17px] font-bold text-slate-900 tracking-tight">
+    <header className="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 flex items-center justify-between px-4 md:px-6 shrink-0 w-full select-none shadow-xs">
+      <div className="flex items-center gap-3">
+        {onMenuClick && (
+          <button
+            onClick={onMenuClick}
+            title="Open Menu"
+            className="md:hidden p-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+
+        <Link
+          to="/app"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-semibold transition-colors border border-brand-200/60 mr-1"
+        >
+          <Navigation className="w-3.5 h-3.5 fill-brand-600 rotate-[-20deg]" />
+          <span>Back to Nav</span>
+        </Link>
+
+        <h2 className="text-[16px] font-bold text-slate-900 tracking-tight hidden sm:inline">
           {getPageTitle(location.pathname)}
         </h2>
-        <div className="h-4 w-px bg-slate-200" />
-        <GlobalStatusBadge />
+
+        <div className="hidden md:block h-4 w-px bg-slate-200" />
+        <NavStatusPill className="hidden lg:inline-flex" />
       </div>
 
       <div className="flex items-center gap-3">
@@ -60,11 +85,10 @@ export default function Topbar() {
             className="flex items-center gap-2 bg-brand-50 hover:bg-brand-100 text-brand-700 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors border border-brand-200/70 shadow-2xs"
           >
             <LogIn className="w-3.5 h-3.5" />
-            Sign In / Register
+            Sign In
           </Link>
         )}
       </div>
     </header>
   );
 }
-

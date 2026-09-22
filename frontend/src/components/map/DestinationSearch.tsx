@@ -93,9 +93,9 @@ export const DestinationSearch = () => {
   };
 
   return (
-    <div className="relative w-full">
-      <div className="bg-white px-3.5 h-[52px] md:h-14 rounded-xl md:rounded-2xl border border-slate-200/90 shadow-xs flex items-center gap-3 transition-all duration-150 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20">
-        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0 text-slate-400">
+    <div className="relative w-full max-w-md">
+      <div className="bg-white/95 backdrop-blur-md px-3.5 h-12 md:h-13 rounded-2xl border border-slate-200/90 shadow-nav-floating flex items-center gap-2.5 transition-all duration-150 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20">
+        <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 text-slate-400">
           {isSearching ? (
             <Loader2 className="w-4 h-4 text-brand-600 animate-spin" />
           ) : destination ? (
@@ -117,8 +117,8 @@ export const DestinationSearch = () => {
             }
           }}
           onFocus={() => setIsOpen(true)}
-          placeholder="Where to? (Search destination, city, or coordinates)"
-          className="flex-1 bg-transparent border-none focus:outline-none text-slate-900 font-medium placeholder:font-normal placeholder:text-slate-400 text-sm md:text-[14.5px] w-full"
+          placeholder="Where to? (Search destination)"
+          className="flex-1 bg-transparent border-none focus:outline-none text-slate-900 font-medium placeholder:font-normal placeholder:text-slate-400 text-xs md:text-sm w-full"
         />
 
         {query && (
@@ -134,14 +134,14 @@ export const DestinationSearch = () => {
 
       {/* Results Dropdown */}
       {isOpen && results.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-xl shadow-lg border border-slate-200/90 overflow-hidden z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl rounded-2xl shadow-nav-floating border border-slate-200/90 overflow-hidden z-50 animate-in fade-in slide-in-from-top-1 duration-150">
           {results.map((result) => (
             <button
               key={result.id}
               onClick={() => handleSelect(result)}
-              className="w-full flex items-center gap-3.5 px-4 py-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-100 last:border-0 group"
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-100 last:border-0 group"
             >
-              <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center shrink-0 text-brand-600 group-hover:bg-brand-600 group-hover:text-white transition-colors">
+              <div className="w-8 h-8 bg-brand-50 rounded-xl flex items-center justify-center shrink-0 text-brand-600 group-hover:bg-brand-600 group-hover:text-white transition-colors">
                 <MapPin className="w-4 h-4" />
               </div>
               <div className="min-w-0 flex-1">
@@ -155,4 +155,3 @@ export const DestinationSearch = () => {
     </div>
   );
 };
-

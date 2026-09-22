@@ -1,68 +1,78 @@
+import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import MobileBottomNav from './MobileBottomNav';
 import { useNavigationWebSocket } from '../../hooks/useNavigationWebSocket';
 import { useNavigationStore } from '../../stores/useNavigationStore';
+import { Menu } from 'lucide-react';
 
-// Pages where we want zero padding (full-bleed map)
-const fullBleedPages = ['/app/map'];
+// Full-bleed map pages that take over the complete viewport
+const mapPages = ['/app', '/app/map'];
 
 export default function AppLayout() {
   const sessionId = useNavigationStore((s) => s.state.session_id);
   useNavigationWebSocket(sessionId);
   const location = useLocation();
-  const isFullBleed = fullBleedPages.includes(location.pathname);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const isMapPage = mapPages.includes(location.pathname);
 
   return (
-    <div className="flex h-screen bg-brand-50">
-      {/* Desktop sidebar — hidden on mobile */}
-      <div className="hidden md:flex">
-        <Sidebar />
+    <div className="relative h-screen w-screen overflow-hidden bg-slate-900 flex">
+      {/* Floating Menu Drawer Backdrop (when open) */}
+      {drawerOpen && (
+        <div
+          onClick={() => setDrawerOpen(false)}
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 animate-in fade-in duration-200"
+        />
+      )}
+
+      {/* Slide-out Navigation Drawer */}
+      <div
+        className={`fixed top-0 bottom-0 left-0 z-50 transform transition-transform duration-300 ease-out ${
+          drawerOpen ? 'translate-x-0' : '-translate-x-full'
+        } ${!isMapPage ? 'md:relative md:translate-x-0' : ''}`}
+      >
+        <Sidebar onClose={() => setDrawerOpen(false)} isDrawer={isMapPage} />
       </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Desktop topbar — hidden on mobile */}
-        <div className="hidden md:flex">
-          <Topbar />
-        </div>
-
-        {/* Mobile header — visible only on mobile, hidden on full-bleed pages */}
-        {!isFullBleed && (
-          <MobileHeader />
+      {/* Main Viewport */}
+      <div className="flex-1 flex flex-col h-full w-full overflow-hidden relative">
+        {/* On secondary pages, render the topbar */}
+        {!isMapPage && (
+          <div className="shrink-0 z-20">
+            <Topbar onMenuClick={() => setDrawerOpen(true)} />
+          </div>
         )}
 
-        {/* Main content area */}
+        {/* Floating Menu Trigger Button on Map Pages */}
+        {isMapPage && (
+          <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
+            <button
+              onClick={() => setDrawerOpen(true)}
+              title="Open Navigation Menu"
+              className="p-3 bg-white/95 hover:bg-white text-slate-800 rounded-2xl shadow-nav-floating border border-slate-200/90 transition-all press-scale flex items-center justify-center group"
+            >
+              <Menu className="w-5 h-5 group-hover:text-brand-600 transition-colors" />
+            </button>
+          </div>
+        )}
+
+        {/* Content Body */}
         <main
-          className={`flex-1 overflow-x-hidden overflow-y-auto bg-brand-50 ${
-            isFullBleed
-              ? 'p-0'
-              : 'p-4 md:p-6 pb-20 md:pb-6'
+          className={`flex-1 w-full h-full relative ${
+            isMapPage
+              ? 'p-0 overflow-hidden'
+              : 'p-4 md:p-6 pb-20 md:pb-6 overflow-y-auto bg-slate-50'
           }`}
         >
           <Outlet />
         </main>
+
+        {/* Mobile Bottom Nav Bar (renders across all views on small screens) */}
+        <MobileBottomNav />
       </div>
-
-      {/* Mobile bottom nav — hidden on desktop */}
-      <MobileBottomNav />
     </div>
-  );
-}
-
-/** Minimal mobile-only header bar */
-import { Navigation } from 'lucide-react';
-import { GlobalStatusBadge } from '../common/GlobalStatusBadge';
-import { Link } from 'react-router-dom';
-
-function MobileHeader() {
-  return (
-    <header className="flex md:hidden items-center justify-between h-14 px-4 bg-white border-b border-brand-100 shrink-0">
-      <Link to="/app" className="flex items-center gap-2 text-brand-600">
-        <Navigation className="w-6 h-6 fill-brand-600" />
-        <span className="text-base font-bold text-brand-navy">YatraSaarthi</span>
-      </Link>
-      <GlobalStatusBadge />
-    </header>
   );
 }
