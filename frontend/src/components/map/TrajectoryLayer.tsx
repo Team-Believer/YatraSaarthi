@@ -23,7 +23,8 @@ export const TrajectoryLayer: React.FC<TrajectoryLayerProps> = ({
       id: string,
       coords: [number, number][],
       color: string,
-      width: number = 4,
+      width: number = 3,
+      opacity: number = 0.55,
       dash?: number[]
     ) => {
       const sourceId = `source-track-${id}`;
@@ -56,7 +57,7 @@ export const TrajectoryLayer: React.FC<TrajectoryLayerProps> = ({
         const layerPaint: LinePaint = {
           'line-color': color,
           'line-width': width,
-          'line-opacity': 0.75,
+          'line-opacity': opacity,
         };
 
         if (dash) {
@@ -76,12 +77,12 @@ export const TrajectoryLayer: React.FC<TrajectoryLayerProps> = ({
       }
     };
 
-    // Raw GNSS Track (Emerald dashed)
-    updateLineSource('gnss-raw', gnssTrack, '#10b981', 3, [2, 2]);
-    // Dead Reckoning Inertial Track (Amber dashed)
-    updateLineSource('dr-track', drTrack, '#f59e0b', 3.5, [2, 1]);
-    // InEKF Fused Navigation Trail (Deep Sky/Cobalt)
-    updateLineSource('fused-track', fusedTrack, '#0284c7', 4);
+    // Raw GNSS Track (Tertiary: Subtle emerald dashed)
+    updateLineSource('gnss-raw', gnssTrack, '#10b981', 2, 0.45, [2, 2]);
+    // Dead Reckoning Inertial Track (Secondary: Amber dashed)
+    updateLineSource('dr-track', drTrack, '#f59e0b', 2.5, 0.5, [2, 1.5]);
+    // InEKF Fused Navigation Trail (Secondary: Soft cobalt trail)
+    updateLineSource('fused-track', fusedTrack, '#3b82f6', 3, 0.6);
 
     return () => {
       ['gnss-raw', 'dr-track', 'fused-track'].forEach((id) => {
@@ -95,3 +96,4 @@ export const TrajectoryLayer: React.FC<TrajectoryLayerProps> = ({
 
   return null;
 };
+

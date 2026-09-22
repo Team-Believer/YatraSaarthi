@@ -61,32 +61,35 @@ export const MapController: React.FC<MapControllerProps> = ({
 
     if (!followVehicle) return;
 
-    // Throttle camera ease updates to max 20Hz (50ms) to ensure high 60fps smoothness without overloading WebGL render loop
+    // Throttle camera ease updates to max 20Hz (50ms) to ensure 60fps smoothness without overloading WebGL render loop
     const now = Date.now();
-    if (now - lastUpdateRef.current < 40) return;
+    if (now - lastUpdateRef.current < 50) return;
     lastUpdateRef.current = now;
 
     isProgrammaticMove.current = true;
 
     const targetBearing = orientationMode === 'HEADING_UP' ? heading : 0;
-    const targetPitch = is3D ? 50 : 0;
+    const targetPitch = is3D ? 52 : 0;
 
+    // In 3D follow mode, offset camera slightly so vehicle is positioned in lower-center, giving greater visibility of the road ahead
     map.easeTo({
       center: [longitude, latitude],
       bearing: targetBearing,
       pitch: targetPitch,
       zoom: 16.5,
-      duration: 500,
+      offset: is3D ? [0, 70] : [0, 0],
+      duration: 600,
       easing: (t) => t * (2 - t), // Smooth quad out
     });
 
     // Reset programmatic flag after ease completes
     const timer = setTimeout(() => {
       isProgrammaticMove.current = false;
-    }, 550);
+    }, 650);
 
     return () => clearTimeout(timer);
   }, [map, latitude, longitude, heading, followVehicle, orientationMode, is3D]);
 
   return null;
 };
+

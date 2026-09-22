@@ -4,9 +4,10 @@ import { useMap } from './MapContainer';
 
 interface RouteLayerProps {
   geometry?: [number, number][]; // [[lon, lat], ...]
+  destinationName?: string;
 }
 
-export const RouteLayer: React.FC<RouteLayerProps> = ({ geometry = [] }) => {
+export const RouteLayer: React.FC<RouteLayerProps> = ({ geometry = [], destinationName }) => {
   const map = useMap();
   const destMarkerRef = useRef<mapboxgl.Marker | null>(null);
 
@@ -46,7 +47,7 @@ export const RouteLayer: React.FC<RouteLayerProps> = ({ geometry = [] }) => {
         data: geojson,
       });
 
-      // 1. Casing Layer for high contrast against diverse map styles
+      // 1. Restrained Neutral Casing Layer for high contrast on all map styles
       map.addLayer({
         id: casingLayerId,
         type: 'line',
@@ -56,13 +57,21 @@ export const RouteLayer: React.FC<RouteLayerProps> = ({ geometry = [] }) => {
           'line-cap': 'round',
         },
         paint: {
-          'line-color': '#0369a1',
-          'line-width': 9,
-          'line-opacity': 0.6,
+          'line-color': '#0f172a',
+          'line-width': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            8, 4,
+            12, 7,
+            15, 10,
+            18, 14,
+          ],
+          'line-opacity': 0.35,
         },
       });
 
-      // 2. Primary Route Centerline
+      // 2. Primary Route Centerline with zoom-responsive width
       map.addLayer({
         id: lineLayerId,
         type: 'line',
@@ -72,8 +81,17 @@ export const RouteLayer: React.FC<RouteLayerProps> = ({ geometry = [] }) => {
           'line-cap': 'round',
         },
         paint: {
-          'line-color': '#38bdf8',
-          'line-width': 5,
+          'line-color': '#2563eb',
+          'line-width': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            8, 2.5,
+            12, 4.5,
+            15, 6.5,
+            18, 9.5,
+          ],
+          'line-opacity': 0.95,
         },
       });
     }
@@ -82,14 +100,29 @@ export const RouteLayer: React.FC<RouteLayerProps> = ({ geometry = [] }) => {
     const destCoords = geometry[geometry.length - 1];
     if (destCoords) {
       if (!destMarkerRef.current) {
-        const destEl = document.createElement('div');
-        destEl.className = 'w-7 h-7 rounded-full bg-rose-600 border-2 border-white shadow-nav-floating flex items-center justify-center text-white';
-        destEl.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+        const destContainer = document.createElement('div');
+        destContainer.className = 'flex flex-col items-center select-none pointer-events-none';
+
+        // Clean Pin Badge
+        const pinBadge = document.createElement('div');
+        pinBadge.className = 'w-7 h-7 rounded-full bg-black border-2 border-white shadow-nav-floating flex items-center justify-center text-white';
+        pinBadge.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+            <circle cx="12" cy="10" r="3"/>
           </svg>
         `;
-        destMarkerRef.current = new mapboxgl.Marker({ element: destEl, anchor: 'bottom' })
+        destContainer.appendChild(pinBadge);
+
+        // Optional Destination Label Badge
+        if (destinationName) {
+          const labelEl = document.createElement('div');
+          labelEl.className = 'px-2.5 py-0.5 mt-1 bg-white border border-border-clean shadow-nav-floating rounded-full text-[10px] font-semibold text-ink whitespace-nowrap max-w-[140px] truncate';
+          labelEl.innerText = destinationName;
+          destContainer.appendChild(labelEl);
+        }
+
+        destMarkerRef.current = new mapboxgl.Marker({ element: destContainer, anchor: 'center' })
           .setLngLat(destCoords)
           .addTo(map);
       } else {
@@ -106,7 +139,8 @@ export const RouteLayer: React.FC<RouteLayerProps> = ({ geometry = [] }) => {
         destMarkerRef.current = null;
       }
     };
-  }, [map, geometry]);
+  }, [map, geometry, destinationName]);
 
   return null;
 };
+

@@ -72,7 +72,7 @@ export default function LiveMap() {
       const bounds = new mapboxgl.LngLatBounds();
       routeCoordinates.forEach((coord) => bounds.extend(coord));
       mapRef.current.fitBounds(bounds, {
-        padding: { top: 90, bottom: 220, left: 60, right: 60 },
+        padding: { top: 100, bottom: 240, left: 60, right: 70 },
         maxZoom: 16,
         duration: 1000,
       });
@@ -89,7 +89,8 @@ export default function LiveMap() {
       mapRef.current.easeTo({
         center: [targetLon, targetLat],
         zoom: 16.5,
-        pitch: 50,
+        pitch: 52,
+        offset: [0, 70],
         bearing: orientationMode === 'HEADING_UP' ? state.heading_deg : 0,
         duration: 1000,
       });
@@ -108,7 +109,8 @@ export default function LiveMap() {
         center: [targetLon, targetLat],
         zoom: 16.5,
         bearing: targetBearing,
-        pitch: 50,
+        pitch: 52,
+        offset: [0, 70],
         duration: 800,
       });
     }
@@ -193,8 +195,13 @@ export default function LiveMap() {
             />
           )}
 
-          {/* Planned Route Geometry */}
-          {routeCoordinates && <RouteLayer geometry={routeCoordinates} />}
+          {/* Planned Route Geometry with Destination Label */}
+          {routeCoordinates && (
+            <RouteLayer
+              geometry={routeCoordinates}
+              destinationName={destination?.name}
+            />
+          )}
 
           {/* Real-time InEKF Dead Reckoning Trajectory Track */}
           {isLive && trajectory.length > 0 && (
