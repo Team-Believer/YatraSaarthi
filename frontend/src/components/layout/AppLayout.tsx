@@ -49,7 +49,7 @@ export default function AppLayout() {
 
         {/* Floating Menu Trigger Button on Map Pages */}
         {isMapPage && (
-          <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
+          <div className="absolute top-4 sm:top-6 left-4 sm:left-6 z-30 flex items-center gap-2">
             <button
               onClick={() => setDrawerOpen(true)}
               aria-label="Open menu"

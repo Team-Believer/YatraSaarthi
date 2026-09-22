@@ -14,7 +14,6 @@ import {
 } from '../components/map';
 import type { MapOrientationMode } from '../components/map/MapController';
 import { NavStatusPill } from '../components/navigation/NavStatusPill';
-import { ConfidenceIndicator } from '../components/navigation/ConfidenceIndicator';
 import { TripHudCard } from '../components/navigation/TripHudCard';
 import { RoutePreviewCard } from '../components/navigation/RoutePreviewCard';
 import { NextManeuver } from '../components/navigation/NextManeuver';
@@ -237,22 +236,18 @@ export default function LiveMap() {
           </div>
         )}
 
-        {/* FLOATING TOP OVERLAY BAR */}
-        <div className="absolute top-4 left-16 right-4 md:left-20 md:right-6 z-20 flex items-center justify-between gap-3 pointer-events-none">
-          {/* Destination Search Box / Active Turn-by-Turn Guidance */}
-          <div className="pointer-events-auto flex-1 max-w-md">
-            {!isLive ? (
-              <DestinationSearch />
-            ) : (
-              <NextManeuver />
-            )}
-          </div>
+        {/* PRIMARY TOP-CENTER DESTINATION SEARCH / ACTIVE MANEUVER GUIDANCE */}
+        <div className="absolute top-4 sm:top-6 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-6rem)] sm:w-[520px] max-w-[560px] pointer-events-auto flex justify-center">
+          {!isLive ? (
+            <DestinationSearch />
+          ) : (
+            <NextManeuver />
+          )}
+        </div>
 
-          {/* Top-Right Navigation Status & Confidence Pills (Desktop/Tablet) */}
-          <div className="hidden md:flex items-center gap-2 pointer-events-auto shrink-0">
-            <NavStatusPill />
-            <ConfidenceIndicator />
-          </div>
+        {/* TOP-RIGHT ACTIVE NAVIGATION STATUS PILL (Only renders when starting or live) */}
+        <div className="absolute top-4 sm:top-6 right-4 sm:right-6 z-20 pointer-events-auto shrink-0">
+          <NavStatusPill />
         </div>
 
         {/* ROUTE PREVIEW PLANNING PANEL (Lower-Left / Bottom Sheet) */}

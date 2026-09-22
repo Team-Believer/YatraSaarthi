@@ -169,8 +169,8 @@ export default function SensorDiagnostics() {
 
         {/* Telemetry Actions Toolbar */}
         <div className="flex items-center gap-2.5 flex-wrap">
-          <NavStatusPill />
-          <ConfidenceIndicator />
+          <NavStatusPill alwaysVisible showSecondary showChevron showDrawerOnClick />
+          <ConfidenceIndicator alwaysVisible showAccuracy />
 
           {/* Copy Telemetry Snapshot Button */}
           <button

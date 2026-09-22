@@ -8,17 +8,24 @@ import { ShieldCheck, AlertCircle, ShieldAlert } from 'lucide-react';
 export interface ConfidenceIndicatorProps {
   className?: string;
   showAccuracy?: boolean;
+  alwaysVisible?: boolean;
 }
 
 export const ConfidenceIndicator: React.FC<ConfidenceIndicatorProps> = ({
   className,
-  showAccuracy = true,
+  showAccuracy = false,
+  alwaysVisible = false,
 }) => {
   const isLive = useNavigationStore((s) => s.isLive);
   const positionConfidence = useNavigationStore((s) => s.state.position_confidence);
   const horizontalAccuracy = useNavigationStore((s) => s.state.horizontal_accuracy);
   
   const deviceAccuracy = useLocationStore((s) => s.accuracy);
+
+  // IDLE UX: Do not render confidence metric on primary map when idle unless explicitly requested (e.g. Diagnostics)
+  if (!alwaysVisible && !isLive) {
+    return null;
+  }
 
   // Compute confidence percentage ONLY from real verified telemetry
   const hasConfidence = isLive && typeof positionConfidence === 'number' && positionConfidence > 0;
@@ -38,7 +45,7 @@ export const ConfidenceIndicator: React.FC<ConfidenceIndicatorProps> = ({
       aria-label="Position confidence"
       className={twMerge(
         clsx(
-          'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-ink border border-border-clean shadow-nav-pill select-none text-xs font-medium',
+          'inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white text-ink border border-border-clean shadow-nav-pill select-none text-xs font-medium',
           className
         )
       )}

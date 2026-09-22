@@ -9,6 +9,9 @@ export interface NavStatusPillProps {
   className?: string;
   expanded?: boolean;
   showSecondary?: boolean;
+  alwaysVisible?: boolean;
+  showChevron?: boolean;
+  showDrawerOnClick?: boolean;
   onClick?: () => void;
 }
 
@@ -34,6 +37,9 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
   className,
   expanded = false,
   showSecondary = false,
+  alwaysVisible = false,
+  showChevron = false,
+  showDrawerOnClick = false,
   onClick,
 }) => {
   const openNavStatusDrawer = useNavigationStore((s) => s.openNavStatusDrawer);
@@ -50,12 +56,21 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
   const locPermission = useLocationStore((s) => s.permission);
   const locAvailability = useLocationStore((s) => s.availability);
 
+  const isStarting = sessionStatus === 'STARTING';
+  const isEnding = sessionStatus === 'ENDING';
+  const isLiveNav = isLive || sessionStatus === 'LIVE';
+
+  // IDLE UX: Do not render status pill on the main map when idle unless explicitly requested (e.g. Diagnostics)
+  if (!alwaysVisible && !isLiveNav && !isStarting && !isEnding) {
+    return null;
+  }
+
   // Derive precise category from real backend state
   let category: NavStateCategory = 'STANDBY';
   let title = 'Navigation ready';
   let secondary = 'Sensors standby';
 
-  if (isLive || sessionStatus === 'LIVE') {
+  if (isLiveNav) {
     const modeUpper = (navMode || '').toUpperCase();
 
     if (modeUpper.includes('REACQUISITION') || modeUpper.includes('RECOVERY')) {
@@ -89,21 +104,21 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
       title = 'GNSS degraded';
       secondary = 'Inertial aiding active';
     }
-  } else if (sessionStatus === 'STARTING') {
+  } else if (isStarting) {
     category = 'ACQUIRING';
     title = 'Starting navigation...';
     secondary = 'Connecting to system';
-  } else if (sessionStatus === 'ENDING') {
+  } else if (isEnding) {
     category = 'STANDBY';
     title = 'Finalizing...';
     secondary = 'Saving trip summary';
   } else if (locPermission === 'denied') {
     category = 'PERMISSION_REQUIRED';
-    title = 'Location permission required';
-    secondary = 'Enable browser geolocation';
+    title = 'Location required';
+    secondary = 'Enable geolocation';
   } else if (locAvailability === 'getting') {
     category = 'ACQUIRING';
-    title = 'Acquiring GNSS fix...';
+    title = 'Acquiring GNSS...';
     secondary = 'Searching for satellites';
   } else if (locAvailability === 'available') {
     category = 'STANDBY';
@@ -153,27 +168,18 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
       break;
   }
 
+  const isClickable = Boolean(onClick || showDrawerOnClick);
+
   const handleClick = () => {
     if (onClick) {
       onClick();
-    } else {
+    } else if (showDrawerOnClick) {
       openNavStatusDrawer();
     }
   };
 
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      aria-label="Navigation status"
-      title="Click to view real-time navigation telemetry and status"
-      className={twMerge(
-        clsx(
-          'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-ink border border-border-clean shadow-nav-pill select-none cursor-pointer transition-all duration-150 hover:bg-canvas-softer active:scale-[0.97] group text-left',
-          className
-        )
-      )}
-    >
+  const content = (
+    <>
       {/* Small semantic dot */}
       <div className="flex items-center justify-center relative shrink-0">
         <span
@@ -197,8 +203,43 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
         )}
       </div>
 
-      {/* Subtle chevron */}
-      <ChevronRight className="w-3.5 h-3.5 text-ink-mute group-hover:text-ink group-hover:translate-x-0.5 transition-all ml-0.5 shrink-0" />
-    </button>
+      {/* Optional subtle chevron in diagnostics mode */}
+      {showChevron && (
+        <ChevronRight className="w-3.5 h-3.5 text-ink-mute group-hover:text-ink group-hover:translate-x-0.5 transition-all ml-0.5 shrink-0" />
+      )}
+    </>
+  );
+
+  if (isClickable) {
+    return (
+      <button
+        type="button"
+        onClick={handleClick}
+        aria-label={`Navigation status: ${title}`}
+        title={`Navigation status: ${title}`}
+        className={twMerge(
+          clsx(
+            'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-ink border border-border-clean shadow-nav-pill select-none cursor-pointer transition-all duration-150 hover:bg-canvas-softer active:scale-[0.97] group text-left',
+            className
+          )
+        )}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      aria-label={`Navigation status: ${title}`}
+      className={twMerge(
+        clsx(
+          'inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white text-ink border border-border-clean shadow-nav-pill select-none text-left',
+          className
+        )
+      )}
+    >
+      {content}
+    </div>
   );
 };
