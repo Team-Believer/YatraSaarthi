@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { clsx } from 'clsx';
+import mapboxgl, { type Map as MapboxMap } from 'mapbox-gl';
 import { useNavigationStore } from '../stores/useNavigationStore';
 import { useLocationStore } from '../stores/useLocationStore';
 import { locationService } from '../services/location/locationService';
@@ -16,13 +17,14 @@ import type { MapOrientationMode } from '../components/map/MapController';
 import { NavStatusPill } from '../components/navigation/NavStatusPill';
 import { ConfidenceIndicator } from '../components/navigation/ConfidenceIndicator';
 import { TripHudCard } from '../components/navigation/TripHudCard';
+import { RoutePreviewCard } from '../components/navigation/RoutePreviewCard';
+import { NextManeuver } from '../components/navigation/NextManeuver';
 import {
   CheckCircle2,
   X,
   Radio,
   ArrowUpRight,
 } from 'lucide-react';
-import type { Map as MapboxMap } from 'mapbox-gl';
 
 export default function LiveMap() {
   const mapRef = useRef<MapboxMap | null>(null);
@@ -45,6 +47,7 @@ export default function LiveMap() {
     journeySummary,
     state,
     setJourneySummary,
+    destination,
     routeCoordinates,
   } = useNavigationStore();
 
@@ -64,6 +67,36 @@ export default function LiveMap() {
       setInitialCentered(true);
     }
   }, [deviceLat, deviceLon, initialCentered]);
+
+  // Fit map camera bounds to route when a destination route is selected (Route Preview)
+  useEffect(() => {
+    if (mapRef.current && routeCoordinates && routeCoordinates.length >= 2 && !isLive) {
+      const bounds = new mapboxgl.LngLatBounds();
+      routeCoordinates.forEach((coord) => bounds.extend(coord));
+      mapRef.current.fitBounds(bounds, {
+        padding: { top: 90, bottom: 220, left: 60, right: 60 },
+        maxZoom: 16,
+        duration: 1000,
+      });
+    }
+  }, [routeCoordinates, isLive]);
+
+  // Transition camera into 3D driver follow mode when navigation starts
+  useEffect(() => {
+    const targetLat = isLive && fusedPosition ? fusedPosition.latitude : deviceLat;
+    const targetLon = isLive && fusedPosition ? fusedPosition.longitude : deviceLon;
+
+    if (isLive && mapRef.current && targetLat !== null && targetLon !== null) {
+      setFollowVehicle(true);
+      mapRef.current.easeTo({
+        center: [targetLon, targetLat],
+        zoom: 16.5,
+        pitch: 50,
+        bearing: orientationMode === 'HEADING_UP' ? state.heading_deg : 0,
+        duration: 1000,
+      });
+    }
+  }, [isLive]);
 
   // Recenter handler: restores vehicle follow and eases camera to position & heading
   const handleRecenter = useCallback(() => {
@@ -124,7 +157,7 @@ export default function LiveMap() {
           </div>
           <button
             onClick={() => setJourneySummary(null)}
-            className="hover:bg-white/20 p-1.5 rounded-lg transition-colors ml-2"
+            className="hover:bg-white/20 p-1.5 rounded-lg transition-colors ml-2 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -195,58 +228,62 @@ export default function LiveMap() {
 
         {/* FLOATING TOP OVERLAY BAR */}
         <div className="absolute top-4 left-16 right-4 md:left-20 md:right-6 z-20 flex items-center justify-between gap-3 pointer-events-none">
-          {/* Destination Search Box / Active Drive Badge */}
+          {/* Destination Search Box / Active Drive Guidance */}
           <div className="pointer-events-auto flex-1 max-w-md">
             {!isLive ? (
               <DestinationSearch />
             ) : (
-              (() => {
-                const modeUpper = (state.navigation_mode || '').toUpperCase();
-                let title = 'GNSS Navigation Active';
-                let subtitle = 'Multi-constellation tracking';
-                let iconColor = 'bg-brand-600';
+              <>
+                <NextManeuver />
+                {/* Fallback Active Drive Context Badge if no step instructions exist */}
+                {(() => {
+                  const modeUpper = (state.navigation_mode || '').toUpperCase();
+                  let title = destination ? destination.name : 'GNSS Navigation Active';
+                  let subtitle = 'Multi-constellation tracking';
+                  let iconColor = 'bg-brand-600';
 
-                if (modeUpper.includes('REACQUISITION') || modeUpper.includes('RECOVERY')) {
-                  title = 'GNSS Signal Recovering';
-                  subtitle = 'Validating satellite fix';
-                  iconColor = 'bg-sky-600';
-                } else if (
-                  modeUpper.includes('DEAD_RECKONING') ||
-                  modeUpper.includes('LOST') ||
-                  modeUpper.includes('INEKF') ||
-                  modeUpper.includes('INERTIAL') ||
-                  !state.gnss_available
-                ) {
-                  title = 'Dead Reckoning Active';
-                  subtitle = typeof state.gnss_outage_duration === 'number' && state.gnss_outage_duration > 0
-                    ? `Inertial navigation · Outage ${state.gnss_outage_duration.toFixed(0)}s`
-                    : 'Inertial navigation active';
-                  iconColor = 'bg-amber-600';
-                } else if (modeUpper.includes('DEGRADING') || state.gnss_quality === 'POOR' || state.gnss_quality === 'FAIR') {
-                  title = 'GNSS Degraded';
-                  subtitle = 'Inertial aiding active';
-                  iconColor = 'bg-amber-600';
-                }
+                  if (modeUpper.includes('REACQUISITION') || modeUpper.includes('RECOVERY')) {
+                    title = 'GNSS Signal Recovering';
+                    subtitle = 'Validating satellite fix';
+                    iconColor = 'bg-sky-600';
+                  } else if (
+                    modeUpper.includes('DEAD_RECKONING') ||
+                    modeUpper.includes('LOST') ||
+                    modeUpper.includes('INEKF') ||
+                    modeUpper.includes('INERTIAL') ||
+                    !state.gnss_available
+                  ) {
+                    title = destination ? `${destination.name} (Inertial)` : 'Dead Reckoning Active';
+                    subtitle = typeof state.gnss_outage_duration === 'number' && state.gnss_outage_duration > 0
+                      ? `Inertial navigation · Outage ${state.gnss_outage_duration.toFixed(0)}s`
+                      : 'Inertial navigation active';
+                    iconColor = 'bg-amber-600';
+                  } else if (modeUpper.includes('DEGRADING') || state.gnss_quality === 'POOR' || state.gnss_quality === 'FAIR') {
+                    title = 'GNSS Degraded';
+                    subtitle = 'Inertial aiding active';
+                    iconColor = 'bg-amber-600';
+                  }
 
-                return (
-                  <div className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-slate-200/90 shadow-nav-floating flex items-center gap-3">
-                    <div className={clsx('w-8 h-8 rounded-xl text-white flex items-center justify-center shrink-0 shadow-xs', iconColor)}>
-                      <ArrowUpRight className="w-4 h-4" />
+                  return (
+                    <div className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-slate-200/90 shadow-nav-floating flex items-center gap-3">
+                      <div className={clsx('w-8 h-8 rounded-xl text-white flex items-center justify-center shrink-0 shadow-xs', iconColor)}>
+                        <ArrowUpRight className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block leading-none">
+                          {destination ? 'Navigating To' : 'Active Drive'}
+                        </span>
+                        <h3 className="font-bold text-slate-900 text-xs truncate mt-0.5">
+                          {title}
+                        </h3>
+                        <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                          {subtitle}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block leading-none">
-                        Active Drive
-                      </span>
-                      <h3 className="font-bold text-slate-900 text-xs truncate mt-0.5">
-                        {title}
-                      </h3>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                        {subtitle}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })()
+                  );
+                })()}
+              </>
             )}
           </div>
 
@@ -257,9 +294,14 @@ export default function LiveMap() {
           </div>
         </div>
 
-        {/* FLOATING BOTTOM TRIP HUD SHEET */}
+        {/* FLOATING BOTTOM SHEET AREA */}
         <div className="absolute bottom-4 left-4 right-4 md:left-8 md:right-8 z-20 pointer-events-auto">
-          <TripHudCard onRecenter={handleRecenter} />
+          {/* Show RoutePreviewCard during route preview, otherwise TripHudCard */}
+          {!isLive && destination && routeCoordinates ? (
+            <RoutePreviewCard onStart={() => setFollowVehicle(true)} />
+          ) : (
+            <TripHudCard onRecenter={handleRecenter} />
+          )}
         </div>
       </div>
     </div>

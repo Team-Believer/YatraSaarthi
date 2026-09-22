@@ -5,3 +5,5 @@ export * from './ConfidenceIndicator';
 export * from './SpeedDisplay';
 export * from './HeadingDisplay';
 export * from './TripMetrics';
+export * from './RoutePreviewCard';
+export * from './NextManeuver';

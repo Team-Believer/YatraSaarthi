@@ -69,18 +69,32 @@ export const DestinationSearch = () => {
     if (!currentLat || !currentLon) return;
     try {
       const res = await fetch(
-        `https://api.mapbox.com/directions/v5/mapbox/driving/${currentLon},${currentLat};${destCoords[0]},${destCoords[1]}?geometries=geojson&access_token=${MAPBOX_TOKEN}`
+        `https://api.mapbox.com/directions/v5/mapbox/driving/${currentLon},${currentLat};${destCoords[0]},${destCoords[1]}?geometries=geojson&steps=true&access_token=${MAPBOX_TOKEN}`
       );
       const data = await res.json();
       if (data.routes && data.routes.length > 0) {
         const route = data.routes[0];
         setRouteCoordinates(route.geometry.coordinates);
+
+        let parsedSteps: any[] = [];
+        if (route.legs && route.legs.length > 0 && route.legs[0].steps) {
+          parsedSteps = route.legs[0].steps.map((s: any) => ({
+            instruction: s.maneuver?.instruction || s.name || '',
+            distance_m: s.distance || 0,
+            duration_s: s.duration || 0,
+            name: s.name || '',
+            type: s.maneuver?.type,
+            modifier: s.maneuver?.modifier,
+          }));
+        }
+
         useRouteStore.getState().setRoute({
           origin: [currentLon, currentLat],
           destination: destCoords,
           distance_meters: route.distance,
           duration_seconds: route.duration,
           geometry: route.geometry.coordinates,
+          steps: parsedSteps,
         });
       }
     } catch (err) {

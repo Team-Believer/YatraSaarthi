@@ -3,6 +3,10 @@ import { create } from 'zustand';
 export interface RouteStep {
   instruction: string;
   distance_m: number;
+  duration_s?: number;
+  name?: string;
+  type?: string;
+  modifier?: string;
 }
 
 export interface RouteData {
