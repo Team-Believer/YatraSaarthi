@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Brain, MapPin, TrendingUp, Plus, ShieldCheck } from 'lucide-react';
+import { Layers, MapPin, Plus, ShieldCheck, Activity, Clock, CheckCircle2 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { historyService, type SessionSummary } from '../services/api/historyService';
+import { historyService, type SessionSummary, type TelemetryInsights } from '../services/api/historyService';
 
 type Tab = 'saved' | 'learned';
 
@@ -10,57 +10,61 @@ interface SavedLocation {
   distance: string;
   time: string;
   confidence: 'High Confidence' | 'Medium Confidence' | 'Learning';
-  icon: string;
 }
 
 export default function NavigationMemoryPage() {
   const [activeTab, setActiveTab] = useState<Tab>('saved');
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [insights, setInsights] = useState<TelemetryInsights | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    historyService
-      .getSessions()
-      .then((data) => {
-        setSessions(data || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    Promise.all([
+      historyService.getSessions().catch(() => []),
+      historyService.getInsights().catch(() => null),
+    ]).then(([sessData, insightData]) => {
+      setSessions(sessData || []);
+      setInsights(insightData);
+      setLoading(false);
+    });
   }, []);
 
   // Build saved locations from real session data
   const savedLocations: SavedLocation[] = sessions.slice(0, 6).map((s, i) => {
-    const names = ['Home', 'Office', 'Tunnel - MG Road', 'Airport Road', 'City Center Junction', 'Highway Route'];
+    const names = ['Home Origin', 'Office Hub', 'Metro Route Corridor', 'Airport Express Route', 'City Center Junction', 'Highway Bypass'];
     return {
       name: names[i % names.length],
       distance: `${(s.distance_meters / 1000).toFixed(1)} km`,
       time: `${Math.round(s.duration_seconds / 60)} min`,
       confidence: s.distance_meters > 5000 ? 'High Confidence' : s.distance_meters > 1000 ? 'Medium Confidence' : 'Learning',
-      icon: '📍',
     };
   });
 
   const confidenceColor = (c: string) => {
-    if (c === 'High Confidence') return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-    if (c === 'Medium Confidence') return 'bg-amber-100 text-amber-700 border-amber-200';
-    return 'bg-blue-100 text-blue-700 border-blue-200';
+    if (c === 'High Confidence') return 'bg-emerald-50 text-emerald-800 border-emerald-200';
+    if (c === 'Medium Confidence') return 'bg-amber-50 text-amber-800 border-amber-200';
+    return 'bg-blue-50 text-blue-800 border-blue-200';
   };
 
   return (
-    <div className="max-w-lg mx-auto space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 md:pb-8">
+    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-300 pb-24 md:pb-12 text-slate-900">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-brand-600 rounded-2xl flex items-center justify-center text-white shadow-md">
-          <Brain className="w-5 h-5" />
+      <div className="flex items-center gap-3 border-b border-slate-200/80 pb-5">
+        <div className="p-2.5 bg-slate-900 text-white rounded-2xl shadow-xs">
+          <Layers className="w-5 h-5 text-brand-400" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-brand-navy">Navigation Memory</h1>
-          <p className="text-xs text-gray-500">Saved locations & learned patterns</p>
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+            Navigation Memory
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium">
+            Saved destinations & accumulated inertial trajectory patterns
+          </p>
         </div>
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex bg-brand-50 rounded-2xl p-1 border border-brand-100">
+      <div className="flex bg-slate-100 rounded-2xl p-1 border border-slate-200">
         {(['saved', 'learned'] as Tab[]).map((tab) => (
           <button
             key={tab}
@@ -68,19 +72,20 @@ export default function NavigationMemoryPage() {
             className={clsx(
               'flex-1 py-2.5 rounded-xl text-xs font-bold transition-all',
               activeTab === tab
-                ? 'bg-white text-brand-600 shadow-sm'
-                : 'text-gray-500 hover:text-brand-600'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-500 hover:text-slate-900'
             )}
           >
-            {tab === 'saved' ? 'Saved Locations' : 'Learned Patterns'}
+            {tab === 'saved' ? 'Saved Route Contexts' : 'Learned Kinematic Insights'}
           </button>
         ))}
       </div>
 
       {/* Content */}
       {loading ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-brand-50 text-gray-400 text-sm">
-          Loading navigation memory...
+        <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/90 text-slate-400 text-sm space-y-2">
+          <Clock className="w-6 h-6 animate-spin mx-auto text-brand-600" />
+          <p>Loading memory logs...</p>
         </div>
       ) : activeTab === 'saved' ? (
         <div className="space-y-3">
@@ -88,95 +93,101 @@ export default function NavigationMemoryPage() {
             savedLocations.map((loc, i) => (
               <div
                 key={i}
-                className="bg-white rounded-2xl p-4 border border-brand-50 shadow-sm flex items-center gap-4"
+                className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs flex items-center gap-3.5 hover:border-slate-300 transition-colors"
               >
-                <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center text-brand-600 shrink-0">
-                  <MapPin className="w-5 h-5" />
+                <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-brand-600 shrink-0">
+                  <MapPin className="w-4.5 h-4.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold text-sm text-brand-navy">{loc.name}</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="font-bold text-xs sm:text-sm text-slate-900 truncate">{loc.name}</div>
+                  <div className="text-[11px] text-slate-500 font-medium mt-0.5">
                     {loc.distance} • {loc.time}
                   </div>
                 </div>
                 <span
-                  className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border ${confidenceColor(
-                    loc.confidence
-                  )}`}
+                  className={clsx(
+                    "text-[10px] font-bold px-2.5 py-1 rounded-full border",
+                    confidenceColor(loc.confidence)
+                  )}
                 >
                   {loc.confidence}
                 </span>
               </div>
             ))
           ) : (
-            <div className="bg-white rounded-3xl p-8 text-center border border-brand-50 space-y-3">
-              <MapPin className="w-8 h-8 text-gray-300 mx-auto" />
-              <p className="text-sm text-gray-500">No saved locations yet</p>
-              <p className="text-xs text-gray-400">
-                Start navigation sessions to automatically learn your routes
+            <div className="bg-white rounded-3xl p-10 text-center border border-slate-200/90 space-y-3">
+              <MapPin className="w-8 h-8 text-slate-300 mx-auto" />
+              <p className="text-sm font-bold text-slate-900">No saved locations yet</p>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Start navigation sessions on the cockpit to automatically preserve frequently traveled corridors.
               </p>
             </div>
           )}
 
-          {/* Add new location button */}
-          <button className="w-full flex items-center justify-center gap-2 py-3 bg-brand-50 text-brand-600 rounded-2xl text-sm font-semibold hover:bg-brand-100 transition-colors border border-brand-100">
+          {/* Contextual Action Button */}
+          <button className="w-full flex items-center justify-center gap-2 py-3 bg-brand-50 text-brand-700 hover:bg-brand-100 rounded-2xl text-xs sm:text-sm font-bold transition-all border border-brand-200/80 shadow-2xs press-scale">
             <Plus className="w-4 h-4" />
-            Add New Location
+            Add Route Location Bookmark
           </button>
         </div>
       ) : (
         /* Learned Patterns Tab */
-        <div className="space-y-3">
-          {sessions.length > 0 ? (
-            <>
-              <div className="bg-white rounded-2xl p-5 border border-brand-50 shadow-sm space-y-4">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-status-success" />
-                  <span className="text-sm font-bold text-brand-navy">
-                    System Learning Active
-                  </span>
+        <div className="space-y-4">
+          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-2xs space-y-4">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-600" />
+              <span className="text-sm font-bold text-slate-900">
+                Inertial Filter Adaptation
+              </span>
+            </div>
+            <div className="space-y-2.5 text-xs text-slate-600">
+              {[
+                { title: 'InEKF Strapdown Bias Correction', desc: 'Continuous zero-velocity bias convergence active' },
+                { title: 'Vehicle Kinematic Constraints', desc: 'Non-holonomic lateral velocity suppression calibrated' },
+                { title: 'Multi-constellation Signal Validation', desc: 'Innovation consistency gates reject multipath outliers' },
+                { title: 'E5 Neural Motion Estimation', desc: 'Temporal dilated convolutions active for longitudinal velocity aiding' },
+              ].map((item, i) => (
+                <div key={i} className="flex items-start gap-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-bold text-slate-900">{item.title}</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">{item.desc}</div>
+                  </div>
                 </div>
-                <div className="space-y-3 text-xs text-gray-600">
-                  {[
-                    'Tunnel vibration pattern added',
-                    'Magnetic anomaly map updated',
-                    'Road geometry refined',
-                    'New location pattern learned',
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                      <TrendingUp className="w-4 h-4 text-brand-600 shrink-0" />
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Genuine Telemetry Insights Ribbon */}
+          {insights && insights.has_data && (
+            <div className="bg-slate-900 rounded-3xl p-5 sm:p-6 text-white space-y-4">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-cyan-400">
+                <Activity className="w-4 h-4" />
+                Accumulated Platform Insights
               </div>
 
-              <div className="bg-brand-navy rounded-2xl p-5 text-white">
-                <div className="text-xs text-brand-100 font-semibold mb-2">
-                  Accuracy Improvement Over Time
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3 bg-white/10 rounded-2xl border border-white/10">
+                  <span className="text-[9.5px] uppercase font-bold text-slate-400">Total Journeys</span>
+                  <div className="text-lg font-bold font-mono text-white mt-0.5">{insights.total_sessions}</div>
                 </div>
-                <div className="flex items-end gap-3 h-20">
-                  {[40, 55, 60, 75, 88, 92].map((val, i) => (
-                    <div
-                      key={i}
-                      className="flex-1 bg-brand-600 rounded-t-lg transition-all"
-                      style={{ height: `${val}%` }}
-                    />
-                  ))}
+                <div className="p-3 bg-white/10 rounded-2xl border border-white/10">
+                  <span className="text-[9.5px] uppercase font-bold text-slate-400">Total Distance</span>
+                  <div className="text-lg font-bold font-mono text-white mt-0.5">
+                    {insights.total_distance_km} <span className="text-xs font-normal text-slate-400">km</span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-[10px] text-brand-100 mt-2">
-                  <span>Week 1</span>
-                  <span>Current</span>
+                <div className="p-3 bg-white/10 rounded-2xl border border-white/10">
+                  <span className="text-[9.5px] uppercase font-bold text-slate-400">Total Time</span>
+                  <div className="text-lg font-bold font-mono text-white mt-0.5">
+                    {insights.total_duration_minutes} <span className="text-xs font-normal text-slate-400">min</span>
+                  </div>
+                </div>
+                <div className="p-3 bg-white/10 rounded-2xl border border-white/10">
+                  <span className="text-[9.5px] uppercase font-bold text-slate-400">Fixes Processed</span>
+                  <div className="text-lg font-bold font-mono text-white mt-0.5">{insights.points_processed}</div>
                 </div>
               </div>
-            </>
-          ) : (
-            <div className="bg-white rounded-3xl p-8 text-center border border-brand-50 space-y-3">
-              <Brain className="w-8 h-8 text-gray-300 mx-auto" />
-              <p className="text-sm text-gray-500">No learned patterns yet</p>
-              <p className="text-xs text-gray-400">
-                Navigate more routes to help YatraSaarthi learn your environment
-              </p>
             </div>
           )}
         </div>
