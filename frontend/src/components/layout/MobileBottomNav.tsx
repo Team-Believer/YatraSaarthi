@@ -1,11 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Map, Clock, Activity, User } from 'lucide-react';
+import { Navigation, Clock, Activity, User } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const tabs = [
-  { name: 'Home', path: '/app', icon: Home },
-  { name: 'Map', path: '/app/map', icon: Map },
-  { name: 'History', path: '/app/history', icon: Clock },
+  { name: 'Navigate', path: '/app', icon: Navigation },
+  { name: 'Trips', path: '/app/history', icon: Clock },
   { name: 'Sensors', path: '/app/diagnostics', icon: Activity },
   { name: 'Profile', path: '/app/profile', icon: User },
 ];

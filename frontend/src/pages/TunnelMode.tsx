@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useNavigationStore } from '../stores/useNavigationStore';
 import { useLocationStore } from '../stores/useLocationStore';
 import { useSensorStore } from '../stores/useSensorStore';
 import { locationService } from '../services/location/locationService';
 import { sessionLifecycle } from '../services/navigation/sessionLifecycle';
 import { sensorCollector } from '../services/sensors/sensorCollector';
+import { useResolvedHeading } from '../hooks/useResolvedHeading';
 import {
   MapContainer,
   MapController,
@@ -16,6 +18,7 @@ import {
 import type { MapOrientationMode } from '../components/map/MapController';
 import type { Map as MapboxMap } from 'mapbox-gl';
 import {
+  ArrowLeft,
   ShieldAlert,
   ShieldCheck,
   Radio,
@@ -23,10 +26,12 @@ import {
   Square,
   Cpu,
   Sliders,
+  ChevronUp,
+  ChevronDown,
   Layers,
-  Sparkles,
-  MountainSnow,
   Activity,
+  Gauge,
+  Compass,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -36,7 +41,12 @@ export default function TunnelMode() {
   const [orientationMode, setOrientationMode] = useState<MapOrientationMode>('HEADING_UP');
   const [isSimulatingOutage, setIsSimulatingOutage] = useState(false);
   const [simulatedOutageSeconds, setSimulatedOutageSeconds] = useState(0);
+  const [showTechnicalPanel, setShowTechnicalPanel] = useState(false);
   const outageTimerRef = useRef<any>(null);
+
+  // Resolved Heading from single prioritized source
+  const { headingDeg, cardinal, valid: isHeadingValid } = useResolvedHeading();
+  const activeHeading = isHeadingValid && headingDeg !== null ? headingDeg : 0;
 
   // Real device location from Geolocation API
   const {
@@ -45,17 +55,17 @@ export default function TunnelMode() {
     permission: locPermission,
   } = useLocationStore();
 
-  // Navigation Store Selectors (Focused for optimal performance)
+  // Navigation Store Selectors
   const isLive = useNavigationStore((s) => s.isLive);
   const fusedPosition = useNavigationStore((s) => s.fusedPosition);
   const trajectory = useNavigationStore((s) => s.trajectory);
   const routeCoordinates = useNavigationStore((s) => s.routeCoordinates);
+  const destination = useNavigationStore((s) => s.destination);
   const state = useNavigationStore((s) => s.state);
 
   const {
     speed,
     horizontal_accuracy: accuracy,
-    heading_deg: heading,
     position_confidence: confidence,
     navigation_mode: navMode,
     gnss_available: gnssAvailable,
@@ -74,7 +84,6 @@ export default function TunnelMode() {
   useEffect(() => {
     locationService.startWatching();
     return () => {
-      // Clean up simulated outage on unmount
       if (sensorCollector.isGnssSuppressed()) {
         sensorCollector.setGnssSuppression(false);
       }
@@ -117,27 +126,45 @@ export default function TunnelMode() {
       mapRef.current.easeTo({
         center: [targetLon, targetLat],
         zoom: 16.5,
+        bearing: orientationMode === 'HEADING_UP' ? activeHeading : 0,
+        pitch: 52,
+        offset: [0, 60],
         duration: 800,
       });
     }
-  }, [fusedPosition, deviceLon, deviceLat]);
+  }, [fusedPosition, deviceLon, deviceLat, orientationMode, activeHeading]);
 
   // Toggle map orientation
-  const handleOrientationToggle = useCallback(() => {
-    setOrientationMode((prev) => (prev === 'HEADING_UP' ? 'NORTH_UP' : 'HEADING_UP'));
-  }, []);
+  const handleOrientationToggle = useCallback((mode: MapOrientationMode) => {
+    setOrientationMode(mode);
+    if (mapRef.current) {
+      const targetBearing = mode === 'HEADING_UP' ? activeHeading : 0;
+      mapRef.current.easeTo({
+        bearing: targetBearing,
+        duration: 500,
+      });
+    }
+  }, [activeHeading]);
 
   // Start / End Navigation Session Actions
-  const handleToggleSession = async () => {
-    if (isLive) {
+  const handleStartSession = async () => {
+    try {
+      await sessionLifecycle.startLiveSession();
+      setFollowVehicle(true);
+    } catch (err: any) {
+      alert(err.message || 'Failed to start test session');
+    }
+  };
+
+  const handleEndSession = async () => {
+    try {
       if (isSimulatingOutage) {
         sensorCollector.setGnssSuppression(false);
         setIsSimulatingOutage(false);
       }
       await sessionLifecycle.endLiveSession();
-    } else {
-      await sessionLifecycle.startLiveSession();
-      setFollowVehicle(true);
+    } catch (err: any) {
+      console.error('Failed to end test session:', err);
     }
   };
 
@@ -150,9 +177,9 @@ export default function TunnelMode() {
   };
 
   // Coordinates resolution
-  const displayLat = fusedPosition?.latitude ?? deviceLat ?? 20.5937;
-  const displayLon = fusedPosition?.longitude ?? deviceLon ?? 78.9629;
-  const hasCoordinates = (fusedPosition?.latitude !== undefined && fusedPosition?.latitude !== 0) || deviceLat !== null;
+  const displayLat = fusedPosition?.latitude ?? deviceLat;
+  const displayLon = fusedPosition?.longitude ?? deviceLon;
+  const hasCoordinates = displayLat !== null && displayLon !== null && displayLat !== 0;
 
   // Determine Outage / Dead Reckoning Status
   const isDRActive =
@@ -168,7 +195,9 @@ export default function TunnelMode() {
   // Format outage duration
   const displayOutageDuration = isSimulatingOutage
     ? simulatedOutageSeconds
-    : (backendOutageDuration > 0 ? backendOutageDuration : 0);
+    : backendOutageDuration > 0
+    ? backendOutageDuration
+    : 0;
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -176,462 +205,409 @@ export default function TunnelMode() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Outage Stages Definition
+  const speedKmh = Math.max(0, Math.round((speed || 0) * 3.6));
+
+  // 5 Outage Stages for compact stepper
   const stages = [
-    {
-      id: 'gnss',
-      label: 'GNSS Nominal',
-      sublabel: 'Full satellite lock',
-      active: isNominalGNSS,
-      passed: isDegraded || isDRActive || isRecovering,
-      color: 'emerald',
-    },
-    {
-      id: 'degrading',
-      label: 'GNSS Degrading',
-      sublabel: 'Multipath / Attenuation',
-      active: isDegraded,
-      passed: isDRActive || isRecovering,
-      color: 'amber',
-    },
-    {
-      id: 'outage',
-      label: 'GNSS Lost / Outage',
-      sublabel: 'Satellites unavailable',
-      active: isDRActive && !isRecovering,
-      passed: isRecovering,
-      color: 'rose',
-    },
-    {
-      id: 'dr',
-      label: 'InEKF Dead Reckoning',
-      sublabel: 'IMU + AI + NHC fusion',
-      active: isDRActive,
-      passed: isRecovering,
-      color: 'amber',
-    },
-    {
-      id: 'recovery',
-      label: 'GNSS Recovery',
-      sublabel: 'Phase & Doppler lock',
-      active: isRecovering,
-      passed: false,
-      color: 'cyan',
-    },
-    {
-      id: 'restored',
-      label: 'GNSS Restored',
-      sublabel: 'Nominal open-sky resumed',
-      active: isNominalGNSS && displayOutageDuration === 0,
-      passed: false,
-      color: 'emerald',
-    },
+    { id: 'gnss', label: 'GNSS Nominal', active: isNominalGNSS },
+    { id: 'degrading', label: 'Degrading', active: isDegraded },
+    { id: 'outage', label: 'Outage / DR', active: isDRActive },
+    { id: 'recovery', label: 'Recovery', active: isRecovering },
+    { id: 'restored', label: 'Restored', active: isNominalGNSS && displayOutageDuration === 0 && isLive },
   ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-300 pb-24 md:pb-12 text-ink">
-      
-      {/* 1. HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border-clean pb-5">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-black text-white rounded-xl shadow-xs">
-              <MountainSnow className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-ink">
-                  GNSS outage test
-                </h1>
-                <span className={clsx(
-                  "text-[11px] font-medium px-2.5 py-0.5 rounded-full border",
-                  isDRActive
-                    ? "bg-amber-50 text-amber-900 border-amber-300 animate-pulse"
-                    : isLive
-                    ? "bg-emerald-50 text-emerald-900 border-emerald-300"
-                    : "bg-canvas-soft text-ink-body border-border-clean"
-                )}>
-                  {isDRActive ? "Dead reckoning active" : isLive ? "GNSS active" : "Standby"}
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-ink-body font-normal">
-                Dead reckoning continuity demonstration and controlled GNSS-denied navigation test
+    <div className="relative w-full h-full overflow-hidden select-none bg-canvas">
+      {/* 1. FULL-VIEWPORT MAP CANVAS */}
+      <div className="absolute inset-0 w-full h-full">
+        <MapContainer
+          onMapLoaded={(map) => {
+            mapRef.current = map;
+          }}
+          initialCenter={[displayLon ?? 72.67, displayLat ?? 23.00]}
+          initialZoom={16.5}
+          initialPitch={52}
+          className="w-full h-full"
+        >
+          <MapController
+            latitude={hasCoordinates ? displayLat : null}
+            longitude={hasCoordinates ? displayLon : null}
+            heading={activeHeading}
+            followVehicle={followVehicle}
+            orientationMode={orientationMode}
+            is3D={true}
+            onManualInteraction={handleManualInteraction}
+          />
+
+          {/* Vehicle Marker */}
+          {hasCoordinates && (
+            <VehicleMarker
+              latitude={displayLat}
+              longitude={displayLon}
+              heading={activeHeading}
+              mode={isDRActive ? 'DEAD_RECKONING' : isRecovering ? 'RECOVERY' : isLive ? navMode : 'STANDBY'}
+            />
+          )}
+
+          {/* Planned Route Layer */}
+          {routeCoordinates && (
+            <RouteLayer
+              geometry={routeCoordinates}
+              destinationName={destination?.name}
+            />
+          )}
+
+          {/* Continuous InEKF Fused Trajectory */}
+          {isLive && trajectory.length > 0 && (
+            <TrajectoryLayer fusedTrack={trajectory} />
+          )}
+
+          {/* Map Floating Controls */}
+          <MapControls
+            onRecenter={handleRecenter}
+            onOrientationToggle={handleOrientationToggle}
+            orientationMode={orientationMode}
+            followVehicle={followVehicle}
+            heading={activeHeading}
+          />
+        </MapContainer>
+      </div>
+
+      {/* 2. TOP FLOATING NAVIGATION HEADER */}
+      <div className="absolute top-4 sm:top-6 left-4 sm:left-6 right-4 sm:right-6 z-30 pointer-events-none">
+        <div className="flex items-center justify-between gap-3 max-w-5xl mx-auto">
+          {/* Left: Back Link & Title */}
+          <div className="flex items-center gap-2.5 pointer-events-auto bg-white/95 backdrop-blur-md px-3 sm:px-4 py-2 rounded-2xl border border-border-clean shadow-nav-floating">
+            <Link
+              to="/app"
+              aria-label="Back to Navigate"
+              title="Back to Navigate"
+              className="p-1.5 -ml-1 rounded-full text-ink hover:bg-canvas-soft transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+            <div className="min-w-0 pr-1">
+              <h1 className="text-xs sm:text-sm font-bold text-ink leading-tight truncate">
+                GNSS outage test
+              </h1>
+              <p className="text-[10px] text-ink-mute hidden sm:block leading-none mt-0.5">
+                Test navigation continuity during GNSS loss
               </p>
             </div>
           </div>
-        </div>
 
-        {/* Global Action Buttons */}
-        <div className="flex items-center gap-3 self-start md:self-auto">
-          <button
-            onClick={handleToggleSession}
-            className={clsx(
-              "px-5 py-2.5 rounded-full font-medium text-xs sm:text-sm flex items-center gap-2 transition-all shadow-xs",
-              isLive
-                ? "bg-white text-rose-700 border border-rose-200 hover:bg-rose-50"
-                : "bg-black text-white hover:bg-black/90 active:scale-98"
-            )}
-          >
-            {isLive ? (
-              <>
-                <Square className="w-4 h-4 fill-current" />
-                End test session
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4 fill-current" />
-                Start test session
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* 2. CURRENT STATE HERO BANNER */}
-      <div className="rounded-2xl p-5 sm:p-6 border border-border-clean bg-white shadow-2xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink-mute">
-              <Activity className="w-4 h-4 text-ink" />
-              Navigation signal state
-            </div>
-            <div className="flex items-baseline gap-3">
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-ink">
-                {isDRActive
-                  ? "Dead reckoning active"
-                  : isRecovering
-                  ? "GNSS recovering"
-                  : isDegraded
-                  ? "GNSS degraded"
-                  : isLive
-                  ? "GNSS signal nominal"
-                  : "System standby"}
-              </h2>
-              <span className="text-xs font-mono font-medium text-ink-body">
-                {isLive ? `Mode: ${navMode}` : "Ready for test"}
-              </span>
-            </div>
-            <p className="text-xs sm:text-sm text-ink-body max-w-2xl leading-relaxed">
-              {isDRActive
-                ? "Satellite observations are unavailable. The InEKF engine is estimating vehicle position continuously using smartphone IMU kinematics, E5 AI velocity, and non-holonomic vehicle constraints."
-                : isRecovering
-                ? "Satellite signals re-acquired. The filter is validating measurement innovations and smoothing trajectory convergence."
-                : isLive
-                ? "High-confidence satellite constellation positioning. Inertial sensors running in background alignment."
-                : "Initialize a session or start a simulation below to observe real-time dead reckoning transitions."}
-            </p>
-          </div>
-
-          {/* Key Metrics Quick Ribbon */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
-            <div className="p-3 bg-canvas-soft rounded-2xl border border-border-clean shadow-2xs">
-              <span className="text-[10px] uppercase font-bold text-ink-mute block">Outage timer</span>
-              <div className="text-lg font-mono font-bold text-ink mt-0.5">
-                {formatDuration(displayOutageDuration)}
-              </div>
-            </div>
-
-            <div className="p-3 bg-canvas-soft rounded-2xl border border-border-clean shadow-2xs">
-              <span className="text-[10px] uppercase font-bold text-ink-mute block">Confidence</span>
-              <div className="text-lg font-mono font-bold text-ink mt-0.5">
-                {isLive ? `${(confidence * 100).toFixed(0)}%` : "—"}
-              </div>
-            </div>
-
-            <div className="p-3 bg-canvas-soft rounded-2xl border border-border-clean shadow-2xs">
-              <span className="text-[10px] uppercase font-bold text-ink-mute block">Error bound</span>
-              <div className="text-lg font-mono font-bold text-ink mt-0.5">
-                {isLive ? `±${accuracy.toFixed(1)}m` : "—"}
-              </div>
-            </div>
-
-            <div className="p-3 bg-canvas-soft rounded-2xl border border-border-clean shadow-2xs">
-              <span className="text-[10px] uppercase font-bold text-ink-mute block">Speed</span>
-              <div className="text-lg font-mono font-bold text-ink mt-0.5">
-                {isLive ? `${(speed * 3.6).toFixed(0)} km/h` : "0 km/h"}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. MAIN INTERACTIVE LAYOUT: CONTROLS (LEFT) + MAP (CENTER/RIGHT) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        {/* LEFT COLUMN: Test Console & Constraints (4 Cols) */}
-        <div className="lg:col-span-4 space-y-6">
-          
-          {/* Outage Simulation Controls Card */}
-          <div className="bg-white rounded-2xl p-5 sm:p-6 border border-border-clean shadow-2xs space-y-4">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink-mute">
-              <Sliders className="w-4 h-4 text-ink" />
-              Controlled outage console
-            </div>
-
-            <p className="text-xs text-ink-body leading-relaxed">
-              Test how Yatra-Sarthi behaves when satellite signals are obstructed (e.g., entering an underpass, tunnel, or urban canyon).
-            </p>
-
-            <div className="space-y-2.5 pt-1">
-              <button
-                onClick={handleToggleOutageSimulation}
-                disabled={!isLive}
-                className={clsx(
-                  "w-full py-3 px-4 rounded-full font-medium text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all shadow-xs",
-                  !isLive
-                    ? "bg-canvas-soft text-ink-mute border border-border-clean cursor-not-allowed"
-                    : isSimulatingOutage
-                    ? "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-98"
-                    : "bg-black text-white hover:bg-black/90 active:scale-98"
-                )}
-              >
-                {isSimulatingOutage ? (
-                  <>
-                    <ShieldCheck className="w-4 h-4" />
-                    Restore GNSS / Exit tunnel
-                  </>
-                ) : (
-                  <>
-                    <ShieldAlert className="w-4 h-4" />
-                    Simulate GNSS outage / Enter tunnel
-                  </>
-                )}
-              </button>
-
-              {!isLive && (
-                <p className="text-[11px] text-center text-ink-mute italic">
-                  Click "Start test session" above to enable live outage simulation.
-                </p>
+          {/* Center/Right: Primary Status Banner */}
+          <div className="flex items-center gap-2 pointer-events-auto">
+            {/* Status Pill */}
+            <div
+              className={clsx(
+                'flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/95 backdrop-blur-md border border-border-clean shadow-nav-floating text-xs font-medium',
+                isDRActive && 'ring-2 ring-amber-400/40 border-amber-300'
               )}
-            </div>
-
-            <div className="pt-2 border-t border-border-clean space-y-2 text-xs font-medium text-ink-body">
-              <div className="flex justify-between py-1 border-b border-border-clean/50">
-                <span className="text-ink-mute">Satellite stream</span>
-                <span className={clsx("font-medium", isSimulatingOutage ? "text-rose-600" : gnssAvailable ? "text-emerald-600" : "text-ink-mute")}>
-                  {isSimulatingOutage ? "SUPPRESSED (Testing)" : gnssAvailable ? "ACTIVE (50 Hz)" : "WAITING"}
-                </span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-border-clean/50">
-                <span className="text-ink-mute">IMU strapdown</span>
-                <span className="font-medium text-emerald-600">
-                  {imuAvailable ? "ACTIVE (6-DoF)" : capabilities.deviceMotion ? "READY" : "AVAILABLE"}
-                </span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-border-clean/50">
-                <span className="text-ink-mute">Kinematic NHC</span>
-                <span className={clsx("font-medium", nhcActive ? "text-emerald-600" : "text-ink-mute")}>
-                  {nhcActive ? "ENGAGED" : "ARMED"}
-                </span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span className="text-ink-mute">ZUPT detection</span>
-                <span className={clsx("font-medium", zuptActive ? "text-emerald-600" : "text-ink-mute")}>
-                  {zuptActive ? "STATIONARY LOCK" : "ARMED"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* InEKF & AI Estimation Breakdown */}
-          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-3.5">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-              <Cpu className="w-4 h-4 text-brand-600" />
-              Continuity Subsystem
-            </div>
-
-            <div className="space-y-3">
-              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
-                <div className="flex justify-between text-xs font-bold text-slate-800">
-                  <span>AI Pseudo-Velocity</span>
-                  <span className="font-mono text-brand-700">
-                    {typeof aiVelocity === 'number' ? `${aiVelocity.toFixed(2)} m/s` : `${speed.toFixed(2)} m/s`}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 leading-snug">
-                  E5 Dilated Temporal ConvNet replaces lost Doppler radar / wheel ticks with longitudinal motion estimates.
-                </p>
-              </div>
-
-              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
-                <div className="flex justify-between text-xs font-bold text-slate-800">
-                  <span>Calibrated Uncertainty</span>
-                  <span className="font-mono text-amber-800">
-                    ±{typeof aiUncertainty === 'number' ? aiUncertainty.toFixed(2) : '0.25'} m/s
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 leading-snug">
-                  U2 Heteroscedastic network regulates filter innovation noise to eliminate synthetic drift.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Technical Note */}
-          <div className="p-4 bg-brand-50/70 border border-brand-100/90 rounded-2xl text-xs text-brand-950 space-y-1.5">
-            <div className="font-bold flex items-center gap-1.5 text-brand-900">
-              <Sparkles className="w-3.5 h-3.5 text-brand-600" />
-              Evaluation Benchmark Standard
-            </div>
-            <p className="text-slate-600 leading-relaxed text-[11px]">
-              GNSS outage testing demonstrates how Yatra-Sarthi maintains continuous navigation across 60s+ satellite-denied tunnels without track jumping or map snapping anomalies.
-            </p>
-          </div>
-        </div>
-
-        {/* RIGHT COLUMN: Map & Live Visualization (8 Cols) */}
-        <div className="lg:col-span-8 space-y-6">
-          
-          {/* Map Container Box */}
-          <div className="bg-slate-900 rounded-3xl overflow-hidden border border-slate-200/90 shadow-lg relative h-[460px] sm:h-[520px] w-full">
-            
-            {/* Mapbox Canvas */}
-            <MapContainer
-              onMapLoaded={(map) => {
-                mapRef.current = map;
-              }}
-              initialCenter={[displayLon, displayLat]}
-              initialZoom={16.5}
-              initialPitch={45}
-              className="w-full h-full"
             >
-              <MapController
-                latitude={hasCoordinates ? displayLat : null}
-                longitude={hasCoordinates ? displayLon : null}
-                heading={isLive ? heading : 0}
-                followVehicle={followVehicle}
-                orientationMode={orientationMode}
-                is3D={true}
-                onManualInteraction={handleManualInteraction}
+              {/* Semantic status dot */}
+              <span
+                className={clsx(
+                  'w-2.5 h-2.5 rounded-full shrink-0',
+                  !isLive
+                    ? 'bg-neutral-400'
+                    : isDRActive
+                    ? 'bg-amber-500 animate-pulse'
+                    : isRecovering
+                    ? 'bg-cyan-500 animate-pulse'
+                    : isDegraded
+                    ? 'bg-amber-400'
+                    : 'bg-emerald-500'
+                )}
               />
 
-              {/* Vehicle Marker */}
-              {hasCoordinates && (
-                <VehicleMarker
-                  latitude={displayLat}
-                  longitude={displayLon}
-                  heading={isLive ? heading : 0}
-                  mode={isLive ? navMode : 'STANDBY'}
-                />
+              <span className="text-ink font-semibold whitespace-nowrap">
+                {!isLive
+                  ? 'Standby'
+                  : isDRActive
+                  ? 'Dead reckoning'
+                  : isRecovering
+                  ? 'GNSS recovering'
+                  : isDegraded
+                  ? 'GNSS degraded'
+                  : 'GNSS signal'}
+              </span>
+
+              {/* Outage timer badge when DR is active */}
+              {isDRActive && (
+                <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 tabular-nums">
+                  {formatDuration(displayOutageDuration)}
+                </span>
               )}
+            </div>
 
-              {/* Planned Route Layer */}
-              {routeCoordinates && <RouteLayer geometry={routeCoordinates} />}
+            {/* End Session Button when live */}
+            {isLive && (
+              <button
+                type="button"
+                onClick={handleEndSession}
+                title="End test session"
+                className="h-9 px-3.5 bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-800 border border-border-clean hover:border-rose-200 rounded-2xl text-xs font-medium flex items-center gap-1.5 shadow-nav-floating transition-colors cursor-pointer active:scale-95"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+                <span className="hidden sm:inline">End test</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
-              {/* Continuous InEKF Fused Trajectory */}
-              {isLive && trajectory.length > 0 && (
-                <TrajectoryLayer fusedTrack={trajectory} />
-              )}
+      {/* 3. TOP-LEFT MAP LEGEND */}
+      <div className="absolute top-20 sm:top-24 left-4 sm:left-6 z-20 pointer-events-none">
+        <div className="pointer-events-auto bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-border-clean shadow-2xs flex items-center gap-2.5 text-[11px]">
+          <div className="flex items-center gap-1.5 font-medium text-ink">
+            <span className="w-2 h-2 rounded-full bg-blue-600 ring-2 ring-blue-200" />
+            <span>Fused track</span>
+          </div>
+          <div className="h-3 w-px bg-border-clean" />
+          <div className="flex items-center gap-1.5 font-medium text-ink">
+            <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-200" />
+            <span>Dead reckoning</span>
+          </div>
+        </div>
+      </div>
 
-              {/* Map Floating Controls */}
-              <MapControls
-                onRecenter={handleRecenter}
-                onOrientationToggle={handleOrientationToggle}
-                orientationMode={orientationMode}
-                followVehicle={followVehicle}
-                heading={isLive ? heading : 0}
-              />
-            </MapContainer>
+      {/* 4. FLOATING TELEMETRY CHIPS (LEFT / BOTTOM-LEFT) */}
+      <div className="absolute bottom-24 sm:bottom-28 left-4 sm:left-6 z-20 pointer-events-none">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 max-w-md pointer-events-auto">
+          {/* Speed chip */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 backdrop-blur-md rounded-full border border-border-clean shadow-nav-floating text-xs font-medium text-ink">
+            <Gauge className="w-3.5 h-3.5 text-ink-mute shrink-0" />
+            <span className="font-bold tabular-nums font-mono">{isLive ? speedKmh : 0}</span>
+            <span className="text-[11px] text-ink-mute">km/h</span>
+          </div>
 
-            {/* Acquiring Fix Notice */}
-            {!hasCoordinates && (
-              <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center pointer-events-none p-4 text-center z-20">
-                <div className="bg-white/95 p-6 rounded-2xl border border-slate-200 shadow-xl space-y-2 max-w-sm">
-                  <Radio className="w-7 h-7 text-brand-600 animate-pulse mx-auto" />
-                  <h4 className="font-bold text-sm text-slate-900">Connecting to Sensors</h4>
-                  <p className="text-xs text-slate-500">
-                    {locPermission === 'denied'
-                      ? 'Please allow browser geolocation permissions.'
-                      : 'Acquiring satellite lock and motion sensors...'}
+          {/* Heading chip */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 backdrop-blur-md rounded-full border border-border-clean shadow-nav-floating text-xs font-medium text-ink">
+            <Compass
+              className="w-3.5 h-3.5 text-ink-mute shrink-0 transition-transform duration-300"
+              style={{ transform: isHeadingValid && headingDeg !== null ? `rotate(${headingDeg}deg)` : undefined }}
+            />
+            <span className="font-bold tabular-nums font-mono">
+              {isHeadingValid && headingDeg !== null ? `${headingDeg}°` : '—'}
+            </span>
+            {isHeadingValid && cardinal && (
+              <span className="text-[11px] text-ink-mute font-sans">{cardinal}</span>
+            )}
+          </div>
+
+          {/* Confidence chip */}
+          {isLive && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 backdrop-blur-md rounded-full border border-border-clean shadow-nav-floating text-xs font-medium text-ink">
+              <Activity className="w-3.5 h-3.5 text-ink-mute shrink-0" />
+              <span className="text-ink-mute">Conf:</span>
+              <span className="font-bold tabular-nums font-mono">{(confidence * 100).toFixed(0)}%</span>
+            </div>
+          )}
+
+          {/* Error bound chip */}
+          {isLive && typeof accuracy === 'number' && accuracy > 0 && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 backdrop-blur-md rounded-full border border-border-clean shadow-nav-floating text-xs font-medium text-ink">
+              <span className="text-ink-mute">Error:</span>
+              <span className="font-bold tabular-nums font-mono">±{accuracy.toFixed(1)}m</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 5. FLOATING BOTTOM CONTROL BAR & COLLAPSIBLE SYSTEM PANEL */}
+      <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 right-4 sm:right-6 z-30 pointer-events-none">
+        <div className="max-w-2xl mx-auto space-y-2.5 pointer-events-auto">
+          
+          {/* Collapsible Technical Engineering Panel (Drawer-style expansion) */}
+          {showTechnicalPanel && (
+            <div className="bg-white rounded-2xl border border-border-clean shadow-nav-floating p-4 sm:p-5 space-y-4 animate-in slide-in-from-bottom-3 duration-200">
+              <div className="flex items-center justify-between border-b border-border-clean pb-2.5">
+                <div className="flex items-center gap-2">
+                  <Cpu className="w-4 h-4 text-ink" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-ink">
+                    Subsystems & AI continuity
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowTechnicalPanel(false)}
+                  className="p-1 rounded-full text-ink-mute hover:text-ink hover:bg-canvas-soft transition-colors cursor-pointer"
+                  title="Collapse system details"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Subsystems grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                <div className="p-2.5 bg-canvas-soft rounded-xl border border-border-clean space-y-0.5">
+                  <span className="text-[10px] text-ink-mute font-bold uppercase block">Satellite stream</span>
+                  <span className={clsx(
+                    'font-bold text-xs truncate block',
+                    isSimulatingOutage ? 'text-rose-600' : gnssAvailable ? 'text-emerald-700' : 'text-ink-mute'
+                  )}>
+                    {isSimulatingOutage ? 'LOST (Testing)' : gnssAvailable ? 'ACTIVE (50 Hz)' : 'WAITING'}
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-canvas-soft rounded-xl border border-border-clean space-y-0.5">
+                  <span className="text-[10px] text-ink-mute font-bold uppercase block">IMU strapdown</span>
+                  <span className="font-bold text-xs text-emerald-700 truncate block">
+                    {imuAvailable ? 'ACTIVE (6-DoF)' : capabilities.deviceMotion ? 'READY' : 'AVAILABLE'}
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-canvas-soft rounded-xl border border-border-clean space-y-0.5">
+                  <span className="text-[10px] text-ink-mute font-bold uppercase block">Kinematic NHC</span>
+                  <span className={clsx('font-bold text-xs truncate block', nhcActive ? 'text-emerald-700' : 'text-ink-mute')}>
+                    {nhcActive ? 'ENGAGED' : 'ARMED'}
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-canvas-soft rounded-xl border border-border-clean space-y-0.5">
+                  <span className="text-[10px] text-ink-mute font-bold uppercase block">ZUPT lock</span>
+                  <span className={clsx('font-bold text-xs truncate block', zuptActive ? 'text-emerald-700' : 'text-ink-mute')}>
+                    {zuptActive ? 'STATIONARY' : 'ARMED'}
+                  </span>
+                </div>
+              </div>
+
+              {/* AI Pseudo-Velocity & Uncertainty Breakdown */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="p-3 bg-canvas-soft rounded-xl border border-border-clean space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-ink">AI Pseudo-Velocity</span>
+                    <span className="font-mono font-bold text-ink">
+                      {typeof aiVelocity === 'number' ? `${aiVelocity.toFixed(2)} m/s` : `${(speed || 0).toFixed(2)} m/s`}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-ink-mute leading-snug">
+                    E5 Dilated Temporal ConvNet supplies continuous longitudinal velocity during satellite outages.
+                  </p>
+                </div>
+
+                <div className="p-3 bg-canvas-soft rounded-xl border border-border-clean space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-ink">Calibrated Uncertainty</span>
+                    <span className="font-mono font-bold text-ink">
+                      ±{typeof aiUncertainty === 'number' ? aiUncertainty.toFixed(2) : '0.25'} m/s
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-ink-mute leading-snug">
+                    U2 Heteroscedastic network regulates filter innovation covariance to prevent runaway drift.
                   </p>
                 </div>
               </div>
-            )}
 
-            {/* Floating Top Map Legend */}
-            <div className="absolute top-4 left-4 z-20 pointer-events-auto">
-              <div className="bg-white/90 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-slate-200/80 shadow-md flex items-center gap-3 text-xs">
-                <div className="flex items-center gap-1.5 font-bold text-slate-700">
-                  <span className="w-2.5 h-2.5 rounded-full bg-brand-600 ring-2 ring-brand-300" />
-                  Fused Track
+              {/* Stepper Timeline inside expanded panel */}
+              <div className="pt-2 border-t border-border-clean">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-ink-mute uppercase mb-2">
+                  <Layers className="w-3.5 h-3.5 text-ink" />
+                  <span>Outage transition stages</span>
                 </div>
-                <div className="h-3 w-px bg-slate-200" />
-                <div className="flex items-center gap-1.5 font-medium text-slate-600">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-amber-300" />
-                  Dead Reckoning
+                <div className="grid grid-cols-5 gap-1.5 text-center">
+                  {stages.map((st, idx) => (
+                    <div
+                      key={st.id}
+                      className={clsx(
+                        'py-1.5 px-1 rounded-xl text-[10px] font-medium border transition-all truncate',
+                        st.active
+                          ? 'bg-black text-white border-black font-bold shadow-2xs'
+                          : 'bg-canvas-soft text-ink-mute border-border-clean'
+                      )}
+                    >
+                      <span className="block opacity-60 text-[9px] font-mono">0{idx + 1}</span>
+                      <span className="truncate block">{st.label}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Floating Bottom Outage Status Badge */}
-            {isDRActive && (
-              <div className="absolute bottom-4 left-4 right-16 z-20 pointer-events-auto">
-                <div className="bg-amber-500/90 backdrop-blur-md text-slate-950 px-4 py-2.5 rounded-2xl border border-amber-400 shadow-lg flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 font-bold text-xs sm:text-sm">
-                    <ShieldAlert className="w-4 h-4 shrink-0" />
-                    <span>Inertial Continuity Active • No Satellite Fix</span>
-                  </div>
-                  <span className="text-xs font-mono font-black bg-amber-400 px-2 py-0.5 rounded">
-                    {formatDuration(displayOutageDuration)}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Main Bottom Actions Card */}
+          <div className="bg-white rounded-2xl border border-border-clean shadow-nav-floating p-3 sm:p-3.5 flex items-center justify-between gap-3">
+            {/* Contextual Test Trigger Action */}
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              {!isLive ? (
+                <button
+                  type="button"
+                  onClick={handleStartSession}
+                  className="h-11 px-5 bg-black hover:bg-neutral-800 text-white rounded-full text-xs sm:text-sm font-medium flex items-center gap-2 shadow-2xs transition-all cursor-pointer active:scale-97 shrink-0"
+                >
+                  <Play className="w-4 h-4 fill-white" />
+                  <span>Start test session</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleToggleOutageSimulation}
+                  className={clsx(
+                    'h-11 px-4 sm:px-5 rounded-full text-xs sm:text-sm font-medium flex items-center gap-2 shadow-2xs transition-all cursor-pointer active:scale-97 shrink-0',
+                    isSimulatingOutage
+                      ? 'bg-white hover:bg-canvas-soft text-ink border border-border-clean'
+                      : 'bg-black hover:bg-neutral-800 text-white'
+                  )}
+                >
+                  {isSimulatingOutage ? (
+                    <>
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                      <span>Restore GNSS / Exit tunnel</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldAlert className="w-4 h-4 text-amber-400" />
+                      <span>Simulate GNSS outage / Enter tunnel</span>
+                    </>
+                  )}
+                </button>
+              )}
 
-          {/* 4. OUTAGE TIMELINE PROGRESSION */}
-          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-                <Layers className="w-4 h-4 text-brand-600" />
-                Outage Transition Timeline
-              </div>
-              <span className="text-xs font-medium text-slate-500 font-mono">
-                {isLive ? `State: ${navMode}` : 'Standby'}
+              {/* Descriptive context prompt */}
+              <span className="text-xs text-ink-body hidden md:inline truncate">
+                {!isLive
+                  ? 'Start a test session to activate dead reckoning simulator.'
+                  : isSimulatingOutage
+                  ? 'GNSS observations suppressed. Dead reckoning active.'
+                  : 'Ready to simulate satellite loss.'}
               </span>
             </div>
 
-            {/* Timeline Stepper */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2">
-              {stages.map((stage, idx) => (
-                <div
-                  key={stage.id}
-                  className={clsx(
-                    "p-3 rounded-2xl border transition-all text-left relative",
-                    stage.active
-                      ? "bg-slate-900 text-white border-slate-900 shadow-sm"
-                      : stage.passed
-                      ? "bg-slate-50 text-slate-700 border-slate-200"
-                      : "bg-white text-slate-400 border-slate-100 opacity-60"
-                  )}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className={clsx(
-                      "text-[10px] font-mono font-bold px-1.5 py-0.2 rounded",
-                      stage.active ? "bg-cyan-500 text-slate-950" : "bg-slate-200 text-slate-600"
-                    )}>
-                      0{idx + 1}
-                    </span>
-                    {stage.active && (
-                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                    )}
-                  </div>
-                  <div className="font-bold text-xs leading-tight">{stage.label}</div>
-                  <div className={clsx(
-                    "text-[10px] mt-1 leading-snug truncate",
-                    stage.active ? "text-slate-300" : "text-slate-400"
-                  )}>
-                    {stage.sublabel}
-                  </div>
-                </div>
-              ))}
-            </div>
+            {/* Toggle System Details Button */}
+            <button
+              type="button"
+              onClick={() => setShowTechnicalPanel((prev) => !prev)}
+              aria-label="Toggle system status details"
+              className="h-11 px-3.5 sm:px-4 bg-canvas-soft hover:bg-surface-pressed text-ink rounded-full text-xs font-medium flex items-center gap-1.5 border border-border-clean shadow-2xs transition-colors cursor-pointer shrink-0"
+            >
+              <Sliders className="w-3.5 h-3.5 text-ink" />
+              <span className="hidden sm:inline">System status</span>
+              {showTechnicalPanel ? (
+                <ChevronDown className="w-3.5 h-3.5 text-ink-mute" />
+              ) : (
+                <ChevronUp className="w-3.5 h-3.5 text-ink-mute" />
+              )}
+            </button>
           </div>
 
         </div>
-
       </div>
 
+      {/* 6. ACQUIRING GPS OVERLAY WHEN NO FIX YET */}
+      {!hasCoordinates && (
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-xs flex items-center justify-center pointer-events-none p-4 text-center z-40">
+          <div className="bg-white p-6 rounded-2xl border border-border-clean shadow-nav-floating space-y-2 max-w-sm">
+            <Radio className="w-6 h-6 text-ink animate-pulse mx-auto" />
+            <h4 className="font-semibold text-sm text-ink">Acquiring navigation fix</h4>
+            <p className="text-xs text-ink-mute">
+              {locPermission === 'denied'
+                ? 'Please allow browser location permissions to run GNSS outage test.'
+                : 'Connecting to GNSS satellites and motion sensors...'}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

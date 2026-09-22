@@ -2,7 +2,6 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Navigation,
-  Map,
   Satellite,
   History,
   Bookmark,
@@ -33,7 +32,6 @@ const navGroups: NavGroup[] = [
     label: 'NAVIGATION',
     items: [
       { name: 'Navigate', path: '/app', icon: Navigation },
-      { name: 'Map', path: '/app/map', icon: Map },
       { name: 'GNSS Outage Test', path: '/app/tunnel', icon: Satellite },
     ],
   },
@@ -73,7 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
 
   const isItemActive = (itemPath: string) => {
     if (itemPath === '/app') {
-      return location.pathname === '/app';
+      return location.pathname === '/app' || location.pathname === '/app/map';
     }
     return location.pathname === itemPath || location.pathname.startsWith(`${itemPath}/`);
   };

@@ -9,7 +9,7 @@ import { useNavigationStore } from '../../stores/useNavigationStore';
 import { Menu } from 'lucide-react';
 
 // Full-bleed map pages that take over the complete viewport
-const mapPages = ['/app', '/app/map'];
+const mapPages = ['/app', '/app/map', '/app/tunnel'];
 
 export default function AppLayout() {
   const sessionId = useNavigationStore((s) => s.state.session_id);

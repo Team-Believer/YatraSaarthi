@@ -17,6 +17,7 @@ import { NavStatusPill } from '../components/navigation/NavStatusPill';
 import { TripHudCard } from '../components/navigation/TripHudCard';
 import { RoutePreviewCard } from '../components/navigation/RoutePreviewCard';
 import { NextManeuver } from '../components/navigation/NextManeuver';
+import { useResolvedHeading } from '../hooks/useResolvedHeading';
 import {
   CheckCircle2,
   X,
@@ -28,6 +29,9 @@ export default function LiveMap() {
   const [initialCentered, setInitialCentered] = useState(false);
   const [followVehicle, setFollowVehicle] = useState(true);
   const [orientationMode, setOrientationMode] = useState<MapOrientationMode>('HEADING_UP');
+
+  const { headingDeg: resolvedHeadingDeg, valid: isHeadingValid } = useResolvedHeading();
+  const activeHeading = isHeadingValid && resolvedHeadingDeg !== null ? resolvedHeadingDeg : 0;
 
   // Real device location from Geolocation API
   const {
@@ -53,29 +57,22 @@ export default function LiveMap() {
     locationService.startWatching();
   }, []);
 
-  // Smooth camera centering when real location is first acquired
+  // Set initial map position once coordinates arrive
   useEffect(() => {
     if (!initialCentered && mapRef.current && deviceLat !== null && deviceLon !== null) {
-      mapRef.current.flyTo({
-        center: [deviceLon, deviceLat],
-        zoom: 16.5,
-        duration: 1200,
-      });
+      mapRef.current.setCenter([deviceLon, deviceLat]);
+      mapRef.current.setZoom(15.5);
       setInitialCentered(true);
     }
   }, [deviceLat, deviceLon, initialCentered]);
 
-  // Fit map camera bounds to route when a destination route is selected (Route Preview)
+  // Automatically fit bounds when route coordinates change
   useEffect(() => {
-    if (mapRef.current && routeCoordinates && routeCoordinates.length >= 2 && !isLive) {
+    if (routeCoordinates && routeCoordinates.length > 1 && mapRef.current && !isLive) {
       const bounds = new mapboxgl.LngLatBounds();
       routeCoordinates.forEach((coord) => bounds.extend(coord));
-
-      const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 640;
       mapRef.current.fitBounds(bounds, {
-        padding: isDesktop
-          ? { top: 90, bottom: 90, left: 450, right: 80 }
-          : { top: 80, bottom: 330, left: 40, right: 40 },
+        padding: { top: 120, bottom: 200, left: 60, right: 60 },
         maxZoom: 16,
         duration: 1000,
       });
@@ -94,11 +91,11 @@ export default function LiveMap() {
         zoom: 16.5,
         pitch: 52,
         offset: [0, 70],
-        bearing: orientationMode === 'HEADING_UP' ? state.heading_deg : 0,
+        bearing: orientationMode === 'HEADING_UP' ? activeHeading : 0,
         duration: 1000,
       });
     }
-  }, [isLive]);
+  }, [isLive, activeHeading]);
 
   // Recenter handler: restores vehicle follow and eases camera to position & heading
   const handleRecenter = useCallback(() => {
@@ -107,7 +104,7 @@ export default function LiveMap() {
     const targetLat = isLive && fusedPosition ? fusedPosition.latitude : deviceLat;
     const targetLon = isLive && fusedPosition ? fusedPosition.longitude : deviceLon;
     if (targetLat !== null && targetLon !== null) {
-      const targetBearing = orientationMode === 'HEADING_UP' ? (isLive ? state.heading_deg : 0) : 0;
+      const targetBearing = orientationMode === 'HEADING_UP' ? activeHeading : 0;
       mapRef.current.easeTo({
         center: [targetLon, targetLat],
         zoom: 16.5,
@@ -117,7 +114,7 @@ export default function LiveMap() {
         duration: 800,
       });
     }
-  }, [isLive, fusedPosition, deviceLat, deviceLon, orientationMode, state.heading_deg]);
+  }, [isLive, fusedPosition, deviceLat, deviceLon, orientationMode, activeHeading]);
 
   // Suspend follow mode when user manually interacts with map
   const handleManualInteraction = useCallback(() => {
@@ -128,13 +125,13 @@ export default function LiveMap() {
   const handleOrientationToggle = useCallback((mode: MapOrientationMode) => {
     setOrientationMode(mode);
     if (mapRef.current) {
-      const targetBearing = mode === 'HEADING_UP' ? (isLive ? state.heading_deg : 0) : 0;
+      const targetBearing = mode === 'HEADING_UP' ? activeHeading : 0;
       mapRef.current.easeTo({
         bearing: targetBearing,
         duration: 500,
       });
     }
-  }, [isLive, state.heading_deg]);
+  }, [activeHeading]);
 
   // Active coordinates: InEKF fused position when live, otherwise real device location
   const displayLat = isLive && fusedPosition ? fusedPosition.latitude : deviceLat;
@@ -181,7 +178,7 @@ export default function LiveMap() {
           <MapController
             latitude={displayLat}
             longitude={displayLon}
-            heading={isLive ? state.heading_deg : 0}
+            heading={activeHeading}
             followVehicle={followVehicle}
             orientationMode={orientationMode}
             is3D={true}
@@ -193,7 +190,7 @@ export default function LiveMap() {
             <VehicleMarker
               latitude={displayLat}
               longitude={displayLon}
-              heading={isLive ? state.heading_deg : 0}
+              heading={activeHeading}
               mode={isLive ? state.navigation_mode : 'STANDBY'}
             />
           )}
@@ -217,7 +214,7 @@ export default function LiveMap() {
             onOrientationToggle={handleOrientationToggle}
             orientationMode={orientationMode}
             followVehicle={followVehicle}
-            heading={isLive ? state.heading_deg : 0}
+            heading={activeHeading}
           />
         </MapContainer>
 
