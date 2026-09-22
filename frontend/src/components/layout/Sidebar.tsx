@@ -10,7 +10,7 @@ import {
   Radio,
   User,
   X,
-  Layers,
+  Bookmark,
   ChevronRight,
   ShieldCheck,
   Compass,
@@ -25,32 +25,38 @@ interface NavGroup {
     path: string;
     icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
     badge?: string;
+    isPrimary?: boolean;
   }[];
 }
 
 const navGroups: NavGroup[] = [
   {
-    label: 'Navigation',
+    label: 'NAVIGATION',
     items: [
-      { name: 'Navigation Cockpit', path: '/app', icon: Navigation },
-      { name: 'Live Map View', path: '/app/map', icon: Map },
-      { name: 'Tunnel & Outage Mode', path: '/app/tunnel', icon: Radio },
+      { name: 'Navigate', path: '/app', icon: Navigation, isPrimary: true },
+      { name: 'Map', path: '/app/map', icon: Map },
+      { name: 'GNSS Outage Test', path: '/app/tunnel', icon: Radio },
     ],
   },
   {
-    label: 'Insights',
+    label: 'ACTIVITY',
     items: [
-      { name: 'Journey History', path: '/app/history', icon: Clock },
-      { name: 'Learning Insights', path: '/app/learning', icon: BrainCircuit },
-      { name: 'Navigation Memory', path: '/app/memory', icon: Layers },
+      { name: 'Trips', path: '/app/history', icon: Clock },
+      { name: 'Saved Routes', path: '/app/memory', icon: Bookmark },
     ],
   },
   {
-    label: 'System',
+    label: 'INTELLIGENCE',
     items: [
-      { name: 'Sensor Diagnostics', path: '/app/diagnostics', icon: Activity },
-      { name: 'System Settings', path: '/app/settings', icon: Settings },
-      { name: 'Driver Profile', path: '/app/profile', icon: User },
+      { name: 'Navigation Intelligence', path: '/app/learning', icon: BrainCircuit },
+    ],
+  },
+  {
+    label: 'SYSTEM',
+    items: [
+      { name: 'Diagnostics', path: '/app/diagnostics', icon: Activity },
+      { name: 'Settings', path: '/app/settings', icon: Settings },
+      { name: 'Profile', path: '/app/profile', icon: User },
     ],
   },
 ];
@@ -75,9 +81,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
     return location.pathname === itemPath || location.pathname.startsWith(`${itemPath}/`);
   };
 
-  // Derive compact system status
+  // Derive navigation-oriented system status
   const isDrActive = isLive && (!gnssAvailable || navMode.includes('DEAD_RECKONING') || navMode.includes('LOST'));
   const isRecovering = isLive && (navMode.includes('REACQUISITION') || navMode.includes('RECOVERY'));
+
+  const getStatusTitle = () => {
+    if (isDrActive) return 'Dead Reckoning Active';
+    if (isRecovering) return 'GNSS Recovering';
+    if (isLive) return 'Navigation Active';
+    return 'Navigation Ready';
+  };
+
+  const getStatusSubtitle = () => {
+    if (isDrActive) return 'Inertial dead reckoning active';
+    if (isRecovering) return 'Reacquiring satellite fix';
+    if (isLive) return 'Navigation in progress';
+    return 'Ready to navigate';
+  };
 
   return (
     <aside className="w-[88vw] max-w-[320px] sm:w-[320px] bg-white/95 backdrop-blur-xl border-r border-slate-200/90 flex flex-col h-full select-none shrink-0 shadow-2xl z-50 overflow-hidden">
@@ -96,7 +116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
               YatraSaarthi
             </span>
             <span className="text-[9.5px] font-bold uppercase tracking-wider text-brand-600 leading-none mt-0.5">
-              Intelligent Navigation
+              INTELLIGENT NAVIGATION
             </span>
           </div>
         </Link>
@@ -113,7 +133,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
         )}
       </div>
 
-      {/* 2. Compact System Status Card */}
+      {/* 2. Navigation Status Card */}
       <div className="px-3.5 pt-3 pb-1 shrink-0">
         <Link
           to="/app/diagnostics"
@@ -131,7 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                     ? 'bg-sky-400'
                     : isLive
                     ? 'bg-emerald-400'
-                    : 'bg-slate-300'
+                    : 'bg-emerald-400'
                 )}
               />
               <span
@@ -150,16 +170,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
 
             <div className="flex flex-col min-w-0">
               <span className="text-[11.5px] font-bold text-slate-800 leading-tight truncate">
-                {isDrActive
-                  ? 'Dead Reckoning Active'
-                  : isRecovering
-                  ? 'GNSS Recovering'
-                  : isLive
-                  ? 'Navigation Live'
-                  : 'System Ready'}
+                {getStatusTitle()}
               </span>
-              <span className="text-[10px] text-slate-400 font-normal leading-tight truncate mt-0.5">
-                {isLive ? 'InEKF active stream' : 'Sensors operational'}
+              <span className="text-[10px] text-slate-500 font-normal leading-tight truncate mt-0.5">
+                {getStatusSubtitle()}
               </span>
             </div>
           </div>
@@ -190,13 +204,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                   className={clsx(
                     'group relative flex items-center justify-between px-3 h-10 rounded-xl text-[13px] font-medium transition-all duration-150 cursor-pointer',
                     isActive
-                      ? 'bg-brand-50/90 text-brand-700 font-semibold shadow-xs'
+                      ? item.isPrimary
+                        ? 'bg-brand-600 text-white font-semibold shadow-md shadow-brand-600/20'
+                        : 'bg-brand-50/90 text-brand-700 font-semibold shadow-xs'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   )}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    {/* Active Accent Indicator */}
-                    {isActive && (
+                    {/* Active Accent Indicator for secondary items */}
+                    {isActive && !item.isPrimary && (
                       <span
                         className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-brand-600 rounded-r-full"
                         aria-hidden="true"
@@ -207,7 +223,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                       className={clsx(
                         'w-4 h-4 shrink-0 transition-colors duration-150',
                         isActive
-                          ? 'text-brand-600'
+                          ? item.isPrimary
+                            ? 'text-white'
+                            : 'text-brand-600'
                           : 'text-slate-400 group-hover:text-slate-600'
                       )}
                       strokeWidth={isActive ? 2.2 : 1.8}
@@ -218,7 +236,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
 
                   {/* Badge or subtle hover chevron */}
                   {item.badge ? (
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-brand-100 text-brand-700">
+                    <span
+                      className={clsx(
+                        'text-[10px] font-bold px-1.5 py-0.2 rounded-md',
+                        isActive && item.isPrimary
+                          ? 'bg-white/20 text-white'
+                          : 'bg-brand-100 text-brand-700'
+                      )}
+                    >
                       {item.badge}
                     </span>
                   ) : (
@@ -226,7 +251,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                       className={clsx(
                         'w-3 h-3 transition-all shrink-0',
                         isActive
-                          ? 'text-brand-600 opacity-80'
+                          ? item.isPrimary
+                            ? 'text-white/80'
+                            : 'text-brand-600 opacity-80'
                           : 'text-slate-300 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5'
                       )}
                     />
@@ -244,7 +271,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
           <div className="flex items-center gap-1.5 min-w-0">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             <span className="text-[11px] font-bold text-slate-800 tracking-tight truncate">
-              InEKF Core Engine
+              Navigation Engine
             </span>
           </div>
           <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200 leading-tight shrink-0">
@@ -252,7 +279,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
           </span>
         </div>
         <p className="text-[10px] leading-tight text-slate-500 mt-1">
-          Dead reckoning engine operational for GNSS-denied navigation.
+          {isLive
+            ? 'Dead reckoning engine active for GNSS-denied navigation.'
+            : 'Dead reckoning engine ready.'}
         </p>
       </div>
     </aside>

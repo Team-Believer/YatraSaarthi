@@ -14,16 +14,16 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
 
   const getPageTitle = (path: string) => {
     switch (path) {
-      case '/app': return 'Navigation Cockpit';
-      case '/app/map': return 'Live Navigation Map';
-      case '/app/tunnel': return 'Tunnel & Outage Simulation';
-      case '/app/history': return 'Journey History';
-      case '/app/learning': return 'Learning Insights';
-      case '/app/diagnostics': return 'Sensor Diagnostics';
-      case '/app/settings': return 'System Settings';
-      case '/app/profile': return 'Driver Profile';
-      case '/app/memory': return 'Navigation Memory';
-      default: return 'YatraSaarthi Platform';
+      case '/app': return 'Navigate';
+      case '/app/map': return 'Map';
+      case '/app/tunnel': return 'GNSS Outage Test';
+      case '/app/history': return 'Trips';
+      case '/app/learning': return 'Navigation Intelligence';
+      case '/app/diagnostics': return 'Diagnostics';
+      case '/app/settings': return 'Settings';
+      case '/app/profile': return 'Profile';
+      case '/app/memory': return 'Saved Routes';
+      default: return 'YatraSaarthi';
     }
   };
 

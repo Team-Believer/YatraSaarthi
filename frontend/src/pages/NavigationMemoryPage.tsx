@@ -119,7 +119,7 @@ export default function NavigationMemoryPage() {
               <MapPin className="w-8 h-8 text-slate-300 mx-auto" />
               <p className="text-sm font-bold text-slate-900">No saved locations yet</p>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Start navigation sessions on the cockpit to automatically preserve frequently traveled corridors.
+                Start navigation sessions on Navigate to automatically preserve frequently traveled corridors.
               </p>
             </div>
           )}

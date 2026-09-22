@@ -120,7 +120,7 @@ export default function History() {
           </div>
           <h3 className="font-bold text-slate-900 text-base sm:text-lg">No Recorded Journeys Yet</h3>
           <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
-            Start a live navigation session on the Navigation Cockpit to record and persist trips into the local database.
+            Start a live navigation session on Navigate to record and persist trips into the local database.
           </p>
         </div>
       ) : (
