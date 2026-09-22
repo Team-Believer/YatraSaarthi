@@ -229,33 +229,33 @@ export default function TunnelMode() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-300 pb-24 md:pb-12 text-slate-900">
+    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-300 pb-24 md:pb-12 text-ink">
       
       {/* 1. HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border-clean pb-5">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-slate-900 text-white rounded-xl shadow-xs">
-              <MountainSnow className="w-5 h-5 text-cyan-400" />
+            <div className="p-2 bg-black text-white rounded-xl shadow-xs">
+              <MountainSnow className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
-                  GNSS OUTAGE TEST
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-ink">
+                  GNSS outage test
                 </h1>
                 <span className={clsx(
-                  "text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-wider",
+                  "text-[11px] font-medium px-2.5 py-0.5 rounded-full border",
                   isDRActive
-                    ? "bg-amber-100 text-amber-900 border-amber-300 animate-pulse"
+                    ? "bg-amber-50 text-amber-900 border-amber-300 animate-pulse"
                     : isLive
-                    ? "bg-emerald-100 text-emerald-900 border-emerald-300"
-                    : "bg-slate-100 text-slate-700 border-slate-300"
+                    ? "bg-emerald-50 text-emerald-900 border-emerald-300"
+                    : "bg-canvas-soft text-ink-body border-border-clean"
                 )}>
-                  {isDRActive ? "Dead Reckoning Active" : isLive ? "GNSS Active" : "Standby"}
+                  {isDRActive ? "Dead reckoning active" : isLive ? "GNSS active" : "Standby"}
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                Dead reckoning continuity demonstration & controlled GNSS-denied navigation test
+              <p className="text-xs sm:text-sm text-ink-body font-normal">
+                Dead reckoning continuity demonstration and controlled GNSS-denied navigation test
               </p>
             </div>
           </div>
@@ -266,21 +266,21 @@ export default function TunnelMode() {
           <button
             onClick={handleToggleSession}
             className={clsx(
-              "px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 transition-all shadow-xs",
+              "px-5 py-2.5 rounded-full font-medium text-xs sm:text-sm flex items-center gap-2 transition-all shadow-xs",
               isLive
-                ? "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100"
-                : "bg-brand-600 text-white hover:bg-brand-700 active:scale-98"
+                ? "bg-white text-rose-700 border border-rose-200 hover:bg-rose-50"
+                : "bg-black text-white hover:bg-black/90 active:scale-98"
             )}
           >
             {isLive ? (
               <>
                 <Square className="w-4 h-4 fill-current" />
-                End Test Session
+                End test session
               </>
             ) : (
               <>
                 <Play className="w-4 h-4 fill-current" />
-                Start Test Session
+                Start test session
               </>
             )}
           </button>
@@ -288,39 +288,30 @@ export default function TunnelMode() {
       </div>
 
       {/* 2. CURRENT STATE HERO BANNER */}
-      <div className={clsx(
-        "rounded-3xl p-5 sm:p-6 border transition-all shadow-xs",
-        isDRActive
-          ? "bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-slate-900/5 border-amber-300 text-amber-950"
-          : isRecovering
-          ? "bg-gradient-to-br from-cyan-500/10 via-cyan-500/5 to-slate-900/5 border-cyan-300 text-cyan-950"
-          : isLive
-          ? "bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-slate-900/5 border-emerald-300 text-emerald-950"
-          : "bg-white border-slate-200 text-slate-900"
-      )}>
+      <div className="rounded-2xl p-5 sm:p-6 border border-border-clean bg-white shadow-2xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-              <Activity className="w-4 h-4 text-brand-600" />
-              Navigation Signal State
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink-mute">
+              <Activity className="w-4 h-4 text-ink" />
+              Navigation signal state
             </div>
             <div className="flex items-baseline gap-3">
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-ink">
                 {isDRActive
-                  ? "DEAD RECKONING ACTIVE"
+                  ? "Dead reckoning active"
                   : isRecovering
-                  ? "GNSS RECOVERING"
+                  ? "GNSS recovering"
                   : isDegraded
-                  ? "GNSS DEGRADED"
+                  ? "GNSS degraded"
                   : isLive
-                  ? "GNSS SIGNAL NOMINAL"
-                  : "SYSTEM STANDBY"}
+                  ? "GNSS signal nominal"
+                  : "System standby"}
               </h2>
-              <span className="text-xs font-mono font-bold text-slate-600">
+              <span className="text-xs font-mono font-medium text-ink-body">
                 {isLive ? `Mode: ${navMode}` : "Ready for test"}
               </span>
             </div>
-            <p className="text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-ink-body max-w-2xl leading-relaxed">
               {isDRActive
                 ? "Satellite observations are unavailable. The InEKF engine is estimating vehicle position continuously using smartphone IMU kinematics, E5 AI velocity, and non-holonomic vehicle constraints."
                 : isRecovering
@@ -333,30 +324,30 @@ export default function TunnelMode() {
 
           {/* Key Metrics Quick Ribbon */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
-            <div className="p-3 bg-white/90 backdrop-blur-xs rounded-2xl border border-slate-200/80 shadow-2xs">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Outage Timer</span>
-              <div className="text-lg font-mono font-bold text-slate-900 mt-0.5">
+            <div className="p-3 bg-canvas-soft rounded-2xl border border-border-clean shadow-2xs">
+              <span className="text-[10px] uppercase font-bold text-ink-mute block">Outage timer</span>
+              <div className="text-lg font-mono font-bold text-ink mt-0.5">
                 {formatDuration(displayOutageDuration)}
               </div>
             </div>
 
-            <div className="p-3 bg-white/90 backdrop-blur-xs rounded-2xl border border-slate-200/80 shadow-2xs">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Confidence</span>
-              <div className="text-lg font-mono font-bold text-brand-600 mt-0.5">
+            <div className="p-3 bg-canvas-soft rounded-2xl border border-border-clean shadow-2xs">
+              <span className="text-[10px] uppercase font-bold text-ink-mute block">Confidence</span>
+              <div className="text-lg font-mono font-bold text-ink mt-0.5">
                 {isLive ? `${(confidence * 100).toFixed(0)}%` : "—"}
               </div>
             </div>
 
-            <div className="p-3 bg-white/90 backdrop-blur-xs rounded-2xl border border-slate-200/80 shadow-2xs">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Error Bound</span>
-              <div className="text-lg font-mono font-bold text-slate-900 mt-0.5">
+            <div className="p-3 bg-canvas-soft rounded-2xl border border-border-clean shadow-2xs">
+              <span className="text-[10px] uppercase font-bold text-ink-mute block">Error bound</span>
+              <div className="text-lg font-mono font-bold text-ink mt-0.5">
                 {isLive ? `±${accuracy.toFixed(1)}m` : "—"}
               </div>
             </div>
 
-            <div className="p-3 bg-white/90 backdrop-blur-xs rounded-2xl border border-slate-200/80 shadow-2xs">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Speed</span>
-              <div className="text-lg font-mono font-bold text-slate-900 mt-0.5">
+            <div className="p-3 bg-canvas-soft rounded-2xl border border-border-clean shadow-2xs">
+              <span className="text-[10px] uppercase font-bold text-ink-mute block">Speed</span>
+              <div className="text-lg font-mono font-bold text-ink mt-0.5">
                 {isLive ? `${(speed * 3.6).toFixed(0)} km/h` : "0 km/h"}
               </div>
             </div>
@@ -371,13 +362,13 @@ export default function TunnelMode() {
         <div className="lg:col-span-4 space-y-6">
           
           {/* Outage Simulation Controls Card */}
-          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-              <Sliders className="w-4 h-4 text-brand-600" />
-              Controlled Outage Console
+          <div className="bg-white rounded-2xl p-5 sm:p-6 border border-border-clean shadow-2xs space-y-4">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink-mute">
+              <Sliders className="w-4 h-4 text-ink" />
+              Controlled outage console
             </div>
 
-            <p className="text-xs text-slate-500 leading-relaxed">
+            <p className="text-xs text-ink-body leading-relaxed">
               Test how YatraSaarthi behaves when satellite signals are obstructed (e.g., entering an underpass, tunnel, or urban canyon).
             </p>
 
@@ -386,56 +377,56 @@ export default function TunnelMode() {
                 onClick={handleToggleOutageSimulation}
                 disabled={!isLive}
                 className={clsx(
-                  "w-full py-3 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all shadow-xs",
+                  "w-full py-3 px-4 rounded-full font-medium text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all shadow-xs",
                   !isLive
-                    ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+                    ? "bg-canvas-soft text-ink-mute border border-border-clean cursor-not-allowed"
                     : isSimulatingOutage
                     ? "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-98"
-                    : "bg-amber-500 text-slate-950 hover:bg-amber-400 active:scale-98"
+                    : "bg-black text-white hover:bg-black/90 active:scale-98"
                 )}
               >
                 {isSimulatingOutage ? (
                   <>
                     <ShieldCheck className="w-4 h-4" />
-                    Restore GNSS / Exit Tunnel
+                    Restore GNSS / Exit tunnel
                   </>
                 ) : (
                   <>
                     <ShieldAlert className="w-4 h-4" />
-                    Simulate GNSS Outage / Enter Tunnel
+                    Simulate GNSS outage / Enter tunnel
                   </>
                 )}
               </button>
 
               {!isLive && (
-                <p className="text-[11px] text-center text-slate-400 italic">
-                  Click "Start Test Session" above to enable live outage simulation.
+                <p className="text-[11px] text-center text-ink-mute italic">
+                  Click "Start test session" above to enable live outage simulation.
                 </p>
               )}
             </div>
 
-            <div className="pt-2 border-t border-slate-100 space-y-2 text-xs font-medium text-slate-600">
-              <div className="flex justify-between py-1 border-b border-slate-50">
-                <span className="text-slate-400">Satellite Stream</span>
-                <span className={clsx("font-bold", isSimulatingOutage ? "text-rose-600" : gnssAvailable ? "text-emerald-600" : "text-slate-500")}>
+            <div className="pt-2 border-t border-border-clean space-y-2 text-xs font-medium text-ink-body">
+              <div className="flex justify-between py-1 border-b border-border-clean/50">
+                <span className="text-ink-mute">Satellite stream</span>
+                <span className={clsx("font-medium", isSimulatingOutage ? "text-rose-600" : gnssAvailable ? "text-emerald-600" : "text-ink-mute")}>
                   {isSimulatingOutage ? "SUPPRESSED (Testing)" : gnssAvailable ? "ACTIVE (50 Hz)" : "WAITING"}
                 </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-50">
-                <span className="text-slate-400">IMU Strapdown</span>
-                <span className="font-bold text-emerald-600">
+              <div className="flex justify-between py-1 border-b border-border-clean/50">
+                <span className="text-ink-mute">IMU strapdown</span>
+                <span className="font-medium text-emerald-600">
                   {imuAvailable ? "ACTIVE (6-DoF)" : capabilities.deviceMotion ? "READY" : "AVAILABLE"}
                 </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-50">
-                <span className="text-slate-400">Kinematic NHC</span>
-                <span className={clsx("font-bold", nhcActive ? "text-emerald-600" : "text-slate-400")}>
+              <div className="flex justify-between py-1 border-b border-border-clean/50">
+                <span className="text-ink-mute">Kinematic NHC</span>
+                <span className={clsx("font-medium", nhcActive ? "text-emerald-600" : "text-ink-mute")}>
                   {nhcActive ? "ENGAGED" : "ARMED"}
                 </span>
               </div>
               <div className="flex justify-between py-1">
-                <span className="text-slate-400">ZUPT Detection</span>
-                <span className={clsx("font-bold", zuptActive ? "text-emerald-600" : "text-slate-400")}>
+                <span className="text-ink-mute">ZUPT detection</span>
+                <span className={clsx("font-medium", zuptActive ? "text-emerald-600" : "text-ink-mute")}>
                   {zuptActive ? "STATIONARY LOCK" : "ARMED"}
                 </span>
               </div>

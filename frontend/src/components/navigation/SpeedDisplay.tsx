@@ -22,10 +22,10 @@ export const SpeedDisplay: React.FC<SpeedDisplayProps> = ({
   if (compact) {
     return (
       <div className={clsx('flex items-baseline gap-1 shrink-0 select-none', className)}>
-        <span className="text-xl md:text-2xl font-bold font-mono text-slate-900 tabular-nums leading-none">
+        <span className="text-xl md:text-2xl font-bold font-mono text-ink tabular-nums leading-none">
           {speedKmh}
         </span>
-        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-tight">
+        <span className="text-[10px] font-medium text-ink-mute uppercase tracking-tight">
           km/h
         </span>
       </div>
@@ -35,14 +35,14 @@ export const SpeedDisplay: React.FC<SpeedDisplayProps> = ({
   return (
     <div
       className={clsx(
-        'flex items-baseline gap-1.5 shrink-0 bg-slate-950 text-white px-3.5 py-2 md:px-5 md:py-2.5 rounded-xl md:rounded-2xl shadow-inner border border-slate-800 select-none',
+        'flex items-baseline gap-1.5 shrink-0 bg-canvas-soft text-ink px-3.5 py-2 md:px-5 md:py-2.5 rounded-2xl border border-border-clean select-none',
         className
       )}
     >
-      <span className="text-2xl md:text-4xl font-bold font-mono tracking-tight tabular-nums leading-none">
+      <span className="text-2xl md:text-4xl font-bold font-mono tracking-tight tabular-nums leading-none text-ink">
         {speedKmh}
       </span>
-      <span className="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wide">
+      <span className="text-[10px] md:text-xs font-medium text-ink-mute uppercase tracking-wide">
         km/h
       </span>
     </div>

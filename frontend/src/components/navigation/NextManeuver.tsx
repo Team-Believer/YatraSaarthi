@@ -53,30 +53,30 @@ export const NextManeuver: React.FC<NextManeuverProps> = ({ className }) => {
   return (
     <div
       className={clsx(
-        'bg-slate-900/95 backdrop-blur-md text-white px-4 py-3 rounded-2xl shadow-nav-floating border border-slate-700/80 flex items-center gap-3.5 max-w-md w-full animate-in fade-in slide-in-from-top-2 select-none',
+        'bg-white text-ink px-4 py-3.5 rounded-2xl shadow-nav-floating border border-border-clean flex items-center gap-3.5 max-w-md w-full animate-in fade-in slide-in-from-top-2 select-none',
         className
       )}
     >
       {/* Maneuver Icon */}
-      <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center shrink-0 shadow-md">
+      <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center shrink-0 shadow-xs">
         {getManeuverIcon()}
       </div>
 
       {/* Instruction & Distance */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-brand-400">
-            Next Maneuver
+          <span className="text-[10px] font-bold uppercase tracking-wider text-ink-mute">
+            Next maneuver
           </span>
-          <span className="text-xs font-bold font-mono text-emerald-400">
+          <span className="text-xs font-semibold font-mono text-ink">
             in {formattedDistance}
           </span>
         </div>
-        <h4 className="font-bold text-xs sm:text-sm text-white truncate mt-0.5">
+        <h4 className="font-semibold text-xs sm:text-sm text-ink truncate mt-0.5">
           {step.instruction}
         </h4>
         {step.name && step.name !== step.instruction && (
-          <p className="text-[10px] text-slate-400 truncate mt-0.5">
+          <p className="text-[11px] text-ink-body truncate mt-0.5">
             onto {step.name}
           </p>
         )}

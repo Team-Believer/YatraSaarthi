@@ -69,21 +69,21 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
   return (
     <div
       className={clsx(
-        'w-full max-w-md mx-auto bg-white/95 backdrop-blur-md rounded-2xl md:rounded-3xl p-4 shadow-nav-sheet border border-slate-200/90 select-none animate-in fade-in slide-in-from-bottom-4 duration-200',
+        'w-full max-w-md mx-auto bg-white rounded-2xl p-4.5 shadow-nav-sheet border border-border-clean select-none animate-in fade-in slide-in-from-bottom-4 duration-200',
         className
       )}
     >
       {/* Header: Destination info */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-2xl bg-brand-600 text-white flex items-center justify-center shrink-0 shadow-md">
+          <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
             <MapPin className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <span className="text-[10px] font-bold text-brand-600 uppercase tracking-wider block leading-none">
-              Route Preview
+            <span className="text-[10px] font-bold text-ink-mute uppercase tracking-wider block leading-none">
+              Route preview
             </span>
-            <h3 className="font-bold text-slate-900 text-sm md:text-base truncate mt-0.5">
+            <h3 className="font-bold text-ink text-sm md:text-base truncate mt-0.5">
               {destination.name}
             </h3>
           </div>
@@ -92,7 +92,7 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
         <button
           type="button"
           onClick={handleCancel}
-          className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-xl transition-colors cursor-pointer"
+          className="p-1.5 hover:bg-canvas-soft text-ink-body hover:text-ink rounded-full transition-colors cursor-pointer"
           title="Clear route"
         >
           <X className="w-4 h-4" />
@@ -101,34 +101,34 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
 
       {/* Metrics Row (Only if real Mapbox route data exists) */}
       {(formattedDistance || formattedDuration) && (
-        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-4 text-xs">
+        <div className="mt-3.5 pt-3.5 border-t border-border-clean flex items-center gap-4 text-xs">
           {formattedDistance && (
-            <div className="flex items-center gap-1.5 text-slate-700 font-semibold font-mono">
-              <Milestone className="w-3.5 h-3.5 text-slate-400" />
+            <div className="flex items-center gap-1.5 text-ink font-semibold font-mono">
+              <Milestone className="w-3.5 h-3.5 text-ink-mute" />
               <span>{formattedDistance}</span>
             </div>
           )}
 
           {formattedDuration && (
-            <div className="flex items-center gap-1.5 text-slate-700 font-semibold font-mono">
-              <Clock className="w-3.5 h-3.5 text-slate-400" />
+            <div className="flex items-center gap-1.5 text-ink font-semibold font-mono">
+              <Clock className="w-3.5 h-3.5 text-ink-mute" />
               <span>{formattedDuration}</span>
             </div>
           )}
 
-          <div className="flex items-center gap-1 text-[11px] text-emerald-700 font-medium ml-auto bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
-            <Navigation className="w-3 h-3 text-emerald-600" />
-            <span>Fastest Route</span>
+          <div className="flex items-center gap-1 text-[11px] text-ink font-medium ml-auto bg-canvas-soft px-2.5 py-1 rounded-full border border-border-clean">
+            <Navigation className="w-3 h-3 text-ink" />
+            <span>Fastest route</span>
           </div>
         </div>
       )}
 
       {/* Actions */}
-      <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center gap-2">
+      <div className="mt-4 pt-3.5 border-t border-border-clean flex items-center gap-2.5">
         <button
           type="button"
           onClick={handleCancel}
-          className="flex-1 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors cursor-pointer text-center"
+          className="btn-secondary flex-1 py-2.5"
         >
           Cancel
         </button>
@@ -137,10 +137,10 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
           type="button"
           onClick={handleStartDrive}
           disabled={sessionStatus === 'STARTING'}
-          className="flex-2 py-2.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-brand-600/25 press-scale cursor-pointer"
+          className="btn-primary flex-2 py-2.5"
         >
           <Play className="w-4 h-4 fill-white" />
-          <span>{sessionStatus === 'STARTING' ? 'Starting Drive...' : 'Start Navigation'}</span>
+          <span>{sessionStatus === 'STARTING' ? 'Starting...' : 'Start navigation'}</span>
         </button>
       </div>
     </div>

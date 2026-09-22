@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Navigation,
   Wifi,
   Compass,
   Map,
@@ -10,25 +9,26 @@ import {
   ChevronRight,
   ShieldCheck,
 } from 'lucide-react';
+import { YatraSaarthiLogo } from '../components/branding/YatraSaarthiLogo';
 
 const slides = [
   {
-    title: 'Your Journey, Our Priority',
+    title: 'Your journey, our priority',
     description:
-      'YatraSaarthi uses your phone\'s sensors, AI and real-world context to keep you on track — even when GPS is lost.',
+      'YatraSaarthi uses smartphone inertial sensors, neural motion estimation, and vehicle kinematics to maintain pinpoint navigation — even during GNSS signal dropouts.',
     icons: [
-      { Icon: Wifi, label: 'GPS' },
+      { Icon: Wifi, label: 'GNSS' },
       { Icon: Cpu, label: 'IMU' },
       { Icon: Compass, label: 'Magnetometer' },
-      { Icon: Camera, label: 'Camera' },
-      { Icon: Map, label: 'Map' },
+      { Icon: Camera, label: 'Vision' },
+      { Icon: Map, label: 'Map match' },
     ],
   },
   {
-    title: 'Works Even When GPS Fails',
+    title: 'Works even when GPS fails',
     description:
-      'Our system predicts GNSS outages, uses your environment, and learns from past journeys to keep you moving accurately.',
-    highlight: 'GNSS Lost? No Problem!',
+      'Continuous dead reckoning keeps you moving through tunnels, underpasses, underground garages, and dense urban canyons without drifting.',
+    highlight: 'Continuous dead reckoning',
   },
 ];
 
@@ -56,16 +56,13 @@ export default function OnboardingPage() {
   const current = slides[step];
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col select-none">
       {/* Top Bar */}
-      <div className="flex items-center justify-between p-4">
-        <div className="flex items-center gap-2 text-brand-600">
-          <Navigation className="w-6 h-6 fill-brand-600" />
-          <span className="text-lg font-bold text-brand-navy">YatraSaarthi</span>
-        </div>
+      <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border-clean">
+        <YatraSaarthiLogo variant="compact" height={36} />
         <button
           onClick={handleSkip}
-          className="text-sm text-gray-500 hover:text-brand-600 font-medium transition-colors"
+          className="btn-subtle text-xs py-1.5 px-3.5"
         >
           Skip
         </button>
@@ -74,25 +71,25 @@ export default function OnboardingPage() {
       {/* Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
         <div className="max-w-sm w-full text-center space-y-6">
-          <h1 className="text-3xl font-bold text-brand-navy leading-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold text-ink leading-tight">
             {current.title}
           </h1>
 
-          <p className="text-sm text-gray-500 leading-relaxed">{current.description}</p>
+          <p className="text-sm text-ink-body leading-relaxed">{current.description}</p>
 
           {/* Step 1: Sensor Icons */}
           {step === 0 && current.icons && (
-            <div className="py-8">
+            <div className="py-6">
               <div className="relative w-64 h-64 mx-auto">
                 {/* Central icon */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-brand-600 rounded-2xl flex items-center justify-center shadow-xl shadow-brand-500/30 z-10">
-                  <Navigation className="w-8 h-8 text-white fill-white" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-black rounded-full flex items-center justify-center shadow-xs z-10">
+                  <ShieldCheck className="w-8 h-8 text-white" />
                 </div>
 
                 {/* Orbiting icons */}
                 {current.icons.map((item, i) => {
                   const angle = (i * 72 - 90) * (Math.PI / 180);
-                  const radius = 100;
+                  const radius = 95;
                   const x = Math.cos(angle) * radius;
                   const y = Math.sin(angle) * radius;
 
@@ -101,16 +98,16 @@ export default function OnboardingPage() {
                       key={item.label}
                       className="absolute flex flex-col items-center gap-1"
                       style={{
-                        left: `calc(50% + ${x}px - 24px)`,
-                        top: `calc(50% + ${y}px - 24px)`,
+                        left: `calc(50% + ${x}px - 22px)`,
+                        top: `calc(50% + ${y}px - 22px)`,
                         animation: `fadeInUp 0.4s ease ${i * 100}ms forwards`,
                         opacity: 0,
                       }}
                     >
-                      <div className="w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center border border-brand-100 shadow-sm">
-                        <item.Icon className="w-5 h-5 text-brand-600" />
+                      <div className="w-11 h-11 bg-canvas-soft rounded-full flex items-center justify-center border border-border-clean">
+                        <item.Icon className="w-5 h-5 text-ink" />
                       </div>
-                      <span className="text-[10px] font-semibold text-brand-navy">
+                      <span className="text-[10px] font-medium text-ink-body">
                         {item.label}
                       </span>
                     </div>
@@ -122,12 +119,12 @@ export default function OnboardingPage() {
                   <circle
                     cx="128"
                     cy="128"
-                    r="80"
+                    r="95"
                     stroke="currentColor"
-                    className="text-brand-100"
+                    className="text-border-clean"
                     strokeWidth="1.5"
                     fill="none"
-                    strokeDasharray="6 6"
+                    strokeDasharray="4 4"
                   />
                 </svg>
               </div>
@@ -136,24 +133,17 @@ export default function OnboardingPage() {
 
           {/* Step 2: Feature highlight */}
           {step === 1 && (
-            <div className="py-8 space-y-6">
-              <div className="relative bg-gradient-to-br from-brand-50 to-blue-50 rounded-3xl p-6 border border-brand-100 shadow-sm overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-100/50 rounded-full -translate-y-1/2 translate-x-1/2" />
-                <div className="relative z-10 space-y-4">
-                  <div className="w-12 h-12 bg-brand-600 rounded-2xl flex items-center justify-center shadow-md mx-auto">
-                    <ShieldCheck className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-brand-100">
-                    <div className="flex items-center gap-2 text-brand-600 font-bold text-sm mb-1">
-                      <ShieldCheck className="w-4 h-4" />
-                      {current.highlight}
-                    </div>
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                      Intelligent dead reckoning keeps you positioned even in tunnels,
-                      underground parking, and dense urban canyons.
-                    </p>
-                  </div>
+            <div className="py-6 space-y-4">
+              <div className="bg-canvas-soft rounded-2xl p-6 border border-border-clean text-left space-y-3">
+                <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white">
+                  <ShieldCheck className="w-5 h-5" />
                 </div>
+                <h3 className="font-bold text-ink text-sm sm:text-base">
+                  {current.highlight}
+                </h3>
+                <p className="text-xs text-ink-body leading-relaxed">
+                  Invariant Extended Kalman Filter (InEKF) fusion and Zero-velocity updates (ZUPT) guarantee continuous vehicle trajectory tracking.
+                </p>
               </div>
             </div>
           )}
@@ -161,14 +151,14 @@ export default function OnboardingPage() {
       </div>
 
       {/* Bottom Controls */}
-      <div className="p-6 space-y-4">
+      <div className="p-6 max-w-sm w-full mx-auto space-y-4">
         {/* Dots */}
         <div className="flex items-center justify-center gap-2">
           {slides.map((_, i) => (
             <div
               key={i}
-              className={`h-2 rounded-full transition-all duration-300 ${
-                i === step ? 'w-8 bg-brand-600' : 'w-2 bg-gray-200'
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                i === step ? 'w-6 bg-black' : 'w-1.5 bg-neutral-200'
               }`}
             />
           ))}
@@ -177,9 +167,9 @@ export default function OnboardingPage() {
         {/* Next button */}
         <button
           onClick={handleNext}
-          className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-4 rounded-2xl text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-brand-500/20"
+          className="btn-primary w-full py-3.5 flex items-center justify-center gap-2 text-sm"
         >
-          {step < slides.length - 1 ? 'Next' : 'Get Started'}
+          <span>{step < slides.length - 1 ? 'Continue' : 'Get started'}</span>
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>

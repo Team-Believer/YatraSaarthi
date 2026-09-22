@@ -3,7 +3,7 @@
 
 @layer base {
   body {
-    @apply bg-slate-900 text-slate-900 font-sans antialiased overflow-hidden;
+    @apply bg-white text-ink font-sans antialiased overflow-hidden;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
   }
@@ -27,15 +27,37 @@
 
 @layer utilities {
   .nav-glass {
-    @apply bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-nav-floating;
+    @apply bg-white border border-border-clean shadow-nav-floating;
   }
 
   .nav-glass-dark {
-    @apply bg-slate-900/95 backdrop-blur-md border border-slate-700/60 text-white shadow-nav-floating;
+    @apply bg-ink-elevated border border-white/10 text-white shadow-nav-floating;
   }
 
   .nav-pill-base {
-    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md shadow-nav-pill border transition-all duration-200;
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-white text-ink border border-border-clean shadow-nav-pill transition-all duration-150;
+  }
+
+  /* Core Pill Button System */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white text-sm font-medium transition-all duration-150 cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97];
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-white hover:bg-canvas-softer active:bg-surface-pressed text-ink text-sm font-medium border border-border-clean transition-all duration-150 cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97];
+  }
+
+  .btn-subtle {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-canvas-soft hover:bg-surface-pressed text-ink text-xs sm:text-sm font-medium transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97];
+  }
+
+  .btn-icon-pill {
+    @apply inline-flex items-center justify-center w-10 h-10 rounded-full bg-white hover:bg-canvas-softer active:bg-surface-pressed text-ink border border-border-clean shadow-nav-pill transition-all duration-150 cursor-pointer active:scale-[0.97];
+  }
+
+  /* Standard Application Card System (16px radius, border #E5E5E5, white surface) */
+  .card-clean {
+    @apply bg-white rounded-2xl border border-border-clean;
   }
 
   /* Safe area padding for notched phones */
@@ -49,7 +71,7 @@
 
   /* Haptic-style press animation */
   .press-scale {
-    @apply active:scale-[0.96] transition-transform duration-100 ease-out;
+    @apply active:scale-[0.97] transition-transform duration-100 ease-out;
   }
 }
 

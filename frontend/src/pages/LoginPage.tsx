@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Navigation, Lock, Mail, User as UserIcon, AlertCircle } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Lock, Mail, User as UserIcon, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../stores/useAuthStore';
+import { YatraSaarthiLogo } from '../components/branding/YatraSaarthiLogo';
 
 export default function LoginPage() {
   const [isRegister, setIsRegister] = useState(false);
@@ -47,73 +48,74 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-50 flex items-center justify-center p-4 safe-bottom">
-      <div className="bg-white w-full max-w-md rounded-2xl md:rounded-3xl p-6 md:p-8 shadow-xl border border-brand-100 space-y-5 md:space-y-6">
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 bg-brand-50 rounded-2xl flex items-center justify-center mx-auto text-brand-600">
-            <Navigation className="w-7 h-7 fill-brand-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-brand-navy">
-            {isRegister ? 'Create YatraSaarthi Account' : 'Welcome Back'}
+    <div className="min-h-screen bg-canvas-soft flex items-center justify-center p-4 safe-bottom select-none">
+      <div className="bg-white w-full max-w-md rounded-2xl p-6 sm:p-8 shadow-nav-floating border border-border-clean space-y-5">
+        {/* Brand Logo */}
+        <div className="flex flex-col items-center text-center space-y-2">
+          <Link to="/" className="inline-block transition-opacity hover:opacity-90">
+            <YatraSaarthiLogo variant="auth" height={90} className="justify-center" />
+          </Link>
+          <h1 className="text-xl sm:text-2xl font-bold text-ink tracking-tight pt-1">
+            {isRegister ? 'Create an account' : 'Welcome back'}
           </h1>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-ink-body">
             {isRegister
-              ? 'Register to record and analyze navigation telemetry.'
-              : 'Sign in to access your journey logs and settings.'}
+              ? 'Register to save custom routes and trip history.'
+              : 'Sign in to access your navigation history and preferences.'}
           </p>
         </div>
 
         {error && (
-          <div className="bg-status-danger/10 border border-status-danger/20 rounded-2xl p-3 flex items-center gap-2 text-status-danger text-xs">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+          <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 flex items-center gap-2.5 text-rose-800 text-xs">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
           {isRegister && (
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Full Name</label>
+              <label className="block text-xs font-medium text-ink mb-1.5 pl-1">Full name</label>
               <div className="relative">
-                <UserIcon className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                <UserIcon className="w-4 h-4 text-ink-mute absolute left-3.5 top-3.5" />
                 <input
                   type="text"
                   required
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="John Doe"
-                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-brand-500 focus:bg-white"
+                  placeholder="Full name"
+                  className="w-full pl-10 pr-4 py-2.5 bg-canvas-soft rounded-full border border-border-clean text-sm text-ink placeholder:text-ink-mute focus:outline-none focus:border-black focus:bg-white transition-all"
                 />
               </div>
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Email Address</label>
+            <label className="block text-xs font-medium text-ink mb-1.5 pl-1">Email address</label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+              <Mail className="w-4 h-4 text-ink-mute absolute left-3.5 top-3.5" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="user@example.com"
-                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-brand-500 focus:bg-white"
+                placeholder="name@example.com"
+                className="w-full pl-10 pr-4 py-2.5 bg-canvas-soft rounded-full border border-border-clean text-sm text-ink placeholder:text-ink-mute focus:outline-none focus:border-black focus:bg-white transition-all"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Password</label>
+            <label className="block text-xs font-medium text-ink mb-1.5 pl-1">Password</label>
             <div className="relative">
-              <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+              <Lock className="w-4 h-4 text-ink-mute absolute left-3.5 top-3.5" />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-brand-500 focus:bg-white"
+                className="w-full pl-10 pr-4 py-2.5 bg-canvas-soft rounded-full border border-border-clean text-sm text-ink placeholder:text-ink-mute focus:outline-none focus:border-black focus:bg-white transition-all"
               />
             </div>
           </div>
@@ -121,23 +123,23 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 rounded-xl transition-colors shadow-lg shadow-brand-500/20 text-sm disabled:opacity-50"
+            className="btn-primary w-full py-3 mt-2"
           >
-            {loading ? 'Processing...' : isRegister ? 'Register' : 'Sign In'}
+            {loading ? 'Processing...' : isRegister ? 'Register' : 'Sign in'}
           </button>
         </form>
 
-        <div className="text-center pt-2 border-t border-gray-100">
+        <div className="text-center pt-3 border-t border-border-clean">
           <button
             onClick={() => {
               setIsRegister(!isRegister);
               setError(null);
             }}
-            className="text-xs text-brand-600 font-semibold hover:underline"
+            className="text-xs text-ink font-medium hover:underline cursor-pointer"
           >
             {isRegister
               ? 'Already have an account? Sign in'
-              : "Don't have an account? Register"}
+              : "Don't have an account? Create one"}
           </button>
         </div>
       </div>

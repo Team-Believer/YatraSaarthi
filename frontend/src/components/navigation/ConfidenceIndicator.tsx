@@ -40,12 +40,7 @@ export const ConfidenceIndicator: React.FC<ConfidenceIndicatorProps> = ({
     <div
       className={twMerge(
         clsx(
-          'inline-flex items-center gap-2 px-3 py-1.5 rounded-full border backdrop-blur-md shadow-nav-pill select-none transition-all duration-200 text-xs font-medium',
-          isLow
-            ? 'bg-rose-50/95 text-rose-900 border-rose-300 shadow-rose-500/10'
-            : isModerate
-            ? 'bg-amber-50/95 text-amber-900 border-amber-300 shadow-amber-500/10'
-            : 'bg-white/95 text-slate-800 border-slate-200/90',
+          'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-ink border border-border-clean shadow-nav-pill select-none text-xs font-medium',
           className
         )
       )}
@@ -54,36 +49,34 @@ export const ConfidenceIndicator: React.FC<ConfidenceIndicatorProps> = ({
       {isLow ? (
         <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
       ) : isModerate ? (
-        <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+        <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
       ) : (
-        <ShieldCheck className="w-3.5 h-3.5 text-brand-600 shrink-0" />
+        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
       )}
 
       {/* Confidence Value */}
       <div className="flex items-center gap-1.5 leading-tight">
-        <span className="text-slate-500 text-[11px] font-normal">Confidence</span>
+        <span className="text-ink-body text-xs font-normal">Confidence</span>
         <span
           className={clsx(
-            'font-bold text-[12px] tabular-nums',
+            'font-semibold text-xs tabular-nums',
             isLow
-              ? 'text-rose-700'
+              ? 'text-rose-600'
               : isModerate
-              ? 'text-amber-700'
-              : confidencePct !== null
-              ? 'text-slate-900'
-              : 'text-slate-500'
+              ? 'text-amber-600'
+              : 'text-ink'
           )}
         >
-          {confidencePct !== null ? `${confidencePct}%` : isLive ? 'Estimating...' : 'Standby'}
+          {confidencePct !== null ? `${confidencePct}%` : isLive ? 'Estimating' : 'Ready'}
         </span>
       </div>
 
       {/* Accuracy Uncertainty (only if real value exists) */}
       {showAccuracy && accuracyMeters !== null && (
-        <div className="flex items-center gap-1 pl-1.5 border-l border-slate-200/80 text-[11px] font-mono text-slate-600">
+        <div className="flex items-center gap-1 pl-2 border-l border-border-clean text-[11px] font-mono text-ink-body">
           <span>±{accuracyMeters.toFixed(1)}m</span>
           {uncertaintyVal !== null && (
-            <span className="text-[10px] text-slate-400">
+            <span className="text-[10px] text-ink-mute">
               (σ {uncertaintyVal.toFixed(2)})
             </span>
           )}

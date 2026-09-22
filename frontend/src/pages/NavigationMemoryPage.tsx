@@ -47,44 +47,44 @@ export default function NavigationMemoryPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-300 pb-24 md:pb-12 text-slate-900">
+    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-300 pb-24 md:pb-12 text-ink">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-slate-200/80 pb-5">
-        <div className="p-2.5 bg-slate-900 text-white rounded-2xl shadow-xs">
-          <Layers className="w-5 h-5 text-brand-400" />
+      <div className="flex items-center gap-3 border-b border-border-clean pb-5">
+        <div className="p-2.5 bg-black text-white rounded-2xl shadow-xs">
+          <Layers className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
-            Navigation Memory
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-ink">
+            Saved routes & memory
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            Saved destinations & accumulated inertial trajectory patterns
+          <p className="text-xs sm:text-sm text-ink-body font-normal">
+            Saved destinations and accumulated inertial trajectory patterns
           </p>
         </div>
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex bg-slate-100 rounded-2xl p-1 border border-slate-200">
+      <div className="flex bg-canvas-soft rounded-full p-1 border border-border-clean">
         {(['saved', 'learned'] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={clsx(
-              'flex-1 py-2.5 rounded-xl text-xs font-bold transition-all',
+              'flex-1 py-2.5 rounded-full text-xs font-medium transition-all',
               activeTab === tab
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-500 hover:text-slate-900'
+                ? 'bg-white text-ink shadow-xs'
+                : 'text-ink-body hover:text-ink'
             )}
           >
-            {tab === 'saved' ? 'Saved Route Contexts' : 'Learned Kinematic Insights'}
+            {tab === 'saved' ? 'Saved route contexts' : 'Learned kinematic insights'}
           </button>
         ))}
       </div>
 
       {/* Content */}
       {loading ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/90 text-slate-400 text-sm space-y-2">
-          <Clock className="w-6 h-6 animate-spin mx-auto text-brand-600" />
+        <div className="bg-white rounded-2xl p-12 text-center border border-border-clean text-ink-mute text-sm space-y-2">
+          <Clock className="w-6 h-6 animate-spin mx-auto text-ink" />
           <p>Loading memory logs...</p>
         </div>
       ) : activeTab === 'saved' ? (
@@ -93,20 +93,20 @@ export default function NavigationMemoryPage() {
             savedLocations.map((loc, i) => (
               <div
                 key={i}
-                className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs flex items-center gap-3.5 hover:border-slate-300 transition-colors"
+                className="bg-white rounded-2xl p-4 border border-border-clean shadow-2xs flex items-center gap-3.5 hover:border-ink/20 transition-colors"
               >
-                <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-brand-600 shrink-0">
+                <div className="w-10 h-10 bg-canvas-soft rounded-xl flex items-center justify-center text-ink shrink-0">
                   <MapPin className="w-4.5 h-4.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold text-xs sm:text-sm text-slate-900 truncate">{loc.name}</div>
-                  <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                  <div className="font-bold text-xs sm:text-sm text-ink truncate">{loc.name}</div>
+                  <div className="text-[11px] text-ink-body font-normal mt-0.5">
                     {loc.distance} • {loc.time}
                   </div>
                 </div>
                 <span
                   className={clsx(
-                    "text-[10px] font-bold px-2.5 py-1 rounded-full border",
+                    "text-[10px] font-medium px-2.5 py-1 rounded-full border",
                     confidenceColor(loc.confidence)
                   )}
                 >
@@ -115,43 +115,43 @@ export default function NavigationMemoryPage() {
               </div>
             ))
           ) : (
-            <div className="bg-white rounded-3xl p-10 text-center border border-slate-200/90 space-y-3">
-              <MapPin className="w-8 h-8 text-slate-300 mx-auto" />
-              <p className="text-sm font-bold text-slate-900">No saved locations yet</p>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            <div className="bg-white rounded-2xl p-10 text-center border border-border-clean space-y-3">
+              <MapPin className="w-8 h-8 text-ink-mute mx-auto" />
+              <p className="text-sm font-bold text-ink">No saved locations yet</p>
+              <p className="text-xs text-ink-body max-w-sm mx-auto">
                 Start navigation sessions on Navigate to automatically preserve frequently traveled corridors.
               </p>
             </div>
           )}
 
           {/* Contextual Action Button */}
-          <button className="w-full flex items-center justify-center gap-2 py-3 bg-brand-50 text-brand-700 hover:bg-brand-100 rounded-2xl text-xs sm:text-sm font-bold transition-all border border-brand-200/80 shadow-2xs press-scale">
+          <button className="btn-secondary w-full py-3 text-xs sm:text-sm shadow-2xs">
             <Plus className="w-4 h-4" />
-            Add Route Location Bookmark
+            Add route location bookmark
           </button>
         </div>
       ) : (
         /* Learned Patterns Tab */
         <div className="space-y-4">
-          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-2xs space-y-4">
+          <div className="bg-white rounded-2xl p-5 sm:p-6 border border-border-clean shadow-2xs space-y-4">
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-emerald-600" />
-              <span className="text-sm font-bold text-slate-900">
-                Inertial Filter Adaptation
+              <span className="text-sm font-bold text-ink">
+                Inertial filter adaptation
               </span>
             </div>
-            <div className="space-y-2.5 text-xs text-slate-600">
+            <div className="space-y-2.5 text-xs text-ink-body">
               {[
-                { title: 'InEKF Strapdown Bias Correction', desc: 'Continuous zero-velocity bias convergence active' },
-                { title: 'Vehicle Kinematic Constraints', desc: 'Non-holonomic lateral velocity suppression calibrated' },
-                { title: 'Multi-constellation Signal Validation', desc: 'Innovation consistency gates reject multipath outliers' },
-                { title: 'E5 Neural Motion Estimation', desc: 'Temporal dilated convolutions active for longitudinal velocity aiding' },
+                { title: 'InEKF strapdown bias correction', desc: 'Continuous zero-velocity bias convergence active' },
+                { title: 'Vehicle kinematic constraints', desc: 'Non-holonomic lateral velocity suppression calibrated' },
+                { title: 'Multi-constellation signal validation', desc: 'Innovation consistency gates reject multipath outliers' },
+                { title: 'E5 neural motion estimation', desc: 'Temporal dilated convolutions active for longitudinal velocity aiding' },
               ].map((item, i) => (
-                <div key={i} className="flex items-start gap-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+                <div key={i} className="flex items-start gap-3 p-3.5 bg-canvas-soft rounded-2xl border border-border-clean">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   <div>
-                    <div className="font-bold text-slate-900">{item.title}</div>
-                    <div className="text-[11px] text-slate-500 mt-0.5">{item.desc}</div>
+                    <div className="font-bold text-ink">{item.title}</div>
+                    <div className="text-[11px] text-ink-body mt-0.5">{item.desc}</div>
                   </div>
                 </div>
               ))}
@@ -160,32 +160,32 @@ export default function NavigationMemoryPage() {
 
           {/* Genuine Telemetry Insights Ribbon */}
           {insights && insights.has_data && (
-            <div className="bg-slate-900 rounded-3xl p-5 sm:p-6 text-white space-y-4">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-cyan-400">
-                <Activity className="w-4 h-4" />
-                Accumulated Platform Insights
+            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-border-clean shadow-2xs space-y-4">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink">
+                <Activity className="w-4 h-4 text-ink" />
+                Accumulated platform insights
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 bg-white/10 rounded-2xl border border-white/10">
-                  <span className="text-[9.5px] uppercase font-bold text-slate-400">Total Journeys</span>
-                  <div className="text-lg font-bold font-mono text-white mt-0.5">{insights.total_sessions}</div>
+                <div className="p-3 bg-canvas-soft rounded-2xl border border-border-clean">
+                  <span className="text-[9.5px] uppercase font-bold text-ink-mute">Total journeys</span>
+                  <div className="text-lg font-bold font-mono text-ink mt-0.5">{insights.total_sessions}</div>
                 </div>
-                <div className="p-3 bg-white/10 rounded-2xl border border-white/10">
-                  <span className="text-[9.5px] uppercase font-bold text-slate-400">Total Distance</span>
-                  <div className="text-lg font-bold font-mono text-white mt-0.5">
-                    {insights.total_distance_km} <span className="text-xs font-normal text-slate-400">km</span>
+                <div className="p-3 bg-canvas-soft rounded-2xl border border-border-clean">
+                  <span className="text-[9.5px] uppercase font-bold text-ink-mute">Total distance</span>
+                  <div className="text-lg font-bold font-mono text-ink mt-0.5">
+                    {insights.total_distance_km} <span className="text-xs font-normal text-ink-body">km</span>
                   </div>
                 </div>
-                <div className="p-3 bg-white/10 rounded-2xl border border-white/10">
-                  <span className="text-[9.5px] uppercase font-bold text-slate-400">Total Time</span>
-                  <div className="text-lg font-bold font-mono text-white mt-0.5">
-                    {insights.total_duration_minutes} <span className="text-xs font-normal text-slate-400">min</span>
+                <div className="p-3 bg-canvas-soft rounded-2xl border border-border-clean">
+                  <span className="text-[9.5px] uppercase font-bold text-ink-mute">Total time</span>
+                  <div className="text-lg font-bold font-mono text-ink mt-0.5">
+                    {insights.total_duration_minutes} <span className="text-xs font-normal text-ink-body">min</span>
                   </div>
                 </div>
-                <div className="p-3 bg-white/10 rounded-2xl border border-white/10">
-                  <span className="text-[9.5px] uppercase font-bold text-slate-400">Fixes Processed</span>
-                  <div className="text-lg font-bold font-mono text-white mt-0.5">{insights.points_processed}</div>
+                <div className="p-3 bg-canvas-soft rounded-2xl border border-border-clean">
+                  <span className="text-[9.5px] uppercase font-bold text-ink-mute">Fixes processed</span>
+                  <div className="text-lg font-bold font-mono text-ink mt-0.5">{insights.points_processed}</div>
                 </div>
               </div>
             </div>

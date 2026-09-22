@@ -10,31 +10,31 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300 pb-24 md:pb-12 text-slate-900">
+    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300 pb-24 md:pb-12 text-ink select-none">
       {/* Header */}
-      <div className="flex items-center gap-3.5 border-b border-slate-200/80 pb-5">
-        <div className="p-2.5 bg-slate-900 text-white rounded-2xl shadow-xs">
-          <SettingsIcon className="w-5 h-5 text-brand-400" />
+      <div className="flex items-center gap-3.5 border-b border-border-clean pb-5">
+        <div className="p-2.5 bg-black text-white rounded-2xl shadow-xs">
+          <SettingsIcon className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
-            System Settings
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-ink">
+            Settings
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
+          <p className="text-xs sm:text-sm text-ink-body font-normal">
             Configure vehicle kinematic constraints & navigation engine parameters
           </p>
         </div>
       </div>
 
       {/* 1. Vehicle Kinematic Profile Selection */}
-      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4">
+      <div className="bg-white rounded-2xl p-5 sm:p-6 border border-border-clean shadow-2xs space-y-4">
         <div>
-          <h3 className="font-bold text-slate-900 text-base sm:text-lg flex items-center gap-2">
-            <Car className="w-5 h-5 text-brand-600" />
-            Vehicle Kinematic Profile
+          <h3 className="font-bold text-ink text-base sm:text-lg flex items-center gap-2">
+            <Car className="w-5 h-5 text-ink" />
+            Vehicle profile
           </h3>
-          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-            Selects the Non-Holonomic Constraint (NHC) parameters, lateral velocity suppression thresholds, and wheel dynamics used by the InEKF state propagation filter.
+          <p className="text-xs text-ink-body mt-1 leading-relaxed">
+            Selects non-holonomic constraint (NHC) parameters, lateral velocity suppression thresholds, and wheel dynamics.
           </p>
         </div>
 
@@ -52,28 +52,28 @@ export default function SettingsPage() {
                 key={v.type}
                 onClick={() => handleVehicleChange(v.type as UserSettings['vehicle_type'])}
                 className={clsx(
-                  "p-4 rounded-2xl border text-left transition-all flex flex-col justify-between min-h-[110px] press-scale shadow-2xs",
+                  "p-4 rounded-2xl border text-left transition-all flex flex-col justify-between min-h-[110px] press-scale cursor-pointer",
                   isSelected
-                    ? "bg-brand-50/90 border-brand-500 text-slate-900 ring-1 ring-brand-500"
-                    : "bg-white border-slate-200/80 hover:border-slate-300 text-slate-700"
+                    ? "bg-canvas-soft border-black text-ink ring-1 ring-black"
+                    : "bg-white border-border-clean hover:bg-canvas-softer text-ink-body hover:text-ink"
                 )}
               >
                 <div className="flex justify-between items-center w-full">
                   <div className={clsx(
-                    "p-2 rounded-xl",
-                    isSelected ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600"
+                    "p-2 rounded-full",
+                    isSelected ? "bg-black text-white" : "bg-canvas-soft text-ink"
                   )}>
                     <Icon className="w-5 h-5" />
                   </div>
                   {isSelected && (
-                    <span className="text-[10px] font-mono font-bold text-brand-700 bg-white px-2 py-0.5 rounded border border-brand-200">
-                      ACTIVE
+                    <span className="text-[10px] font-medium text-ink bg-white px-2 py-0.5 rounded-full border border-border-clean">
+                      Active
                     </span>
                   )}
                 </div>
                 <div className="mt-2">
-                  <div className="font-bold text-xs sm:text-sm text-slate-900">{v.label}</div>
-                  <div className="text-[10.5px] text-slate-500 mt-0.5 leading-snug">{v.desc}</div>
+                  <div className="font-semibold text-xs sm:text-sm text-ink">{v.label}</div>
+                  <div className="text-[11px] text-ink-body mt-0.5 leading-snug">{v.desc}</div>
                 </div>
               </button>
             );
@@ -81,31 +81,31 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* 2. Display Units & Sensor Calibration */}
-      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4">
+      {/* 2. Display Units & Velocity Scale */}
+      <div className="bg-white rounded-2xl p-5 sm:p-6 border border-border-clean shadow-2xs space-y-4">
         <div>
-          <h3 className="font-bold text-slate-900 text-base sm:text-lg flex items-center gap-2">
-            <Gauge className="w-5 h-5 text-brand-600" />
-            Display Units & Velocity Scale
+          <h3 className="font-bold text-ink text-base sm:text-lg flex items-center gap-2">
+            <Gauge className="w-5 h-5 text-ink" />
+            Display units
           </h3>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-ink-body mt-1">
             Choose metric or imperial display standards for velocity and distance metrics.
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Distance Units */}
-          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+          <div className="flex items-center justify-between p-4 bg-canvas-soft rounded-2xl border border-border-clean">
             <div>
-              <div className="font-bold text-xs sm:text-sm text-slate-900">Distance Units</div>
-              <div className="text-[11px] text-slate-500">Kilometers vs Miles</div>
+              <div className="font-semibold text-xs sm:text-sm text-ink">Distance units</div>
+              <div className="text-[11px] text-ink-body">Kilometers vs Miles</div>
             </div>
-            <div className="flex bg-white rounded-xl p-1 border border-slate-200 text-xs font-bold">
+            <div className="flex bg-white rounded-full p-1 border border-border-clean text-xs font-medium">
               <button
                 onClick={() => updateSettings({ distance_unit: 'km' })}
                 className={clsx(
-                  "px-3 py-1.5 rounded-lg transition-colors",
-                  settings.distance_unit === 'km' ? "bg-brand-600 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                  "px-3.5 py-1.5 rounded-full transition-colors cursor-pointer",
+                  settings.distance_unit === 'km' ? "bg-black text-white" : "text-ink-body hover:text-ink"
                 )}
               >
                 km
@@ -113,8 +113,8 @@ export default function SettingsPage() {
               <button
                 onClick={() => updateSettings({ distance_unit: 'mi' })}
                 className={clsx(
-                  "px-3 py-1.5 rounded-lg transition-colors",
-                  settings.distance_unit === 'mi' ? "bg-brand-600 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                  "px-3.5 py-1.5 rounded-full transition-colors cursor-pointer",
+                  settings.distance_unit === 'mi' ? "bg-black text-white" : "text-ink-body hover:text-ink"
                 )}
               >
                 mi
@@ -123,17 +123,17 @@ export default function SettingsPage() {
           </div>
 
           {/* Speed Units */}
-          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+          <div className="flex items-center justify-between p-4 bg-canvas-soft rounded-2xl border border-border-clean">
             <div>
-              <div className="font-bold text-xs sm:text-sm text-slate-900">Speed Units</div>
-              <div className="text-[11px] text-slate-500">Kilometers/hour vs Miles/hour</div>
+              <div className="font-semibold text-xs sm:text-sm text-ink">Speed units</div>
+              <div className="text-[11px] text-ink-body">Kilometers/hour vs Miles/hour</div>
             </div>
-            <div className="flex bg-white rounded-xl p-1 border border-slate-200 text-xs font-bold">
+            <div className="flex bg-white rounded-full p-1 border border-border-clean text-xs font-medium">
               <button
                 onClick={() => updateSettings({ speed_unit: 'km/h' })}
                 className={clsx(
-                  "px-3 py-1.5 rounded-lg transition-colors",
-                  settings.speed_unit === 'km/h' ? "bg-brand-600 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                  "px-3.5 py-1.5 rounded-full transition-colors cursor-pointer",
+                  settings.speed_unit === 'km/h' ? "bg-black text-white" : "text-ink-body hover:text-ink"
                 )}
               >
                 km/h
@@ -141,8 +141,8 @@ export default function SettingsPage() {
               <button
                 onClick={() => updateSettings({ speed_unit: 'mph' })}
                 className={clsx(
-                  "px-3 py-1.5 rounded-lg transition-colors",
-                  settings.speed_unit === 'mph' ? "bg-brand-600 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                  "px-3.5 py-1.5 rounded-full transition-colors cursor-pointer",
+                  settings.speed_unit === 'mph' ? "bg-black text-white" : "text-ink-body hover:text-ink"
                 )}
               >
                 mph
@@ -152,14 +152,14 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* 3. Navigation Fusion & Outage Toggles */}
-      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4">
+      {/* 3. Navigation Engine Toggles */}
+      <div className="bg-white rounded-2xl p-5 sm:p-6 border border-border-clean shadow-2xs space-y-4">
         <div>
-          <h3 className="font-bold text-slate-900 text-base sm:text-lg flex items-center gap-2">
-            <Shield className="w-5 h-5 text-brand-600" />
-            Navigation Engine Toggles
+          <h3 className="font-bold text-ink text-base sm:text-lg flex items-center gap-2">
+            <Shield className="w-5 h-5 text-ink" />
+            Navigation engine toggles
           </h3>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-ink-body mt-1">
             Configure automated InEKF filter transitions and sensor streaming settings.
           </p>
         </div>
@@ -168,33 +168,33 @@ export default function SettingsPage() {
           {[
             {
               key: 'auto_tunnel_mode',
-              title: 'Automatic Outage Detection & DR Engagement',
+              title: 'Automatic outage detection & DR engagement',
               desc: 'Automatically engage InEKF strapdown dead reckoning when GNSS satellite loss is detected.'
             },
             {
               key: 'sensor_fusion_enabled',
-              title: '6-DoF High-Rate Inertial Sensor Fusion',
+              title: '6-DoF high-rate inertial sensor fusion',
               desc: 'Fuse 50 Hz accelerometer and gyroscope streams with discrete GNSS position updates.'
             },
             {
               key: 'high_accuracy_mode',
-              title: 'High-Precision Browser Geolocation',
+              title: 'High-precision browser geolocation',
               desc: 'Request continuous maximum-precision location fixes from the browser Geolocation API.'
             }
           ].map((toggle) => {
             const active = Boolean(settings[toggle.key as keyof UserSettings]);
             return (
-              <div key={toggle.key} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <div key={toggle.key} className="flex items-center justify-between p-4 bg-canvas-soft rounded-2xl border border-border-clean">
                 <div className="pr-4">
-                  <div className="font-bold text-xs sm:text-sm text-slate-900">{toggle.title}</div>
-                  <div className="text-[11px] text-slate-500 max-w-xl mt-0.5 leading-snug">{toggle.desc}</div>
+                  <div className="font-semibold text-xs sm:text-sm text-ink">{toggle.title}</div>
+                  <div className="text-[11px] text-ink-body max-w-xl mt-0.5 leading-snug">{toggle.desc}</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => updateSettings({ [toggle.key]: !active })}
                   className={clsx(
                     "w-12 h-6.5 rounded-full transition-colors relative p-0.5 shrink-0 cursor-pointer shadow-2xs",
-                    active ? "bg-brand-600" : "bg-slate-300"
+                    active ? "bg-black" : "bg-neutral-300"
                   )}
                 >
                   <div
@@ -211,17 +211,17 @@ export default function SettingsPage() {
       </div>
 
       {/* 4. Platform Architecture Info */}
-      <div className="p-4.5 bg-brand-50/70 border border-brand-100/90 rounded-3xl text-xs text-brand-950 flex items-center justify-between gap-3">
+      <div className="p-4.5 bg-canvas-soft border border-border-clean rounded-2xl text-xs text-ink flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Info className="w-5 h-5 text-brand-600 shrink-0" />
+          <Info className="w-5 h-5 text-ink shrink-0" />
           <div>
-            <div className="font-bold text-brand-900">YatraSaarthi Production Build</div>
-            <div className="text-[11px] text-slate-600 mt-0.5">
+            <div className="font-semibold text-ink">YatraSaarthi build</div>
+            <div className="text-[11px] text-ink-body mt-0.5">
               Lie-Group Invariant Extended Kalman Filter (InEKF) • E5 Dilated Temporal ConvNet
             </div>
           </div>
         </div>
-        <span className="text-[10px] font-mono font-bold text-brand-700 bg-white px-2.5 py-1 rounded-lg border border-brand-200 shrink-0">
+        <span className="text-[10px] font-mono font-medium text-ink bg-white px-3 py-1 rounded-full border border-border-clean shrink-0 shadow-2xs">
           v1.0.0-prod
         </span>
       </div>
