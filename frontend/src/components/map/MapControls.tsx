@@ -2,14 +2,13 @@ import React, { useState } from 'react';
 import { useMap } from './MapContainer';
 import {
   Layers,
-  Crosshair,
   Compass,
   Box,
   Sun,
   Moon,
   Plus,
   Minus,
-  Navigation,
+  LocateFixed,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { MapOrientationMode } from './MapController';
@@ -77,81 +76,97 @@ export const MapControls: React.FC<MapControlsProps> = ({
 
   return (
     <div className={className}>
-      {/* Prominent Recenter Button (Highlights whenever follow is suspended) */}
+      {/* Prominent Recenter Pill when camera has panned away */}
       {!followVehicle && onRecenter && (
         <button
+          type="button"
           onClick={onRecenter}
-          className="btn-primary flex items-center gap-2 text-xs py-2 px-4 shadow-nav-floating animate-in fade-in slide-in-from-right-2 select-none"
+          aria-label="Recenter map on vehicle"
+          className="h-11 px-4 bg-black hover:bg-neutral-800 text-white rounded-full text-xs font-medium flex items-center gap-2 shadow-nav-floating transition-colors select-none active:scale-[0.97] cursor-pointer"
         >
-          <Navigation className="w-3.5 h-3.5 fill-white rotate-[-20deg]" />
+          <LocateFixed className="w-4 h-4 text-white shrink-0" />
           <span>Recenter</span>
         </button>
       )}
 
       {/* Style Picker Dropdown */}
       {showStyles && (
-        <div className="bg-white p-1.5 rounded-2xl border border-border-clean shadow-nav-floating space-y-1 text-xs select-none animate-in fade-in zoom-in-95 duration-150 min-w-[160px]">
+        <div className="bg-white p-1.5 rounded-2xl border border-border-clean shadow-nav-floating space-y-1 text-xs select-none min-w-[160px]">
           <button
+            type="button"
             onClick={() => handleStyleSelect('mapbox://styles/mapbox/navigation-day-v1')}
-            className="w-full text-left px-3 py-2 rounded-xl hover:bg-canvas-soft font-medium text-ink transition-colors flex items-center gap-2 cursor-pointer"
+            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-canvas-soft font-medium text-ink transition-colors flex items-center gap-2 cursor-pointer"
           >
-            <Sun className="w-3.5 h-3.5 text-amber-500" />
+            <Sun className="w-4 h-4 text-ink" />
             <span>Navigation Day</span>
           </button>
           <button
+            type="button"
             onClick={() => handleStyleSelect('mapbox://styles/mapbox/navigation-night-v1')}
-            className="w-full text-left px-3 py-2 rounded-xl hover:bg-canvas-soft font-medium text-ink transition-colors flex items-center gap-2 cursor-pointer"
+            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-canvas-soft font-medium text-ink transition-colors flex items-center gap-2 cursor-pointer"
           >
-            <Moon className="w-3.5 h-3.5 text-indigo-500" />
+            <Moon className="w-4 h-4 text-ink" />
             <span>Navigation Night</span>
           </button>
           <button
+            type="button"
             onClick={() => handleStyleSelect('mapbox://styles/mapbox/streets-v12')}
-            className="w-full text-left px-3 py-2 rounded-xl hover:bg-canvas-soft font-medium text-ink transition-colors cursor-pointer"
+            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-canvas-soft font-medium text-ink transition-colors cursor-pointer"
           >
             Standard Streets
           </button>
           <button
+            type="button"
             onClick={() => handleStyleSelect('mapbox://styles/mapbox/satellite-streets-v12')}
-            className="w-full text-left px-3 py-2 rounded-xl hover:bg-canvas-soft font-medium text-ink transition-colors cursor-pointer"
+            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-canvas-soft font-medium text-ink transition-colors cursor-pointer"
           >
             Satellite Hybrid
           </button>
         </div>
       )}
 
-      {/* Main Map Navigation Control Cluster */}
-      <div className="flex flex-col gap-1 bg-white p-1.5 rounded-2xl border border-border-clean shadow-nav-floating select-none">
-        {/* Zoom In (+) */}
+      {/* Group 1: Zoom In / Zoom Out */}
+      <div className="bg-white rounded-2xl border border-border-clean shadow-nav-floating flex flex-col p-0.5 overflow-hidden">
         <button
+          type="button"
           onClick={handleZoomIn}
+          aria-label="Zoom in"
           title="Zoom in"
-          className="p-2.5 rounded-xl hover:bg-canvas-soft text-ink transition-colors press-scale flex items-center justify-center cursor-pointer"
+          className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-canvas-soft text-ink transition-colors cursor-pointer select-none active:scale-[0.96]"
         >
           <Plus className="w-4.5 h-4.5" />
         </button>
-
-        {/* Zoom Out (-) */}
+        <div className="h-px bg-border-clean mx-1.5" />
         <button
+          type="button"
           onClick={handleZoomOut}
+          aria-label="Zoom out"
           title="Zoom out"
-          className="p-2.5 rounded-xl hover:bg-canvas-soft text-ink transition-colors press-scale flex items-center justify-center border-b border-border-clean pb-2 mb-1 cursor-pointer"
+          className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-canvas-soft text-ink transition-colors cursor-pointer select-none active:scale-[0.96]"
         >
           <Minus className="w-4.5 h-4.5" />
         </button>
+      </div>
 
-        {/* Dynamic Heading / North-Up Orientation Toggle */}
+      {/* Group 2: Orientation / Compass */}
+      <div className="bg-white rounded-2xl border border-border-clean shadow-nav-floating p-0.5 flex flex-col items-center">
         <button
+          type="button"
           onClick={handleToggleOrientation}
+          aria-label={
+            orientationMode === 'HEADING_UP'
+              ? 'Orientation: Heading-Up. Click to switch to North-Up'
+              : 'Orientation: North-Up. Click to switch to Heading-Up'
+          }
           title={
             orientationMode === 'HEADING_UP'
-              ? 'Orientation: Heading-Up (Click for North-Up)'
-              : 'Orientation: North-Up (Click for Heading-Up)'
+              ? 'Orientation: Heading-Up'
+              : 'Orientation: North-Up'
           }
           className={clsx(
-            'p-2.5 rounded-xl transition-colors press-scale flex items-center justify-center relative cursor-pointer',
+            'w-11 h-11 rounded-xl flex items-center justify-center relative transition-colors cursor-pointer select-none active:scale-[0.96]',
             orientationMode === 'HEADING_UP'
-              ? 'bg-canvas-soft text-ink font-semibold'
+              ? 'bg-canvas-softer text-ink'
               : 'hover:bg-canvas-soft text-ink-body hover:text-ink'
           )}
         >
@@ -161,50 +176,59 @@ export const MapControls: React.FC<MapControlsProps> = ({
               transform: orientationMode === 'HEADING_UP' ? `rotate(-${heading}deg)` : 'rotate(0deg)',
             }}
           />
-          <span className="absolute bottom-1 right-1 text-[8px] font-bold leading-none text-ink">
+          <span className="absolute bottom-1 right-1 text-[7px] font-bold tracking-tight leading-none text-ink">
             {orientationMode === 'HEADING_UP' ? 'HDG' : 'N'}
           </span>
         </button>
+      </div>
 
-        {/* 3D / 2D Perspective Pitch Toggle */}
+      {/* Group 3: 3D Perspective & Map Layers */}
+      <div className="bg-white rounded-2xl border border-border-clean shadow-nav-floating p-0.5 flex flex-col items-center gap-0.5">
         <button
+          type="button"
           onClick={handleToggle3D}
+          aria-label={is3D ? 'Switch to 2D view' : 'Switch to 3D perspective'}
           title={is3D ? '3D Navigation Perspective' : '2D Top-Down View'}
           className={clsx(
-            'p-2.5 rounded-xl transition-colors press-scale flex items-center justify-center text-xs font-semibold cursor-pointer',
+            'w-11 h-11 rounded-xl flex items-center justify-center transition-colors cursor-pointer select-none active:scale-[0.96]',
             is3D
-              ? 'bg-canvas-soft text-ink'
+              ? 'bg-canvas-softer text-ink'
               : 'hover:bg-canvas-soft text-ink-body hover:text-ink'
           )}
         >
-          <Box className="w-4.5 h-4.5" />
+          <Box className="w-4.5 h-4.5 text-ink" />
         </button>
-
-        {/* Style Switcher Toggle */}
+        <div className="h-px w-8 bg-border-clean mx-auto" />
         <button
+          type="button"
           onClick={() => setShowStyles(!showStyles)}
-          title="Change Map Layers & Style"
+          aria-label="Toggle map layers and styles"
+          title="Change map style"
           className={clsx(
-            'p-2.5 rounded-xl transition-colors press-scale flex items-center justify-center cursor-pointer',
+            'w-11 h-11 rounded-xl flex items-center justify-center transition-colors cursor-pointer select-none active:scale-[0.96]',
             showStyles
-              ? 'bg-canvas-soft text-ink'
+              ? 'bg-canvas-softer text-ink'
               : 'hover:bg-canvas-soft text-ink-body hover:text-ink'
           )}
         >
-          <Layers className="w-4.5 h-4.5" />
+          <Layers className="w-4.5 h-4.5 text-ink" />
         </button>
-
-        {/* Standard Recenter Toggle (when already following) */}
-        {followVehicle && onRecenter && (
-          <button
-            onClick={onRecenter}
-            title="Centered on Vehicle"
-            className="p-2.5 rounded-xl bg-canvas-soft text-ink hover:bg-surface-pressed transition-colors press-scale flex items-center justify-center border-t border-border-clean mt-1 pt-2 cursor-pointer"
-          >
-            <Crosshair className="w-4.5 h-4.5 text-ink" />
-          </button>
-        )}
       </div>
+
+      {/* Group 4: Standard Recenter button when already centered */}
+      {followVehicle && onRecenter && (
+        <div className="bg-white rounded-2xl border border-border-clean shadow-nav-floating p-0.5 flex flex-col items-center">
+          <button
+            type="button"
+            onClick={onRecenter}
+            aria-label="Center camera on vehicle"
+            title="Centered on vehicle"
+            className="w-11 h-11 rounded-xl bg-canvas-soft text-ink hover:bg-surface-pressed transition-colors flex items-center justify-center cursor-pointer select-none active:scale-[0.96]"
+          >
+            <LocateFixed className="w-4.5 h-4.5 text-ink" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -3,14 +3,14 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Navigation,
   Map,
-  Clock,
-  BrainCircuit,
-  Settings,
-  Activity,
-  Radio,
-  User,
-  X,
+  Satellite,
+  History,
   Bookmark,
+  BrainCircuit,
+  Activity,
+  Settings,
+  UserRound,
+  X,
   ChevronRight,
   ShieldCheck,
 } from 'lucide-react';
@@ -34,13 +34,13 @@ const navGroups: NavGroup[] = [
     items: [
       { name: 'Navigate', path: '/app', icon: Navigation },
       { name: 'Map', path: '/app/map', icon: Map },
-      { name: 'GNSS Outage Test', path: '/app/tunnel', icon: Radio },
+      { name: 'GNSS Outage Test', path: '/app/tunnel', icon: Satellite },
     ],
   },
   {
     label: 'ACTIVITY',
     items: [
-      { name: 'Trips', path: '/app/history', icon: Clock },
+      { name: 'Trips', path: '/app/history', icon: History },
       { name: 'Saved Routes', path: '/app/memory', icon: Bookmark },
     ],
   },
@@ -55,7 +55,7 @@ const navGroups: NavGroup[] = [
     items: [
       { name: 'Diagnostics', path: '/app/diagnostics', icon: Activity },
       { name: 'Settings', path: '/app/settings', icon: Settings },
-      { name: 'Profile', path: '/app/profile', icon: User },
+      { name: 'Profile', path: '/app/profile', icon: UserRound },
     ],
   },
 ];
@@ -132,8 +132,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                   <div className="flex items-center gap-3 min-w-0">
                     <Icon
                       className={clsx(
-                        'w-4.5 h-4.5 shrink-0 transition-colors duration-150',
-                        isActive ? 'text-ink' : 'text-ink-mute group-hover:text-ink'
+                        'w-5 h-5 shrink-0 transition-colors duration-150',
+                        isActive ? 'text-ink' : 'text-[#9CA3AF] group-hover:text-ink-body'
                       )}
                       strokeWidth={isActive ? 2 : 1.75}
                     />
@@ -150,8 +150,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                     <ChevronRight
                       className={clsx(
                         'w-4 h-4 shrink-0 transition-colors duration-150',
-                        isActive ? 'text-ink opacity-100' : 'text-ink-mute/40 group-hover:text-ink-mute'
+                        isActive ? 'text-[#111111] opacity-100' : 'text-[#D1D5DB] group-hover:text-[#9CA3AF]'
                       )}
+                      strokeWidth={1.75}
                     />
                   )}
                 </Link>

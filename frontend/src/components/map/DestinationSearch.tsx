@@ -119,14 +119,14 @@ export const DestinationSearch = () => {
 
   return (
     <div className="relative w-full max-w-md">
-      <div className="bg-white px-4 h-12 md:h-13 rounded-full border border-border-clean shadow-nav-floating flex items-center gap-3 transition-all duration-150 focus-within:border-black focus-within:ring-2 focus-within:ring-black/10">
-        <div className="w-8 h-8 rounded-full bg-canvas-soft flex items-center justify-center shrink-0 text-ink">
+      <div className="bg-white px-3.5 h-11 md:h-12 rounded-full border border-border-clean shadow-nav-floating flex items-center gap-2.5 transition-all duration-150 focus-within:border-black focus-within:ring-1 focus-within:ring-black">
+        <div className="w-7 h-7 rounded-full bg-canvas-soft flex items-center justify-center shrink-0 text-ink">
           {isSearching ? (
-            <Loader2 className="w-4 h-4 text-ink animate-spin" />
+            <Loader2 className="w-3.5 h-3.5 text-ink animate-spin" />
           ) : destination ? (
-            <NavIcon className="w-4 h-4 text-ink fill-ink" />
+            <NavIcon className="w-3.5 h-3.5 text-ink fill-ink" />
           ) : (
-            <Search className="w-4 h-4 text-ink" />
+            <Search className="w-3.5 h-3.5 text-ink" />
           )}
         </div>
         
@@ -149,7 +149,7 @@ export const DestinationSearch = () => {
         {query && (
           <button
             onClick={handleClear}
-            className="p-1.5 hover:bg-canvas-soft rounded-full text-ink-body hover:text-ink transition-colors cursor-pointer"
+            className="p-1 hover:bg-canvas-soft rounded-full text-ink-body hover:text-ink transition-colors cursor-pointer"
             title="Clear search"
           >
             <X className="w-4 h-4" />

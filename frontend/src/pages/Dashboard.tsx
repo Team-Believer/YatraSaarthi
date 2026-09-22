@@ -137,25 +137,27 @@ export default function Dashboard() {
   const hasCoordinates = displayLat !== null && displayLon !== null;
 
   return (
-    <div className="h-full w-full relative flex flex-col overflow-hidden bg-slate-900 select-none">
+    <div className="h-full w-full relative flex flex-col overflow-hidden bg-canvas-soft select-none">
       {/* Journey Completed Banner */}
       {journeySummary && (
-        <div className="absolute top-20 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-auto z-50 bg-emerald-600/95 backdrop-blur-md text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in border border-emerald-400/40">
-          <CheckCircle2 className="w-5 h-5 shrink-0 text-white" />
+        <div className="absolute top-20 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-auto z-50 bg-white text-ink px-4.5 py-3 rounded-2xl shadow-nav-floating flex items-center gap-3 animate-in fade-in border border-border-clean">
+          <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
           <div className="text-xs">
-            <span className="font-bold">Journey Summary</span> •{' '}
+            <span className="font-semibold text-ink">Journey summary</span> •{' '}
             {journeySummary.distance_m
               ? `${(journeySummary.distance_m / 1000).toFixed(2)} km`
-              : 'Zero displacement'}{' '}
+              : '0 km'}{' '}
             •{' '}
             {journeySummary.duration_s
               ? `${Math.round(journeySummary.duration_s)}s`
               : '<1s'}{' '}
-            • Saved to history
+            • Saved
           </div>
           <button
+            type="button"
             onClick={() => setJourneySummary(null)}
-            className="hover:bg-white/20 p-1.5 rounded-lg transition-colors ml-2 cursor-pointer"
+            aria-label="Dismiss summary"
+            className="hover:bg-canvas-soft p-1.5 rounded-full transition-colors ml-2 cursor-pointer text-ink-mute hover:text-ink"
           >
             <X className="w-4 h-4" />
           </button>
@@ -211,14 +213,14 @@ export default function Dashboard() {
 
         {/* Acquiring Location Overlay when no GPS fix yet */}
         {!hasCoordinates && (
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center pointer-events-none p-4 text-center z-20">
-            <div className="bg-white/95 p-6 rounded-2xl border border-slate-200 shadow-xl space-y-2 max-w-sm">
-              <Radio className="w-7 h-7 text-brand-600 animate-pulse mx-auto" />
-              <h4 className="font-bold text-sm text-slate-900">Acquiring Navigation Fix</h4>
-              <p className="text-xs text-slate-500">
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-xs flex items-center justify-center pointer-events-none p-4 text-center z-20">
+            <div className="bg-white p-6 rounded-2xl border border-border-clean shadow-nav-floating space-y-2 max-w-sm">
+              <Radio className="w-6 h-6 text-ink animate-pulse mx-auto" />
+              <h4 className="font-semibold text-sm text-ink">Acquiring navigation fix</h4>
+              <p className="text-xs text-ink-mute">
                 {locPermission === 'denied'
                   ? 'Please allow browser geolocation permissions to locate vehicle.'
-                  : 'Connecting to GNSS satellite constellation & motion sensors...'}
+                  : 'Connecting to GNSS satellites and motion sensors...'}
               </p>
             </div>
           </div>
@@ -255,3 +257,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

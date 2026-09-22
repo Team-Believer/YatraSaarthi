@@ -52,10 +52,11 @@ export default function AppLayout() {
           <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
             <button
               onClick={() => setDrawerOpen(true)}
-              title="Open Navigation Menu"
-              className="p-3 bg-white/95 hover:bg-white text-slate-800 rounded-2xl shadow-nav-floating border border-slate-200/90 transition-all press-scale flex items-center justify-center group"
+              aria-label="Open menu"
+              title="Open menu"
+              className="w-11 h-11 bg-white hover:bg-canvas-softer text-ink rounded-full shadow-nav-floating border border-border-clean transition-all flex items-center justify-center cursor-pointer select-none active:scale-[0.97]"
             >
-              <Menu className="w-5 h-5 group-hover:text-brand-600 transition-colors" />
+              <Menu className="w-5 h-5" />
             </button>
           </div>
         )}

@@ -10,11 +10,11 @@ import { ConfidenceIndicator } from './ConfidenceIndicator';
 import {
   Play,
   Square,
-  Crosshair,
   ChevronUp,
   ChevronDown,
   MapPin,
   AlertCircle,
+  LocateFixed,
   Navigation as NavIcon,
 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -37,9 +37,6 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
   const sessionStatus = useNavigationStore((s) => s.sessionStatus);
   const destination = useNavigationStore((s) => s.destination);
   const altitude = useNavigationStore((s) => s.state.altitude);
-  const zuptActive = useNavigationStore((s) => s.state.zupt_active);
-  const nhcActive = useNavigationStore((s) => s.state.nhc_active);
-  const navMode = useNavigationStore((s) => s.state.navigation_mode);
   const fusedPosition = useNavigationStore((s) => s.fusedPosition);
 
   const deviceLat = useLocationStore((s) => s.latitude);
@@ -73,7 +70,7 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
   return (
     <div
       className={clsx(
-        'w-full max-w-3xl mx-auto bg-white rounded-2xl select-none transition-all duration-300 border border-border-clean shadow-nav-floating overflow-hidden',
+        'w-full max-w-3xl mx-auto bg-white rounded-2xl select-none transition-all duration-200 border border-border-clean shadow-nav-floating overflow-hidden',
         className
       )}
     >
@@ -81,20 +78,20 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex md:hidden items-center justify-center py-1.5 hover:bg-canvas-soft transition-colors cursor-pointer"
+        className="w-full flex md:hidden items-center justify-center pt-2 pb-1 hover:bg-canvas-soft transition-colors cursor-pointer"
         aria-label={isExpanded ? 'Collapse navigation HUD' : 'Expand navigation HUD'}
       >
         <div className="w-10 h-1 bg-neutral-300 rounded-full" />
       </button>
 
       {/* Main Container Padding */}
-      <div className="p-3.5 md:p-4.5">
+      <div className="p-3.5 md:p-4">
         {/* COMPACT HUD VIEW (Always Visible) */}
         <div className="flex items-center justify-between gap-3 md:gap-4">
           {/* Left Block: Speed & Direction */}
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <div className="flex items-center gap-3 sm:gap-5 min-w-0">
             <SpeedDisplay compact={!isExpanded} />
-            <div className="h-6 w-px bg-border-clean hidden sm:block shrink-0" />
+            <div className="h-6 w-px bg-border-clean shrink-0" />
             <HeadingDisplay compact={!isExpanded} />
           </div>
 
@@ -122,10 +119,11 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
               <button
                 type="button"
                 onClick={onRecenter}
-                title="Recenter camera on vehicle"
-                className="btn-icon-pill"
+                aria-label="Recenter map"
+                title="Recenter map"
+                className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-white hover:bg-canvas-soft border border-border-clean text-ink shadow-2xs flex items-center justify-center transition-colors cursor-pointer select-none active:scale-[0.96]"
               >
-                <Crosshair className="w-4 h-4 text-ink" />
+                <LocateFixed className="w-4.5 h-4.5 text-ink" />
               </button>
             )}
 
@@ -133,28 +131,29 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
             <button
               type="button"
               onClick={() => setIsExpanded(!isExpanded)}
-              title={isExpanded ? 'Collapse HUD' : 'Expand detailed HUD'}
-              className="btn-icon-pill"
+              aria-label={isExpanded ? 'Collapse navigation' : 'Expand navigation'}
+              title={isExpanded ? 'Collapse navigation' : 'Expand navigation'}
               aria-expanded={isExpanded}
+              className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-white hover:bg-canvas-soft border border-border-clean text-ink shadow-2xs flex items-center justify-center transition-colors cursor-pointer select-none active:scale-[0.96]"
             >
               {isExpanded ? (
-                <ChevronDown className="w-4 h-4 text-ink" />
+                <ChevronDown className="w-4.5 h-4.5 text-ink" />
               ) : (
-                <ChevronUp className="w-4 h-4 text-ink" />
+                <ChevronUp className="w-4.5 h-4.5 text-ink" />
               )}
             </button>
 
-            {/* Primary Live Navigation Button */}
+            {/* Primary Navigation Button */}
             {isLive ? (
               <button
                 type="button"
                 onClick={handleEndSession}
                 disabled={isEnding}
                 className={clsx(
-                  'px-5 py-2.5 rounded-full text-xs md:text-sm font-medium flex items-center gap-2 transition-all cursor-pointer press-scale select-none border',
+                  'h-10 md:h-11 px-4 md:px-5 rounded-full text-xs md:text-sm font-medium flex items-center gap-2 transition-all cursor-pointer select-none active:scale-[0.97] border',
                   confirmEnd
-                    ? 'bg-amber-600 hover:bg-amber-700 text-white border-amber-600 shadow-xs'
-                    : 'bg-white hover:bg-canvas-softer text-ink border-border-clean shadow-2xs'
+                    ? 'bg-red-600 hover:bg-red-700 text-white border-red-600 shadow-xs'
+                    : 'bg-white hover:bg-canvas-soft text-ink border-border-clean shadow-2xs'
                 )}
               >
                 {confirmEnd ? (
@@ -174,9 +173,10 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
                 type="button"
                 onClick={handleStartSession}
                 disabled={sessionStatus === 'STARTING'}
-                className="btn-primary"
+                aria-label="Start navigation"
+                className="h-10 md:h-11 px-4 md:px-5 bg-black hover:bg-neutral-800 text-white rounded-full text-xs md:text-sm font-medium flex items-center gap-2 shadow-2xs transition-colors cursor-pointer select-none active:scale-[0.97]"
               >
-                <Play className="w-4 h-4 fill-white" />
+                <Play className="w-3.5 h-3.5 fill-white" />
                 <span>{sessionStatus === 'STARTING' ? 'Starting...' : 'Start navigation'}</span>
               </button>
             )}
@@ -185,12 +185,12 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
 
         {/* EXPANDED DETAILED HUD PANEL */}
         {isExpanded && (
-          <div className="mt-3.5 pt-3.5 border-t border-border-clean flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 max-h-[60vh] overflow-y-auto pr-0.5 hide-scrollbar">
-            {/* Expanded Row 1: Destination & Active Route Context */}
+          <div className="mt-3.5 pt-3.5 border-t border-border-clean flex flex-col gap-3 animate-in fade-in duration-150 max-h-[60vh] overflow-y-auto pr-0.5 hide-scrollbar">
+            {/* Destination & Active Route Context */}
             {destination && (
               <div className="p-3 bg-canvas-soft rounded-2xl border border-border-clean flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
                     <MapPin className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
@@ -208,14 +208,14 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
               </div>
             )}
 
-            {/* Expanded Row 2: Status, Confidence & Coordinates */}
+            {/* Status, Confidence & Coordinates */}
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-2 flex-wrap">
                 <NavStatusPill />
                 <ConfidenceIndicator />
               </div>
 
-              {/* Verified Live Coordinates */}
+              {/* Coordinates */}
               <div className="flex items-center gap-1.5 font-mono text-[11px] text-ink-body bg-canvas-soft px-3 py-1.5 rounded-full border border-border-clean">
                 <MapPin className="w-3.5 h-3.5 text-ink shrink-0" />
                 {currentLat !== null && currentLon !== null ? (
@@ -223,7 +223,7 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
                     {currentLat.toFixed(5)}, {currentLon.toFixed(5)}
                   </span>
                 ) : (
-                  <span>Waiting for fix...</span>
+                  <span>Acquiring fix...</span>
                 )}
                 {typeof altitude === 'number' && altitude !== 0 && (
                   <span className="text-ink-mute pl-1">
@@ -233,57 +233,16 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
               </div>
             </div>
 
-            {/* Expanded Row 3: Live Trip Distance & Duration */}
+            {/* Live Trip Distance & Duration */}
             {isLive && (
               <div className="pt-1">
                 <TripMetrics />
               </div>
             )}
-
-            {/* Expanded Row 4: Motion Constraints & Filter Mode */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-              <div className="p-3 bg-canvas-soft rounded-2xl border border-border-clean">
-                <span className="text-[10px] font-bold text-ink-mute uppercase tracking-wider">
-                  Navigation mode
-                </span>
-                <div className="font-medium text-ink truncate mt-0.5">
-                  {isLive ? navMode : 'Standby'}
-                </div>
-              </div>
-
-              <div className="p-3 bg-canvas-soft rounded-2xl border border-border-clean">
-                <span className="text-[10px] font-bold text-ink-mute uppercase tracking-wider">
-                  Stationary hold
-                </span>
-                <div className="font-medium text-ink mt-0.5 flex items-center gap-1.5">
-                  <span
-                    className={clsx(
-                      'w-2 h-2 rounded-full shrink-0',
-                      zuptActive ? 'bg-emerald-500' : 'bg-neutral-300'
-                    )}
-                  />
-                  {zuptActive ? 'Active' : 'Inactive'}
-                </div>
-              </div>
-
-              <div className="p-3 bg-canvas-soft rounded-2xl border border-border-clean col-span-2 sm:col-span-1">
-                <span className="text-[10px] font-bold text-ink-mute uppercase tracking-wider">
-                  Vehicle constraint
-                </span>
-                <div className="font-medium text-ink mt-0.5 flex items-center gap-1.5">
-                  <span
-                    className={clsx(
-                      'w-2 h-2 rounded-full shrink-0',
-                      nhcActive ? 'bg-emerald-500' : 'bg-neutral-300'
-                    )}
-                  />
-                  {nhcActive ? 'Active' : 'Ready'}
-                </div>
-              </div>
-            </div>
           </div>
         )}
       </div>
     </div>
   );
 };
+

@@ -34,15 +34,15 @@ export const HeadingDisplay: React.FC<HeadingDisplayProps> = ({
 
   if (compact) {
     return (
-      <div className={clsx('flex items-center gap-1.5 select-none', className)}>
+      <div className={clsx('flex items-center gap-1.5 select-none text-ink', className)}>
         <Compass
           className="w-3.5 h-3.5 text-ink transition-transform duration-300 shrink-0"
           style={{ transform: `rotate(${headingVal ?? 0}deg)` }}
         />
-        <span className="text-xs font-bold font-mono text-ink tabular-nums">
+        <span className="text-xs md:text-sm font-semibold font-mono tabular-nums">
           {headingVal !== null ? `${headingVal}°` : '---°'}
         </span>
-        <span className="text-[10px] font-medium text-ink bg-canvas-soft px-1.5 py-0.5 rounded-full border border-border-clean">
+        <span className="text-[11px] font-medium text-ink-mute">
           {cardinal}
         </span>
       </div>
@@ -50,22 +50,18 @@ export const HeadingDisplay: React.FC<HeadingDisplayProps> = ({
   }
 
   return (
-    <div className={clsx('flex flex-col select-none', className)}>
-      <div className="flex items-center gap-1.5">
-        <Compass
-          className="w-4 h-4 text-ink transition-transform duration-300 shrink-0"
-          style={{ transform: `rotate(${headingVal ?? 0}deg)` }}
-        />
-        <span className="text-sm md:text-base font-bold text-ink tabular-nums font-mono">
-          {headingVal !== null ? `${headingVal}°` : '---°'}
-        </span>
-        <span className="text-xs font-medium text-ink bg-canvas-soft px-2 py-0.5 rounded-full border border-border-clean">
-          {cardinal}
-        </span>
-      </div>
-      <span className="text-[10px] text-ink-mute font-medium mt-0.5 hidden sm:inline">
-        Bearing & heading
+    <div className={clsx('flex items-center gap-1.5 select-none text-ink', className)}>
+      <Compass
+        className="w-4 h-4 text-ink transition-transform duration-300 shrink-0"
+        style={{ transform: `rotate(${headingVal ?? 0}deg)` }}
+      />
+      <span className="text-sm md:text-base font-semibold font-mono tabular-nums">
+        {headingVal !== null ? `${headingVal}°` : '---°'}
+      </span>
+      <span className="text-xs font-medium text-ink-mute">
+        {cardinal}
       </span>
     </div>
   );
 };
+

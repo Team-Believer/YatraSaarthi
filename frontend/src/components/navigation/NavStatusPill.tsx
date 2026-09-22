@@ -71,7 +71,7 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
       envState === 'TUNNEL'
     ) {
       category = 'DEAD_RECKONING';
-      title = 'Dead reckoning active';
+      title = 'Dead reckoning';
       secondary =
         typeof outageDuration === 'number' && outageDuration > 0
           ? `GNSS unavailable · ${formatOutageDuration(outageDuration)}`
@@ -107,7 +107,7 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
     secondary = 'Searching for satellites';
   } else if (locAvailability === 'available') {
     category = 'STANDBY';
-    title = 'Ready to navigate';
+    title = 'Navigation ready';
     secondary = 'Sensors calibrated';
   }
 
@@ -165,10 +165,11 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
     <button
       type="button"
       onClick={handleClick}
+      aria-label="Navigation status"
       title="Click to view real-time navigation telemetry and status"
       className={twMerge(
         clsx(
-          'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-ink border border-border-clean shadow-nav-pill select-none cursor-pointer transition-all duration-150 hover:bg-canvas-softer press-scale group text-left',
+          'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-ink border border-border-clean shadow-nav-pill select-none cursor-pointer transition-all duration-150 hover:bg-canvas-softer active:scale-[0.97] group text-left',
           className
         )
       )}
