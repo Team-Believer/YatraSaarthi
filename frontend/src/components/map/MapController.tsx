@@ -1,11 +1,16 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useMap } from './MapContainer';
 
+export type MapOrientationMode = 'HEADING_UP' | 'NORTH_UP';
+
 interface MapControllerProps {
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   heading?: number;
   followVehicle?: boolean;
+  orientationMode?: MapOrientationMode;
+  is3D?: boolean;
+  onManualInteraction?: () => void;
 }
 
 export const MapController: React.FC<MapControllerProps> = ({
@@ -13,18 +18,75 @@ export const MapController: React.FC<MapControllerProps> = ({
   longitude,
   heading = 0,
   followVehicle = true,
+  orientationMode = 'HEADING_UP',
+  is3D = true,
+  onManualInteraction,
 }) => {
   const map = useMap();
+  const isProgrammaticMove = useRef(false);
+  const lastUpdateRef = useRef<number>(0);
 
+  // Listen to manual map user interactions (drag, wheel, touch, pitch, rotate)
   useEffect(() => {
-    if (!map || latitude === 0 || longitude === 0 || !followVehicle) return;
+    if (!map) return;
+
+    const handleUserInteraction = () => {
+      if (!isProgrammaticMove.current) {
+        if (onManualInteraction) {
+          onManualInteraction();
+        }
+      }
+    };
+
+    map.on('dragstart', handleUserInteraction);
+    map.on('wheel', handleUserInteraction);
+    map.on('touchstart', handleUserInteraction);
+    map.on('rotatestart', handleUserInteraction);
+    map.on('pitchstart', handleUserInteraction);
+
+    return () => {
+      map.off('dragstart', handleUserInteraction);
+      map.off('wheel', handleUserInteraction);
+      map.off('touchstart', handleUserInteraction);
+      map.off('rotatestart', handleUserInteraction);
+      map.off('pitchstart', handleUserInteraction);
+    };
+  }, [map, onManualInteraction]);
+
+  // Handle camera position & heading updates
+  useEffect(() => {
+    if (!map || latitude === null || longitude === null || latitude === 0 || longitude === 0) {
+      return;
+    }
+
+    if (!followVehicle) return;
+
+    // Throttle camera ease updates to max 20Hz (50ms) to ensure high 60fps smoothness without overloading WebGL render loop
+    const now = Date.now();
+    if (now - lastUpdateRef.current < 40) return;
+    lastUpdateRef.current = now;
+
+    isProgrammaticMove.current = true;
+
+    const targetBearing = orientationMode === 'HEADING_UP' ? heading : 0;
+    const targetPitch = is3D ? 50 : 0;
 
     map.easeTo({
       center: [longitude, latitude],
-      bearing: heading,
-      duration: 800,
+      bearing: targetBearing,
+      pitch: targetPitch,
+      zoom: 16.5,
+      duration: 500,
+      easing: (t) => t * (2 - t), // Smooth quad out
     });
-  }, [map, latitude, longitude, heading, followVehicle]);
+
+    // Reset programmatic flag after ease completes
+    const timer = setTimeout(() => {
+      isProgrammaticMove.current = false;
+    }, 550);
+
+    return () => clearTimeout(timer);
+  }, [map, latitude, longitude, heading, followVehicle, orientationMode, is3D]);
 
   return null;
 };

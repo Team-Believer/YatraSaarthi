@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigationStore } from '../stores/useNavigationStore';
 import { useLocationStore } from '../stores/useLocationStore';
 import { locationService } from '../services/location/locationService';
@@ -11,6 +11,7 @@ import {
   DestinationSearch,
   RouteLayer,
 } from '../components/map';
+import type { MapOrientationMode } from '../components/map/MapController';
 import { NavStatusPill } from '../components/navigation/NavStatusPill';
 import { ConfidenceIndicator } from '../components/navigation/ConfidenceIndicator';
 import { TripHudCard } from '../components/navigation/TripHudCard';
@@ -25,6 +26,8 @@ import type { Map as MapboxMap } from 'mapbox-gl';
 export default function Dashboard() {
   const mapRef = useRef<MapboxMap | null>(null);
   const [initialCentered, setInitialCentered] = useState(false);
+  const [followVehicle, setFollowVehicle] = useState(true);
+  const [orientationMode, setOrientationMode] = useState<MapOrientationMode>('HEADING_UP');
 
   // Real device location from Geolocation API
   const {
@@ -54,26 +57,47 @@ export default function Dashboard() {
     if (!initialCentered && mapRef.current && deviceLat !== null && deviceLon !== null) {
       mapRef.current.flyTo({
         center: [deviceLon, deviceLat],
-        zoom: 16,
+        zoom: 16.5,
         duration: 1200,
       });
       setInitialCentered(true);
     }
   }, [deviceLat, deviceLon, initialCentered]);
 
-  const handleRecenter = () => {
+  // Recenter handler: restores vehicle follow and eases camera to position & heading
+  const handleRecenter = useCallback(() => {
+    setFollowVehicle(true);
     if (!mapRef.current) return;
     const targetLat = isLive && fusedPosition ? fusedPosition.latitude : deviceLat;
     const targetLon = isLive && fusedPosition ? fusedPosition.longitude : deviceLon;
     if (targetLat !== null && targetLon !== null) {
-      mapRef.current.flyTo({
+      const targetBearing = orientationMode === 'HEADING_UP' ? (isLive ? state.heading_deg : 0) : 0;
+      mapRef.current.easeTo({
         center: [targetLon, targetLat],
-        zoom: 16,
-        bearing: isLive ? state.heading_deg : 0,
+        zoom: 16.5,
+        bearing: targetBearing,
+        pitch: 50,
         duration: 800,
       });
     }
-  };
+  }, [isLive, fusedPosition, deviceLat, deviceLon, orientationMode, state.heading_deg]);
+
+  // Suspend follow mode when user manually interacts with map
+  const handleManualInteraction = useCallback(() => {
+    setFollowVehicle(false);
+  }, []);
+
+  // Toggle between Heading-Up and North-Up map orientation
+  const handleOrientationToggle = useCallback((mode: MapOrientationMode) => {
+    setOrientationMode(mode);
+    if (mapRef.current) {
+      const targetBearing = mode === 'HEADING_UP' ? (isLive ? state.heading_deg : 0) : 0;
+      mapRef.current.easeTo({
+        bearing: targetBearing,
+        duration: 500,
+      });
+    }
+  }, [isLive, state.heading_deg]);
 
   // Active coordinates: InEKF fused position when live, otherwise real device location
   const displayLat = isLive && fusedPosition ? fusedPosition.latitude : deviceLat;
@@ -116,10 +140,13 @@ export default function Dashboard() {
         >
           {/* Follow camera during active navigation session */}
           <MapController
-            latitude={displayLat ?? 0}
-            longitude={displayLon ?? 0}
+            latitude={displayLat}
+            longitude={displayLon}
             heading={isLive ? state.heading_deg : 0}
-            followVehicle={isLive}
+            followVehicle={followVehicle}
+            orientationMode={orientationMode}
+            is3D={true}
+            onManualInteraction={handleManualInteraction}
           />
 
           {/* Vehicle Marker */}
@@ -141,7 +168,13 @@ export default function Dashboard() {
           )}
 
           {/* Floating Right Map Controls */}
-          <MapControls onRecenter={handleRecenter} />
+          <MapControls
+            onRecenter={handleRecenter}
+            onOrientationToggle={handleOrientationToggle}
+            orientationMode={orientationMode}
+            followVehicle={followVehicle}
+            heading={isLive ? state.heading_deg : 0}
+          />
         </MapContainer>
 
         {/* Acquiring Location Overlay when no GPS fix yet */}

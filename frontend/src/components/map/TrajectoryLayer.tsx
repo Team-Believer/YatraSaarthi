@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import type { GeoJSONSource, LinePaint } from 'mapbox-gl';
 import { useMap } from './MapContainer';
 
 interface TrajectoryLayerProps {
@@ -17,10 +18,16 @@ export const TrajectoryLayer: React.FC<TrajectoryLayerProps> = ({
   useEffect(() => {
     if (!map) return;
 
-    // Helper to add or update line layer
-    const updateLineSource = (id: string, coords: [number, number][], color: string, dash?: number[]) => {
-      const sourceId = `source-${id}`;
-      const layerId = `layer-${id}`;
+    // Helper to add or update line layer incrementally
+    const updateLineSource = (
+      id: string,
+      coords: [number, number][],
+      color: string,
+      width: number = 4,
+      dash?: number[]
+    ) => {
+      const sourceId = `source-track-${id}`;
+      const layerId = `layer-track-${id}`;
 
       if (coords.length < 2) {
         if (map.getLayer(layerId)) map.removeLayer(layerId);
@@ -37,7 +44,7 @@ export const TrajectoryLayer: React.FC<TrajectoryLayerProps> = ({
         },
       };
 
-      const existingSource = map.getSource(sourceId) as mapboxgl.GeoJSONSource;
+      const existingSource = map.getSource(sourceId) as GeoJSONSource;
       if (existingSource) {
         existingSource.setData(geojson);
       } else {
@@ -46,10 +53,10 @@ export const TrajectoryLayer: React.FC<TrajectoryLayerProps> = ({
           data: geojson,
         });
 
-        const layerPaint: mapboxgl.LinePaint = {
+        const layerPaint: LinePaint = {
           'line-color': color,
-          'line-width': 4,
-          'line-opacity': 0.8,
+          'line-width': width,
+          'line-opacity': 0.75,
         };
 
         if (dash) {
@@ -69,14 +76,17 @@ export const TrajectoryLayer: React.FC<TrajectoryLayerProps> = ({
       }
     };
 
-    updateLineSource('gnss-raw', gnssTrack, '#10b981', [2, 2]); // Emerald dashed for raw GNSS
-    updateLineSource('dr-track', drTrack, '#f59e0b', [2, 1]);    // Amber dashed for DR track
-    updateLineSource('fused-track', fusedTrack, '#0284c7');      // Brand Blue for fused track
+    // Raw GNSS Track (Emerald dashed)
+    updateLineSource('gnss-raw', gnssTrack, '#10b981', 3, [2, 2]);
+    // Dead Reckoning Inertial Track (Amber dashed)
+    updateLineSource('dr-track', drTrack, '#f59e0b', 3.5, [2, 1]);
+    // InEKF Fused Navigation Trail (Deep Sky/Cobalt)
+    updateLineSource('fused-track', fusedTrack, '#0284c7', 4);
 
     return () => {
-      ['gnss-raw', 'dr-track', 'fused-track'].forEach(id => {
-        const layerId = `layer-${id}`;
-        const sourceId = `source-${id}`;
+      ['gnss-raw', 'dr-track', 'fused-track'].forEach((id) => {
+        const layerId = `layer-track-${id}`;
+        const sourceId = `source-track-${id}`;
         if (map.getLayer(layerId)) map.removeLayer(layerId);
         if (map.getSource(sourceId)) map.removeSource(sourceId);
       });
