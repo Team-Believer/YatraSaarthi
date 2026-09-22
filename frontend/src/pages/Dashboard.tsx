@@ -71,8 +71,12 @@ export default function Dashboard() {
     if (mapRef.current && routeCoordinates && routeCoordinates.length >= 2 && !isLive) {
       const bounds = new mapboxgl.LngLatBounds();
       routeCoordinates.forEach((coord) => bounds.extend(coord));
+
+      const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 640;
       mapRef.current.fitBounds(bounds, {
-        padding: { top: 100, bottom: 240, left: 60, right: 70 },
+        padding: isDesktop
+          ? { top: 90, bottom: 90, left: 450, right: 80 }
+          : { top: 80, bottom: 330, left: 40, right: 40 },
         maxZoom: 16,
         duration: 1000,
       });
@@ -251,15 +255,19 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* FLOATING BOTTOM HUD COCKPIT */}
-        <div className="absolute bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] sm:w-[calc(100%-2rem)] max-w-3xl z-20 pointer-events-auto">
-          {/* Show RoutePreviewCard during route preview, otherwise single TripHudCard */}
-          {!isLive && destination && routeCoordinates ? (
+        {/* ROUTE PREVIEW PLANNING PANEL (Lower-Left / Bottom Sheet) */}
+        {!isLive && destination && routeCoordinates && (
+          <div className="absolute bottom-20 sm:bottom-6 left-4 sm:left-6 z-20 pointer-events-auto w-[calc(100%-2rem)] sm:w-[420px] max-w-[420px] pb-[env(safe-area-inset-bottom)]">
             <RoutePreviewCard onStart={() => setFollowVehicle(true)} />
-          ) : (
+          </div>
+        )}
+
+        {/* FLOATING BOTTOM HUD COCKPIT (Active Navigation / Standby) */}
+        {(isLive || !destination || !routeCoordinates) && (
+          <div className="absolute bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] sm:w-[calc(100%-2rem)] max-w-3xl z-20 pointer-events-auto">
             <TripHudCard onRecenter={handleRecenter} />
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

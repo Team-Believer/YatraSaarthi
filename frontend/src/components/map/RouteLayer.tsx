@@ -1,16 +1,97 @@
 import React, { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { useMap } from './MapContainer';
+import { useRouteStore } from '../../stores/useRouteStore';
 
 interface RouteLayerProps {
   geometry?: [number, number][]; // [[lon, lat], ...]
   destinationName?: string;
+  showAlternatives?: boolean;
 }
 
-export const RouteLayer: React.FC<RouteLayerProps> = ({ geometry = [], destinationName }) => {
+export const RouteLayer: React.FC<RouteLayerProps> = ({
+  geometry = [],
+  destinationName,
+  showAlternatives = true,
+}) => {
   const map = useMap();
   const destMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const availableRoutes = useRouteStore((s) => s.availableRoutes);
+  const selectedRouteIndex = useRouteStore((s) => s.selectedRouteIndex);
 
+  // 1. Render Alternative Routes (muted gray lines)
+  useEffect(() => {
+    if (!map) return;
+
+    const altSourcePrefix = 'source-alt-route-';
+    const altLayerPrefix = 'layer-alt-route-';
+
+    // Filter out the selected route so only actual alternatives are rendered under the active route
+    const altRoutes = showAlternatives
+      ? availableRoutes.filter((_, idx) => idx !== selectedRouteIndex && _.geometry.length >= 2)
+      : [];
+
+    // Clean up previous alt layers/sources
+    for (let i = 0; i < 5; i++) {
+      const lid = `${altLayerPrefix}${i}`;
+      const sid = `${altSourcePrefix}${i}`;
+      if (map.getLayer(lid)) map.removeLayer(lid);
+      if (map.getSource(sid)) map.removeSource(sid);
+    }
+
+    altRoutes.forEach((route, idx) => {
+      const sourceId = `${altSourcePrefix}${idx}`;
+      const layerId = `${altLayerPrefix}${idx}`;
+
+      const geojson: any = {
+        type: 'Feature',
+        properties: { id: route.id, index: idx },
+        geometry: {
+          type: 'LineString',
+          coordinates: route.geometry,
+        },
+      };
+
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: geojson,
+      });
+
+      map.addLayer({
+        id: layerId,
+        type: 'line',
+        source: sourceId,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+        },
+        paint: {
+          'line-color': '#94a3b8',
+          'line-width': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            8, 2,
+            12, 3.5,
+            15, 5,
+            18, 7,
+          ],
+          'line-opacity': 0.5,
+        },
+      });
+    });
+
+    return () => {
+      for (let i = 0; i < 5; i++) {
+        const lid = `${altLayerPrefix}${i}`;
+        const sid = `${altSourcePrefix}${i}`;
+        if (map.getLayer(lid)) map.removeLayer(lid);
+        if (map.getSource(sid)) map.removeSource(sid);
+      }
+    };
+  }, [map, availableRoutes, selectedRouteIndex, showAlternatives]);
+
+  // 2. Render Active Primary Route & Destination Marker
   useEffect(() => {
     if (!map) return;
 
@@ -47,7 +128,7 @@ export const RouteLayer: React.FC<RouteLayerProps> = ({ geometry = [], destinati
         data: geojson,
       });
 
-      // 1. Restrained Neutral Casing Layer for high contrast on all map styles
+      // Restrained Neutral Casing Layer
       map.addLayer({
         id: casingLayerId,
         type: 'line',
@@ -71,7 +152,7 @@ export const RouteLayer: React.FC<RouteLayerProps> = ({ geometry = [], destinati
         },
       });
 
-      // 2. Primary Route Centerline with zoom-responsive width
+      // Primary Route Centerline with zoom-responsive width
       map.addLayer({
         id: lineLayerId,
         type: 'line',
@@ -143,4 +224,5 @@ export const RouteLayer: React.FC<RouteLayerProps> = ({ geometry = [], destinati
 
   return null;
 };
+
 

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigationStore } from '../../stores/useNavigationStore';
+import { useRouteStore } from '../../stores/useRouteStore';
 import { useLocationStore } from '../../stores/useLocationStore';
+import { routeService } from '../../services/navigation/routeService';
 import { sessionLifecycle } from '../../services/navigation/sessionLifecycle';
 import { SpeedDisplay } from './SpeedDisplay';
 import { HeadingDisplay } from './HeadingDisplay';
@@ -15,7 +17,9 @@ import {
   MapPin,
   AlertCircle,
   LocateFixed,
-  Navigation as NavIcon,
+  CarFront,
+  Bike,
+  Footprints,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -39,6 +43,8 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
   const altitude = useNavigationStore((s) => s.state.altitude);
   const fusedPosition = useNavigationStore((s) => s.fusedPosition);
 
+  const travelMode = useRouteStore((s) => s.travelMode);
+
   const deviceLat = useLocationStore((s) => s.latitude);
   const deviceLon = useLocationStore((s) => s.longitude);
 
@@ -47,7 +53,8 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
 
   const handleStartSession = async () => {
     try {
-      await sessionLifecycle.startLiveSession('CAR');
+      const vehicleType = routeService.getVehicleTypeForMode(travelMode);
+      await sessionLifecycle.startLiveSession(vehicleType);
     } catch (err: any) {
       alert(err.message || 'Failed to start navigation session');
     }
@@ -64,6 +71,19 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
       await sessionLifecycle.endLiveSession();
     } catch (err: any) {
       console.error('Failed to end navigation session:', err);
+    }
+  };
+
+  const getModeIcon = () => {
+    switch (travelMode) {
+      case 'driving':
+        return <CarFront className="w-3.5 h-3.5" />;
+      case 'motorcycle':
+        return <Bike className="w-3.5 h-3.5" />;
+      case 'cycling':
+        return <Bike className="w-3.5 h-3.5" />;
+      case 'walking':
+        return <Footprints className="w-3.5 h-3.5" />;
     }
   };
 
@@ -95,10 +115,10 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
             <HeadingDisplay compact={!isExpanded} />
           </div>
 
-          {/* Center Block: Destination / Route Summary (If active & space permits) */}
+          {/* Center Block: Destination & Travel Mode Summary */}
           {destination && (
             <div className="hidden lg:flex items-center gap-2 px-3.5 py-1.5 bg-canvas-soft border border-border-clean rounded-full text-xs max-w-xs truncate">
-              <NavIcon className="w-3.5 h-3.5 text-ink shrink-0 fill-ink" />
+              {getModeIcon()}
               <span className="font-medium text-ink truncate">
                 {destination.name}
               </span>

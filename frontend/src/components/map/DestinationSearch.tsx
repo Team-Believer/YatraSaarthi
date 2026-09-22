@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, MapPin, Navigation as NavIcon, X, Loader2 } from 'lucide-react';
+import { Search, MapPin, X, Loader2 } from 'lucide-react';
 import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useLocationStore } from '../../stores/useLocationStore';
 
 import { useRouteStore } from '../../stores/useRouteStore';
+import { routeService } from '../../services/navigation/routeService';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -65,48 +66,12 @@ export const DestinationSearch = () => {
     };
   }, [query, currentLat, currentLon]);
 
-  const fetchRoute = async (destCoords: [number, number]) => {
-    if (!currentLat || !currentLon) return;
-    try {
-      const res = await fetch(
-        `https://api.mapbox.com/directions/v5/mapbox/driving/${currentLon},${currentLat};${destCoords[0]},${destCoords[1]}?geometries=geojson&steps=true&access_token=${MAPBOX_TOKEN}`
-      );
-      const data = await res.json();
-      if (data.routes && data.routes.length > 0) {
-        const route = data.routes[0];
-        setRouteCoordinates(route.geometry.coordinates);
-
-        let parsedSteps: any[] = [];
-        if (route.legs && route.legs.length > 0 && route.legs[0].steps) {
-          parsedSteps = route.legs[0].steps.map((s: any) => ({
-            instruction: s.maneuver?.instruction || s.name || '',
-            distance_m: s.distance || 0,
-            duration_s: s.duration || 0,
-            name: s.name || '',
-            type: s.maneuver?.type,
-            modifier: s.maneuver?.modifier,
-          }));
-        }
-
-        useRouteStore.getState().setRoute({
-          origin: [currentLon, currentLat],
-          destination: destCoords,
-          distance_meters: route.distance,
-          duration_seconds: route.duration,
-          geometry: route.geometry.coordinates,
-          steps: parsedSteps,
-        });
-      }
-    } catch (err) {
-      console.error('Route error:', err);
-    }
-  };
-
   const handleSelect = (result: SearchResult) => {
     setDestination({ name: result.name, coordinates: result.coordinates });
     setQuery(result.name);
     setIsOpen(false);
-    fetchRoute(result.coordinates);
+    const travelMode = useRouteStore.getState().travelMode;
+    routeService.calculateRoutes(result.coordinates, travelMode);
   };
 
   const handleClear = () => {
@@ -117,22 +82,36 @@ export const DestinationSearch = () => {
     useRouteStore.getState().clearRoute();
   };
 
+  const handleBackOrClear = () => {
+    handleClear();
+  };
+
   return (
     <div className="relative w-full max-w-md">
       <div className="bg-white px-3.5 h-11 md:h-12 rounded-full border border-border-clean shadow-nav-floating flex items-center gap-2.5 transition-all duration-150 focus-within:border-black focus-within:ring-1 focus-within:ring-black">
-        <div className="w-7 h-7 rounded-full bg-canvas-soft flex items-center justify-center shrink-0 text-ink">
-          {isSearching ? (
-            <Loader2 className="w-3.5 h-3.5 text-ink animate-spin" />
-          ) : destination ? (
-            <NavIcon className="w-3.5 h-3.5 text-ink fill-ink" />
-          ) : (
-            <Search className="w-3.5 h-3.5 text-ink" />
-          )}
-        </div>
+        {destination ? (
+          <button
+            type="button"
+            onClick={handleBackOrClear}
+            aria-label="Back to search"
+            className="w-7 h-7 rounded-full bg-canvas-soft hover:bg-surface-pressed flex items-center justify-center shrink-0 text-ink transition-colors cursor-pointer"
+            title="Clear destination"
+          >
+            <span className="text-base font-bold leading-none">←</span>
+          </button>
+        ) : (
+          <div className="w-7 h-7 rounded-full bg-canvas-soft flex items-center justify-center shrink-0 text-ink">
+            {isSearching ? (
+              <Loader2 className="w-3.5 h-3.5 text-ink animate-spin" />
+            ) : (
+              <Search className="w-3.5 h-3.5 text-ink" />
+            )}
+          </div>
+        )}
         
         <input
           type="text"
-          value={query}
+          value={destination ? (query || destination.name) : query}
           onChange={(e) => {
             setQuery(e.target.value);
             setIsOpen(true);
@@ -141,13 +120,19 @@ export const DestinationSearch = () => {
               setRouteCoordinates(null);
             }
           }}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => {
+            setIsOpen(true);
+            if (destination && !query) {
+              setQuery(destination.name);
+            }
+          }}
           placeholder="Where to?"
           className="flex-1 bg-transparent border-none focus:outline-none text-ink font-normal placeholder:text-ink-mute text-xs md:text-sm w-full"
         />
 
-        {query && (
+        {(query || destination) && (
           <button
+            type="button"
             onClick={handleClear}
             className="p-1 hover:bg-canvas-soft rounded-full text-ink-body hover:text-ink transition-colors cursor-pointer"
             title="Clear search"
