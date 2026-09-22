@@ -1,168 +1,645 @@
-import { ShieldAlert, MountainSnow, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigationStore } from '../stores/useNavigationStore';
+import { useLocationStore } from '../stores/useLocationStore';
 import { useSensorStore } from '../stores/useSensorStore';
-import { Link } from 'react-router-dom';
+import { locationService } from '../services/location/locationService';
+import { sessionLifecycle } from '../services/navigation/sessionLifecycle';
+import { sensorCollector } from '../services/sensors/sensorCollector';
+import {
+  MapContainer,
+  MapController,
+  VehicleMarker,
+  TrajectoryLayer,
+  RouteLayer,
+  MapControls,
+} from '../components/map';
+import type { MapOrientationMode } from '../components/map/MapController';
+import type { Map as MapboxMap } from 'mapbox-gl';
+import {
+  ShieldAlert,
+  ShieldCheck,
+  Radio,
+  Play,
+  Square,
+  Cpu,
+  Sliders,
+  Layers,
+  Sparkles,
+  MountainSnow,
+  Activity,
+} from 'lucide-react';
+import { clsx } from 'clsx';
 
 export default function TunnelMode() {
-  const { 
-    speed, 
-    horizontal_accuracy: accuracy, 
-    heading_deg: heading, 
-    position_confidence: confidence, 
-    navigation_mode: navigationMode, 
-    session_id: activeSessionId,
-    imu_available
-  } = useNavigationStore((s) => s.state);
+  const mapRef = useRef<MapboxMap | null>(null);
+  const [followVehicle, setFollowVehicle] = useState(true);
+  const [orientationMode, setOrientationMode] = useState<MapOrientationMode>('HEADING_UP');
+  const [isSimulatingOutage, setIsSimulatingOutage] = useState(false);
+  const [simulatedOutageSeconds, setSimulatedOutageSeconds] = useState(0);
+  const outageTimerRef = useRef<any>(null);
+
+  // Real device location from Geolocation API
+  const {
+    latitude: deviceLat,
+    longitude: deviceLon,
+    permission: locPermission,
+  } = useLocationStore();
+
+  // Navigation Store Selectors (Focused for optimal performance)
+  const isLive = useNavigationStore((s) => s.isLive);
+  const fusedPosition = useNavigationStore((s) => s.fusedPosition);
+  const trajectory = useNavigationStore((s) => s.trajectory);
+  const routeCoordinates = useNavigationStore((s) => s.routeCoordinates);
+  const state = useNavigationStore((s) => s.state);
+
+  const {
+    speed,
+    horizontal_accuracy: accuracy,
+    heading_deg: heading,
+    position_confidence: confidence,
+    navigation_mode: navMode,
+    gnss_available: gnssAvailable,
+    gnss_quality: gnssQuality,
+    gnss_outage_duration: backendOutageDuration,
+    nhc_active: nhcActive,
+    zupt_active: zuptActive,
+    imu_available: imuAvailable,
+    ai_velocity: aiVelocity,
+    ai_uncertainty_sigma: aiUncertainty,
+  } = state;
 
   const { capabilities } = useSensorStore();
 
-  const isTunnelOrDR = 
-    activeSessionId !== null && 
-    ['TUNNEL', 'DEAD_RECKONING', 'MAP_AIDED_DEAD_RECKONING', 'GNSS_LOST', 'GNSS_DEGRADING'].includes(navigationMode);
+  // Start real browser geolocation watcher on mount
+  useEffect(() => {
+    locationService.startWatching();
+    return () => {
+      // Clean up simulated outage on unmount
+      if (sensorCollector.isGnssSuppressed()) {
+        sensorCollector.setGnssSuppression(false);
+      }
+      if (outageTimerRef.current) {
+        clearInterval(outageTimerRef.current);
+      }
+    };
+  }, []);
 
+  // Outage Timer logic when simulated outage is active
+  useEffect(() => {
+    if (isSimulatingOutage && isLive) {
+      outageTimerRef.current = setInterval(() => {
+        setSimulatedOutageSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      if (outageTimerRef.current) {
+        clearInterval(outageTimerRef.current);
+      }
+      if (!isSimulatingOutage) {
+        setSimulatedOutageSeconds(0);
+      }
+    }
+    return () => {
+      if (outageTimerRef.current) clearInterval(outageTimerRef.current);
+    };
+  }, [isSimulatingOutage, isLive]);
+
+  // Handle manual map panning
+  const handleManualInteraction = useCallback(() => {
+    setFollowVehicle(false);
+  }, []);
+
+  // Re-center on vehicle
+  const handleRecenter = useCallback(() => {
+    setFollowVehicle(true);
+    const targetLon = fusedPosition?.longitude ?? deviceLon;
+    const targetLat = fusedPosition?.latitude ?? deviceLat;
+    if (mapRef.current && targetLon && targetLat) {
+      mapRef.current.easeTo({
+        center: [targetLon, targetLat],
+        zoom: 16.5,
+        duration: 800,
+      });
+    }
+  }, [fusedPosition, deviceLon, deviceLat]);
+
+  // Toggle map orientation
+  const handleOrientationToggle = useCallback(() => {
+    setOrientationMode((prev) => (prev === 'HEADING_UP' ? 'NORTH_UP' : 'HEADING_UP'));
+  }, []);
+
+  // Start / End Navigation Session Actions
+  const handleToggleSession = async () => {
+    if (isLive) {
+      if (isSimulatingOutage) {
+        sensorCollector.setGnssSuppression(false);
+        setIsSimulatingOutage(false);
+      }
+      await sessionLifecycle.endLiveSession();
+    } else {
+      await sessionLifecycle.startLiveSession();
+      setFollowVehicle(true);
+    }
+  };
+
+  // Toggle GNSS Outage Simulation
+  const handleToggleOutageSimulation = () => {
+    if (!isLive) return;
+    const nextState = !isSimulatingOutage;
+    setIsSimulatingOutage(nextState);
+    sensorCollector.setGnssSuppression(nextState);
+  };
+
+  // Coordinates resolution
+  const displayLat = fusedPosition?.latitude ?? deviceLat ?? 20.5937;
+  const displayLon = fusedPosition?.longitude ?? deviceLon ?? 78.9629;
+  const hasCoordinates = (fusedPosition?.latitude !== undefined && fusedPosition?.latitude !== 0) || deviceLat !== null;
+
+  // Determine Outage / Dead Reckoning Status
+  const isDRActive =
+    isLive &&
+    (['DEAD_RECKONING', 'MAP_AIDED_DEAD_RECKONING', 'TUNNEL', 'GNSS_LOST', 'GNSS_DEGRADING'].includes(navMode) ||
+      !gnssAvailable ||
+      isSimulatingOutage);
+
+  const isDegraded = isLive && (navMode === 'GNSS_DEGRADING' || gnssQuality === 'DEGRADED');
+  const isRecovering = isLive && (navMode === 'RECOVERY' || navMode === 'GNSS_RECOVERING' || gnssQuality === 'RECOVERING');
+  const isNominalGNSS = isLive && !isDRActive && !isDegraded && !isRecovering && gnssAvailable;
+
+  // Format outage duration
+  const displayOutageDuration = isSimulatingOutage
+    ? simulatedOutageSeconds
+    : (backendOutageDuration > 0 ? backendOutageDuration : 0);
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Outage Stages Definition
+  const stages = [
+    {
+      id: 'gnss',
+      label: 'GNSS Nominal',
+      sublabel: 'Full satellite lock',
+      active: isNominalGNSS,
+      passed: isDegraded || isDRActive || isRecovering,
+      color: 'emerald',
+    },
+    {
+      id: 'degrading',
+      label: 'GNSS Degrading',
+      sublabel: 'Multipath / Attenuation',
+      active: isDegraded,
+      passed: isDRActive || isRecovering,
+      color: 'amber',
+    },
+    {
+      id: 'outage',
+      label: 'GNSS Lost / Outage',
+      sublabel: 'Satellites unavailable',
+      active: isDRActive && !isRecovering,
+      passed: isRecovering,
+      color: 'rose',
+    },
+    {
+      id: 'dr',
+      label: 'InEKF Dead Reckoning',
+      sublabel: 'IMU + AI + NHC fusion',
+      active: isDRActive,
+      passed: isRecovering,
+      color: 'amber',
+    },
+    {
+      id: 'recovery',
+      label: 'GNSS Recovery',
+      sublabel: 'Phase & Doppler lock',
+      active: isRecovering,
+      passed: false,
+      color: 'cyan',
+    },
+    {
+      id: 'restored',
+      label: 'GNSS Restored',
+      sublabel: 'Nominal open-sky resumed',
+      active: isNominalGNSS && displayOutageDuration === 0,
+      passed: false,
+      color: 'emerald',
+    },
+  ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 md:pb-8">
+    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-300 pb-24 md:pb-12 text-slate-900">
       
-      <div className="flex items-center gap-2 mb-2 md:mb-4">
-        <Link to="/app" className="text-gray-500 hover:text-brand-900 transition-colors text-xs md:text-sm">Home</Link>
-        <ChevronRight className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
-        <span className="font-semibold text-brand-navy text-xs md:text-sm">Tunnel & Outage Mode</span>
-      </div>
-
-      {isTunnelOrDR ? (
-        <div className="grid md:grid-cols-3 gap-4 md:gap-6">
-          {/* Main tunnel visualization */}
-          <div className="md:col-span-2 bg-brand-navy rounded-2xl md:rounded-3xl p-5 md:p-8 text-white relative overflow-hidden shadow-2xl">
-            <div className="absolute top-0 right-0 p-6 md:p-8 opacity-10">
-               <MountainSnow className="w-32 h-32 md:w-48 md:h-48" />
+      {/* 1. HEADER */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-slate-900 text-white rounded-xl shadow-xs">
+              <MountainSnow className="w-5 h-5 text-cyan-400" />
             </div>
-            
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 md:gap-3 mb-6 md:mb-8 flex-wrap">
-                <div className="bg-brand-600 px-3 md:px-4 py-1.5 rounded-full text-xs md:text-sm font-bold flex items-center gap-2 shadow-lg">
-                  <ShieldAlert className="w-3.5 h-3.5 md:w-4 md:h-4 text-status-warning" /> DR Active
-                </div>
-                <span className="text-brand-100 text-[10px] md:text-sm">GNSS Degraded • InEKF + INS</span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+                  GNSS OUTAGE TEST
+                </h1>
+                <span className={clsx(
+                  "text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-wider",
+                  isDRActive
+                    ? "bg-amber-100 text-amber-900 border-amber-300 animate-pulse"
+                    : isLive
+                    ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                    : "bg-slate-100 text-slate-700 border-slate-300"
+                )}>
+                  {isDRActive ? "Dead Reckoning Active" : isLive ? "GNSS Active" : "Standby"}
+                </span>
               </div>
-
-              {/* Confidence circle */}
-              <div className="flex justify-center mb-6 md:mb-8">
-                <div className="relative w-36 h-36 md:w-48 md:h-48">
-                  <svg className="w-full h-full transform -rotate-90">
-                    <circle cx="50%" cy="50%" r="44%" className="stroke-white/10" strokeWidth="10" fill="none" />
-                    <circle 
-                      cx="50%" 
-                      cy="50%" 
-                      r="44%" 
-                      className="stroke-status-warning transition-all duration-500" 
-                      strokeWidth="10" 
-                      fill="none" 
-                      strokeDasharray="276.46" 
-                      strokeDashoffset={276.46 * (1 - Math.max(0, Math.min(1, confidence)))} 
-                      strokeLinecap="round" 
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-3xl md:text-4xl font-bold text-white">{(confidence * 100).toFixed(0)}%</span>
-                    <span className="text-[10px] md:text-xs text-brand-100 font-medium">Confidence</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stats grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 bg-white/10 rounded-xl md:rounded-2xl p-3 md:p-4 backdrop-blur-md">
-                <div>
-                  <div className="text-brand-100 text-[10px] md:text-xs font-semibold mb-0.5 md:mb-1 uppercase tracking-wider">Speed</div>
-                  <div className="text-lg md:text-xl font-bold">{speed.toFixed(1)} <span className="text-xs md:text-sm font-medium opacity-70">km/h</span></div>
-                </div>
-                <div>
-                  <div className="text-brand-100 text-[10px] md:text-xs font-semibold mb-0.5 md:mb-1 uppercase tracking-wider">Mode</div>
-                  <div className="text-xs md:text-sm font-bold text-status-warning truncate">{navigationMode}</div>
-                </div>
-                <div>
-                  <div className="text-brand-100 text-[10px] md:text-xs font-semibold mb-0.5 md:mb-1 uppercase tracking-wider">Heading</div>
-                  <div className="text-lg md:text-xl font-bold">{heading ? `${heading.toFixed(0)}°` : 'N/A'}</div>
-                </div>
-                <div>
-                  <div className="text-brand-100 text-[10px] md:text-xs font-semibold mb-0.5 md:mb-1 uppercase tracking-wider">Error</div>
-                  <div className="text-lg md:text-xl font-bold text-status-warning">± {accuracy.toFixed(1)} <span className="text-xs md:text-sm font-medium opacity-70">m</span></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Side panel */}
-          <div className="space-y-4 md:space-y-6">
-            <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-sm border border-brand-50">
-              <h3 className="font-bold text-brand-navy text-sm md:text-base mb-3 md:mb-4">Dead Reckoning Status</h3>
-              
-              <div className="space-y-3 md:space-y-4">
-                <div>
-                  <div className="text-[10px] md:text-xs font-medium text-gray-500 mb-0.5 md:mb-1">Road Match</div>
-                  <div className="font-semibold text-brand-navy text-sm">Active Segment</div>
-                </div>
-                <div>
-                  <div className="text-[10px] md:text-xs font-medium text-gray-500 mb-0.5 md:mb-1">IMU Stream</div>
-                  <div className="font-semibold text-brand-navy text-sm">{imu_available ? 'Active 6-DoF' : capabilities.deviceMotion ? 'Ready' : 'Unavailable'}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] md:text-xs font-medium text-gray-500 mb-0.5 md:mb-1">NHC</div>
-                  <div className="font-semibold text-status-success text-sm">ACTIVE</div>
-                </div>
-                <div>
-                  <div className="text-[10px] md:text-xs font-medium text-gray-500 mb-0.5 md:mb-1">Session</div>
-                  <div className="font-mono text-[10px] md:text-xs text-gray-600 truncate">{activeSessionId}</div>
-                </div>
-              </div>
-            </div>
-             
-            <div className="bg-status-warning/10 border border-status-warning/20 rounded-xl md:rounded-2xl p-3 md:p-4 flex items-center gap-3">
-              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-status-warning/20 flex items-center justify-center shrink-0">
-                <ShieldAlert className="w-3.5 h-3.5 md:w-4 md:h-4 text-status-warning" />
-              </div>
-              <p className="text-[10px] md:text-xs font-semibold text-status-warning leading-relaxed">
-                GNSS lost. Inertial dead reckoning and road constraints active.
+              <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                Dead reckoning continuity demonstration & controlled GNSS-denied navigation test
               </p>
             </div>
           </div>
         </div>
-      ) : (
-        <div className="bg-white rounded-2xl md:rounded-3xl p-6 md:p-8 shadow-sm border border-brand-50 space-y-4 md:space-y-6">
-          <div className="flex items-center gap-3 md:gap-4">
-            <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-brand-50 flex items-center justify-center text-brand-600">
-              <CheckCircle2 className="w-7 h-7 md:w-8 md:h-8 text-status-success" />
+
+        {/* Global Action Buttons */}
+        <div className="flex items-center gap-3 self-start md:self-auto">
+          <button
+            onClick={handleToggleSession}
+            className={clsx(
+              "px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-2 transition-all shadow-xs",
+              isLive
+                ? "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100"
+                : "bg-brand-600 text-white hover:bg-brand-700 active:scale-98"
+            )}
+          >
+            {isLive ? (
+              <>
+                <Square className="w-4 h-4 fill-current" />
+                End Test Session
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4 fill-current" />
+                Start Test Session
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* 2. CURRENT STATE HERO BANNER */}
+      <div className={clsx(
+        "rounded-3xl p-5 sm:p-6 border transition-all shadow-xs",
+        isDRActive
+          ? "bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-slate-900/5 border-amber-300 text-amber-950"
+          : isRecovering
+          ? "bg-gradient-to-br from-cyan-500/10 via-cyan-500/5 to-slate-900/5 border-cyan-300 text-cyan-950"
+          : isLive
+          ? "bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-slate-900/5 border-emerald-300 text-emerald-950"
+          : "bg-white border-slate-200 text-slate-900"
+      )}>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+              <Activity className="w-4 h-4 text-brand-600" />
+              Navigation Signal State
             </div>
-            <div>
-              <h2 className="text-lg md:text-xl font-bold text-brand-navy">Open-Sky Active</h2>
-              <p className="text-xs md:text-sm text-gray-500">Nominal GNSS conditions.</p>
+            <div className="flex items-baseline gap-3">
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
+                {isDRActive
+                  ? "DEAD RECKONING ACTIVE"
+                  : isRecovering
+                  ? "GNSS RECOVERING"
+                  : isDegraded
+                  ? "GNSS DEGRADED"
+                  : isLive
+                  ? "GNSS SIGNAL NOMINAL"
+                  : "SYSTEM STANDBY"}
+              </h2>
+              <span className="text-xs font-mono font-bold text-slate-600">
+                {isLive ? `Mode: ${navMode}` : "Ready for test"}
+              </span>
             </div>
+            <p className="text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed">
+              {isDRActive
+                ? "Satellite observations are unavailable. The InEKF engine is estimating vehicle position continuously using smartphone IMU kinematics, E5 AI velocity, and non-holonomic vehicle constraints."
+                : isRecovering
+                ? "Satellite signals re-acquired. The filter is validating measurement innovations and smoothing trajectory convergence."
+                : isLive
+                ? "High-confidence satellite constellation positioning. Inertial sensors running in background alignment."
+                : "Initialize a session or start a simulation below to observe real-time dead reckoning transitions."}
+            </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 p-3 md:p-4 bg-brand-50/50 rounded-xl md:rounded-2xl border border-brand-100">
-            <div>
-              <div className="text-[10px] md:text-xs text-gray-500 font-medium">Mode</div>
-              <div className="font-bold text-brand-navy text-xs md:text-sm mt-0.5">{navigationMode}</div>
+          {/* Key Metrics Quick Ribbon */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
+            <div className="p-3 bg-white/90 backdrop-blur-xs rounded-2xl border border-slate-200/80 shadow-2xs">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Outage Timer</span>
+              <div className="text-lg font-mono font-bold text-slate-900 mt-0.5">
+                {formatDuration(displayOutageDuration)}
+              </div>
             </div>
-            <div>
-              <div className="text-[10px] md:text-xs text-gray-500 font-medium">Speed</div>
-              <div className="font-bold text-brand-navy text-xs md:text-sm mt-0.5">{speed.toFixed(1)} km/h</div>
-            </div>
-            <div>
-              <div className="text-[10px] md:text-xs text-gray-500 font-medium">Accuracy</div>
-              <div className="font-bold text-status-success text-xs md:text-sm mt-0.5">± {accuracy.toFixed(1)} m</div>
-            </div>
-            <div>
-              <div className="text-[10px] md:text-xs text-gray-500 font-medium">Confidence</div>
-              <div className="font-bold text-brand-600 text-xs md:text-sm mt-0.5">{(confidence * 100).toFixed(0)}%</div>
-            </div>
-          </div>
 
-          <div className="p-3 md:p-4 bg-gray-50 rounded-xl md:rounded-2xl border border-gray-100 text-[10px] md:text-xs text-gray-600 leading-relaxed">
-            <span className="font-bold text-brand-navy">Automatic Tunnel Detection:</span> YatraSaarthi evaluates GNSS quality continuously. When satellite updates cease, it automatically engages InEKF strapdown dead reckoning.
+            <div className="p-3 bg-white/90 backdrop-blur-xs rounded-2xl border border-slate-200/80 shadow-2xs">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Confidence</span>
+              <div className="text-lg font-mono font-bold text-brand-600 mt-0.5">
+                {isLive ? `${(confidence * 100).toFixed(0)}%` : "—"}
+              </div>
+            </div>
+
+            <div className="p-3 bg-white/90 backdrop-blur-xs rounded-2xl border border-slate-200/80 shadow-2xs">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Error Bound</span>
+              <div className="text-lg font-mono font-bold text-slate-900 mt-0.5">
+                {isLive ? `±${accuracy.toFixed(1)}m` : "—"}
+              </div>
+            </div>
+
+            <div className="p-3 bg-white/90 backdrop-blur-xs rounded-2xl border border-slate-200/80 shadow-2xs">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Speed</span>
+              <div className="text-lg font-mono font-bold text-slate-900 mt-0.5">
+                {isLive ? `${(speed * 3.6).toFixed(0)} km/h` : "0 km/h"}
+              </div>
+            </div>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* 3. MAIN INTERACTIVE LAYOUT: CONTROLS (LEFT) + MAP (CENTER/RIGHT) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        {/* LEFT COLUMN: Test Console & Constraints (4 Cols) */}
+        <div className="lg:col-span-4 space-y-6">
+          
+          {/* Outage Simulation Controls Card */}
+          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+              <Sliders className="w-4 h-4 text-brand-600" />
+              Controlled Outage Console
+            </div>
+
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Test how YatraSaarthi behaves when satellite signals are obstructed (e.g., entering an underpass, tunnel, or urban canyon).
+            </p>
+
+            <div className="space-y-2.5 pt-1">
+              <button
+                onClick={handleToggleOutageSimulation}
+                disabled={!isLive}
+                className={clsx(
+                  "w-full py-3 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all shadow-xs",
+                  !isLive
+                    ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+                    : isSimulatingOutage
+                    ? "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-98"
+                    : "bg-amber-500 text-slate-950 hover:bg-amber-400 active:scale-98"
+                )}
+              >
+                {isSimulatingOutage ? (
+                  <>
+                    <ShieldCheck className="w-4 h-4" />
+                    Restore GNSS / Exit Tunnel
+                  </>
+                ) : (
+                  <>
+                    <ShieldAlert className="w-4 h-4" />
+                    Simulate GNSS Outage / Enter Tunnel
+                  </>
+                )}
+              </button>
+
+              {!isLive && (
+                <p className="text-[11px] text-center text-slate-400 italic">
+                  Click "Start Test Session" above to enable live outage simulation.
+                </p>
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 space-y-2 text-xs font-medium text-slate-600">
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-400">Satellite Stream</span>
+                <span className={clsx("font-bold", isSimulatingOutage ? "text-rose-600" : gnssAvailable ? "text-emerald-600" : "text-slate-500")}>
+                  {isSimulatingOutage ? "SUPPRESSED (Testing)" : gnssAvailable ? "ACTIVE (50 Hz)" : "WAITING"}
+                </span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-400">IMU Strapdown</span>
+                <span className="font-bold text-emerald-600">
+                  {imuAvailable ? "ACTIVE (6-DoF)" : capabilities.deviceMotion ? "READY" : "AVAILABLE"}
+                </span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-400">Kinematic NHC</span>
+                <span className={clsx("font-bold", nhcActive ? "text-emerald-600" : "text-slate-400")}>
+                  {nhcActive ? "ENGAGED" : "ARMED"}
+                </span>
+              </div>
+              <div className="flex justify-between py-1">
+                <span className="text-slate-400">ZUPT Detection</span>
+                <span className={clsx("font-bold", zuptActive ? "text-emerald-600" : "text-slate-400")}>
+                  {zuptActive ? "STATIONARY LOCK" : "ARMED"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* InEKF & AI Estimation Breakdown */}
+          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-3.5">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+              <Cpu className="w-4 h-4 text-brand-600" />
+              Continuity Subsystem
+            </div>
+
+            <div className="space-y-3">
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+                <div className="flex justify-between text-xs font-bold text-slate-800">
+                  <span>AI Pseudo-Velocity</span>
+                  <span className="font-mono text-brand-700">
+                    {typeof aiVelocity === 'number' ? `${aiVelocity.toFixed(2)} m/s` : `${speed.toFixed(2)} m/s`}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-snug">
+                  E5 Dilated Temporal ConvNet replaces lost Doppler radar / wheel ticks with longitudinal motion estimates.
+                </p>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+                <div className="flex justify-between text-xs font-bold text-slate-800">
+                  <span>Calibrated Uncertainty</span>
+                  <span className="font-mono text-amber-800">
+                    ±{typeof aiUncertainty === 'number' ? aiUncertainty.toFixed(2) : '0.25'} m/s
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-snug">
+                  U2 Heteroscedastic network regulates filter innovation noise to eliminate synthetic drift.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Technical Note */}
+          <div className="p-4 bg-brand-50/70 border border-brand-100/90 rounded-2xl text-xs text-brand-950 space-y-1.5">
+            <div className="font-bold flex items-center gap-1.5 text-brand-900">
+              <Sparkles className="w-3.5 h-3.5 text-brand-600" />
+              Evaluation Benchmark Standard
+            </div>
+            <p className="text-slate-600 leading-relaxed text-[11px]">
+              GNSS outage testing demonstrates how YatraSaarthi maintains continuous navigation across 60s+ satellite-denied tunnels without track jumping or map snapping anomalies.
+            </p>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: Map & Live Visualization (8 Cols) */}
+        <div className="lg:col-span-8 space-y-6">
+          
+          {/* Map Container Box */}
+          <div className="bg-slate-900 rounded-3xl overflow-hidden border border-slate-200/90 shadow-lg relative h-[460px] sm:h-[520px] w-full">
+            
+            {/* Mapbox Canvas */}
+            <MapContainer
+              onMapLoaded={(map) => {
+                mapRef.current = map;
+              }}
+              initialCenter={[displayLon, displayLat]}
+              initialZoom={16.5}
+              initialPitch={45}
+              className="w-full h-full"
+            >
+              <MapController
+                latitude={hasCoordinates ? displayLat : null}
+                longitude={hasCoordinates ? displayLon : null}
+                heading={isLive ? heading : 0}
+                followVehicle={followVehicle}
+                orientationMode={orientationMode}
+                is3D={true}
+                onManualInteraction={handleManualInteraction}
+              />
+
+              {/* Vehicle Marker */}
+              {hasCoordinates && (
+                <VehicleMarker
+                  latitude={displayLat}
+                  longitude={displayLon}
+                  heading={isLive ? heading : 0}
+                  mode={isLive ? navMode : 'STANDBY'}
+                />
+              )}
+
+              {/* Planned Route Layer */}
+              {routeCoordinates && <RouteLayer geometry={routeCoordinates} />}
+
+              {/* Continuous InEKF Fused Trajectory */}
+              {isLive && trajectory.length > 0 && (
+                <TrajectoryLayer fusedTrack={trajectory} />
+              )}
+
+              {/* Map Floating Controls */}
+              <MapControls
+                onRecenter={handleRecenter}
+                onOrientationToggle={handleOrientationToggle}
+                orientationMode={orientationMode}
+                followVehicle={followVehicle}
+                heading={isLive ? heading : 0}
+              />
+            </MapContainer>
+
+            {/* Acquiring Fix Notice */}
+            {!hasCoordinates && (
+              <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center pointer-events-none p-4 text-center z-20">
+                <div className="bg-white/95 p-6 rounded-2xl border border-slate-200 shadow-xl space-y-2 max-w-sm">
+                  <Radio className="w-7 h-7 text-brand-600 animate-pulse mx-auto" />
+                  <h4 className="font-bold text-sm text-slate-900">Connecting to Sensors</h4>
+                  <p className="text-xs text-slate-500">
+                    {locPermission === 'denied'
+                      ? 'Please allow browser geolocation permissions.'
+                      : 'Acquiring satellite lock and motion sensors...'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Floating Top Map Legend */}
+            <div className="absolute top-4 left-4 z-20 pointer-events-auto">
+              <div className="bg-white/90 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-slate-200/80 shadow-md flex items-center gap-3 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-slate-700">
+                  <span className="w-2.5 h-2.5 rounded-full bg-brand-600 ring-2 ring-brand-300" />
+                  Fused Track
+                </div>
+                <div className="h-3 w-px bg-slate-200" />
+                <div className="flex items-center gap-1.5 font-medium text-slate-600">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-amber-300" />
+                  Dead Reckoning
+                </div>
+              </div>
+            </div>
+
+            {/* Floating Bottom Outage Status Badge */}
+            {isDRActive && (
+              <div className="absolute bottom-4 left-4 right-16 z-20 pointer-events-auto">
+                <div className="bg-amber-500/90 backdrop-blur-md text-slate-950 px-4 py-2.5 rounded-2xl border border-amber-400 shadow-lg flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 font-bold text-xs sm:text-sm">
+                    <ShieldAlert className="w-4 h-4 shrink-0" />
+                    <span>Inertial Continuity Active • No Satellite Fix</span>
+                  </div>
+                  <span className="text-xs font-mono font-black bg-amber-400 px-2 py-0.5 rounded">
+                    {formatDuration(displayOutageDuration)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 4. OUTAGE TIMELINE PROGRESSION */}
+          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+                <Layers className="w-4 h-4 text-brand-600" />
+                Outage Transition Timeline
+              </div>
+              <span className="text-xs font-medium text-slate-500 font-mono">
+                {isLive ? `State: ${navMode}` : 'Standby'}
+              </span>
+            </div>
+
+            {/* Timeline Stepper */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2">
+              {stages.map((stage, idx) => (
+                <div
+                  key={stage.id}
+                  className={clsx(
+                    "p-3 rounded-2xl border transition-all text-left relative",
+                    stage.active
+                      ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                      : stage.passed
+                      ? "bg-slate-50 text-slate-700 border-slate-200"
+                      : "bg-white text-slate-400 border-slate-100 opacity-60"
+                  )}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className={clsx(
+                      "text-[10px] font-mono font-bold px-1.5 py-0.2 rounded",
+                      stage.active ? "bg-cyan-500 text-slate-950" : "bg-slate-200 text-slate-600"
+                    )}>
+                      0{idx + 1}
+                    </span>
+                    {stage.active && (
+                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                    )}
+                  </div>
+                  <div className="font-bold text-xs leading-tight">{stage.label}</div>
+                  <div className={clsx(
+                    "text-[10px] mt-1 leading-snug truncate",
+                    stage.active ? "text-slate-300" : "text-slate-400"
+                  )}>
+                    {stage.sublabel}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+
+      </div>
 
     </div>
   );

@@ -23,6 +23,15 @@ export class SensorCollectorSubsystem {
   
   private onPacket: PacketCallback | null = null;
   private isRunning = false;
+  private gnssSuppressed = false;
+
+  public setGnssSuppression(suppressed: boolean) {
+    this.gnssSuppressed = suppressed;
+  }
+
+  public isGnssSuppressed(): boolean {
+    return this.gnssSuppressed;
+  }
 
   public async start(onPacket: PacketCallback) {
     if (this.isRunning) return;
@@ -81,10 +90,11 @@ export class SensorCollectorSubsystem {
     this.orientation.stop();
     this.isRunning = false;
     this.onPacket = null;
+    this.gnssSuppressed = false;
   }
 
   private handleGeoData = (data: GeolocationData) => {
-    if (!this.onPacket) return;
+    if (!this.onPacket || this.gnssSuppressed) return;
     const packet = this.normalizer.normalizeGnss(data);
     this.onPacket(packet);
   };
