@@ -10,28 +10,49 @@ import {
   Radio,
   User,
   X,
+  Layers,
+  ChevronRight,
   ShieldCheck,
+  Compass,
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-import { NavStatusPill } from '../navigation/NavStatusPill';
+import { useNavigationStore } from '../../stores/useNavigationStore';
 
-interface NavItem {
-  name: string;
-  path: string;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
-  badge?: string;
+interface NavGroup {
+  label: string;
+  items: {
+    name: string;
+    path: string;
+    icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+    badge?: string;
+  }[];
 }
 
-const navItems: NavItem[] = [
-  { name: 'Navigation Cockpit', path: '/app', icon: Navigation },
-  { name: 'Live Map View', path: '/app/map', icon: Map },
-  { name: 'Tunnel & Outage Mode', path: '/app/tunnel', icon: Radio },
-  { name: 'Journey History', path: '/app/history', icon: Clock },
-  { name: 'Learning Insights', path: '/app/learning', icon: BrainCircuit },
-  { name: 'Sensor Diagnostics', path: '/app/diagnostics', icon: Activity },
-  { name: 'System Settings', path: '/app/settings', icon: Settings },
-  { name: 'Driver Profile', path: '/app/profile', icon: User },
+const navGroups: NavGroup[] = [
+  {
+    label: 'Navigation',
+    items: [
+      { name: 'Navigation Cockpit', path: '/app', icon: Navigation },
+      { name: 'Live Map View', path: '/app/map', icon: Map },
+      { name: 'Tunnel & Outage Mode', path: '/app/tunnel', icon: Radio },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [
+      { name: 'Journey History', path: '/app/history', icon: Clock },
+      { name: 'Learning Insights', path: '/app/learning', icon: BrainCircuit },
+      { name: 'Navigation Memory', path: '/app/memory', icon: Layers },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      { name: 'Sensor Diagnostics', path: '/app/diagnostics', icon: Activity },
+      { name: 'System Settings', path: '/app/settings', icon: Settings },
+      { name: 'Driver Profile', path: '/app/profile', icon: User },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -42,6 +63,11 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) => {
   const location = useLocation();
 
+  // Real store state
+  const isLive = useNavigationStore((s) => s.isLive);
+  const navMode = useNavigationStore((s) => s.state.navigation_mode);
+  const gnssAvailable = useNavigationStore((s) => s.state.gnss_available);
+
   const isItemActive = (itemPath: string) => {
     if (itemPath === '/app') {
       return location.pathname === '/app';
@@ -49,23 +75,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
     return location.pathname === itemPath || location.pathname.startsWith(`${itemPath}/`);
   };
 
+  // Derive compact system status
+  const isDrActive = isLive && (!gnssAvailable || navMode.includes('DEAD_RECKONING') || navMode.includes('LOST'));
+  const isRecovering = isLive && (navMode.includes('REACQUISITION') || navMode.includes('RECOVERY'));
+
   return (
-    <aside className="w-[280px] bg-white/95 backdrop-blur-xl border-r border-slate-200/80 flex flex-col h-full select-none shrink-0 shadow-2xl z-50">
-      {/* Brand Header */}
-      <div className="h-16 flex items-center justify-between px-5 border-b border-slate-100 shrink-0">
+    <aside className="w-[88vw] max-w-[320px] sm:w-[320px] bg-white/95 backdrop-blur-xl border-r border-slate-200/90 flex flex-col h-full select-none shrink-0 shadow-2xl z-50 overflow-hidden">
+      {/* 1. Header: Brand Logo & Title */}
+      <div className="h-15 px-4.5 flex items-center justify-between border-b border-slate-100 shrink-0 bg-white/80">
         <Link
           to="/app"
           onClick={onClose}
-          className="flex items-center gap-3 group transition-opacity hover:opacity-95 focus:outline-none"
+          className="flex items-center gap-2.5 group transition-opacity hover:opacity-95 focus:outline-none"
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-700 to-brand-500 flex items-center justify-center shadow-md shadow-brand-500/25 text-white shrink-0 transition-transform duration-200 group-hover:scale-[1.02]">
-            <Navigation className="w-5 h-5 fill-white/20 stroke-white rotate-[-20deg]" strokeWidth={2.2} />
+          <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-tr from-brand-700 to-brand-500 flex items-center justify-center shadow-md shadow-brand-500/20 text-white shrink-0 transition-transform duration-200 group-hover:scale-[1.02]">
+            <Compass className="w-5 h-5 text-white" strokeWidth={2.2} />
           </div>
           <div className="flex flex-col">
-            <span className="text-[16px] font-bold text-slate-900 tracking-tight leading-tight group-hover:text-brand-700 transition-colors">
+            <span className="text-[15px] font-bold text-slate-900 tracking-tight leading-tight group-hover:text-brand-700 transition-colors">
               YatraSaarthi
             </span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-600 leading-none mt-0.5">
+            <span className="text-[9.5px] font-bold uppercase tracking-wider text-brand-600 leading-none mt-0.5">
               Intelligent Navigation
             </span>
           </div>
@@ -73,84 +103,156 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
 
         {isDrawer && onClose && (
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-            title="Close menu"
+            aria-label="Close navigation drawer"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4.5 h-4.5" />
           </button>
         )}
       </div>
 
-      {/* Real-Time GNSS / DR Status Strip */}
-      <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/60">
-        <NavStatusPill expanded showSecondary className="w-full justify-start text-[11px]" />
+      {/* 2. Compact System Status Card */}
+      <div className="px-3.5 pt-3 pb-1 shrink-0">
+        <Link
+          to="/app/diagnostics"
+          onClick={onClose}
+          className="p-2.5 bg-slate-50 hover:bg-slate-100/90 rounded-2xl border border-slate-200/80 flex items-center justify-between transition-colors group cursor-pointer"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span
+                className={clsx(
+                  'animate-ping absolute inline-flex h-full w-full rounded-full opacity-75',
+                  isDrActive
+                    ? 'bg-amber-400'
+                    : isRecovering
+                    ? 'bg-sky-400'
+                    : isLive
+                    ? 'bg-emerald-400'
+                    : 'bg-slate-300'
+                )}
+              />
+              <span
+                className={clsx(
+                  'relative inline-flex rounded-full h-2.5 w-2.5',
+                  isDrActive
+                    ? 'bg-amber-500'
+                    : isRecovering
+                    ? 'bg-sky-500'
+                    : isLive
+                    ? 'bg-emerald-500'
+                    : 'bg-emerald-500'
+                )}
+              />
+            </span>
+
+            <div className="flex flex-col min-w-0">
+              <span className="text-[11.5px] font-bold text-slate-800 leading-tight truncate">
+                {isDrActive
+                  ? 'Dead Reckoning Active'
+                  : isRecovering
+                  ? 'GNSS Recovering'
+                  : isLive
+                  ? 'Navigation Live'
+                  : 'System Ready'}
+              </span>
+              <span className="text-[10px] text-slate-400 font-normal leading-tight truncate mt-0.5">
+                {isLive ? 'InEKF active stream' : 'Sensors operational'}
+              </span>
+            </div>
+          </div>
+
+          <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-all shrink-0 ml-1" />
+        </Link>
       </div>
 
-      {/* Main Navigation Menu */}
-      <nav className="flex-1 py-3 px-3 space-y-1 overflow-y-auto">
-        <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-          Navigation & Controls
-        </div>
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = isItemActive(item.path);
+      {/* 3. Grouped Navigation Items */}
+      <nav className="flex-1 py-2 px-3 space-y-3 overflow-y-auto">
+        {navGroups.map((group) => (
+          <div key={group.label} className="space-y-0.5">
+            {/* Group Label */}
+            <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 select-none">
+              {group.label}
+            </div>
 
-          return (
-            <Link
-              key={item.name}
-              to={item.path}
-              onClick={onClose}
-              className={twMerge(
-                clsx(
-                  'group relative flex items-center justify-between px-3.5 h-11 rounded-xl text-[13.5px] font-medium transition-all duration-150 ease-in-out',
-                  isActive
-                    ? 'bg-brand-50/90 text-brand-700 font-semibold shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                )
-              )}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                {/* Active Accent Pill */}
-                {isActive && (
-                  <span
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-brand-600 rounded-r-full"
-                    aria-hidden="true"
-                  />
-                )}
+            {/* Group Nav Items */}
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const isActive = isItemActive(item.path);
 
-                <Icon
+              return (
+                <Link
+                  key={item.name}
+                  to={item.path}
+                  onClick={onClose}
                   className={clsx(
-                    'w-4.5 h-4.5 shrink-0 transition-colors duration-150',
+                    'group relative flex items-center justify-between px-3 h-10 rounded-xl text-[13px] font-medium transition-all duration-150 cursor-pointer',
                     isActive
-                      ? 'text-brand-600'
-                      : 'text-slate-400 group-hover:text-slate-600'
+                      ? 'bg-brand-50/90 text-brand-700 font-semibold shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   )}
-                  strokeWidth={isActive ? 2.2 : 1.8}
-                />
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {/* Active Accent Indicator */}
+                    {isActive && (
+                      <span
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-brand-600 rounded-r-full"
+                        aria-hidden="true"
+                      />
+                    )}
 
-                <span className="truncate">{item.name}</span>
-              </div>
-            </Link>
-          );
-        })}
+                    <Icon
+                      className={clsx(
+                        'w-4 h-4 shrink-0 transition-colors duration-150',
+                        isActive
+                          ? 'text-brand-600'
+                          : 'text-slate-400 group-hover:text-slate-600'
+                      )}
+                      strokeWidth={isActive ? 2.2 : 1.8}
+                    />
+
+                    <span className="truncate">{item.name}</span>
+                  </div>
+
+                  {/* Badge or subtle hover chevron */}
+                  {item.badge ? (
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-brand-100 text-brand-700">
+                      {item.badge}
+                    </span>
+                  ) : (
+                    <ChevronRight
+                      className={clsx(
+                        'w-3 h-3 transition-all shrink-0',
+                        isActive
+                          ? 'text-brand-600 opacity-80'
+                          : 'text-slate-300 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5'
+                      )}
+                    />
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
-      {/* Bottom InEKF Status Card */}
-      <div className="p-3.5 mx-3.5 mb-3.5 mt-auto rounded-xl bg-slate-50 border border-slate-200/80">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span className="text-[12px] font-semibold text-slate-800 tracking-tight">
+      {/* 4. Bottom Engine Status Footer */}
+      <div className="p-3 mx-3 mb-3 shrink-0 rounded-2xl bg-slate-50 border border-slate-200/80">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="text-[11px] font-bold text-slate-800 tracking-tight truncate">
               InEKF Core Engine
             </span>
           </div>
-          <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 leading-none">
-            READY
+          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200 leading-tight shrink-0">
+            {isLive ? 'ACTIVE' : 'READY'}
           </span>
         </div>
-        <p className="text-[11px] leading-relaxed text-slate-500 font-normal">
-          Zero-drift dead reckoning prepared for GNSS-denied environments.
+        <p className="text-[10px] leading-tight text-slate-500 mt-1">
+          Dead reckoning engine operational for GNSS-denied navigation.
         </p>
       </div>
     </aside>
