@@ -27,6 +27,7 @@ import {
   MapPin,
   CheckCircle2,
   X,
+  Radio,
 } from 'lucide-react';
 import type { Map as MapboxMap } from 'mapbox-gl';
 
@@ -61,9 +62,6 @@ export default function Dashboard() {
   // Start real browser geolocation watcher
   useEffect(() => {
     locationService.startWatching();
-    return () => {
-      // Keep running across pages for consistent global location
-    };
   }, []);
 
   // Smooth camera centering when real location is first acquired
@@ -140,17 +138,17 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-4 md:pb-8">
+    <div className="max-w-7xl mx-auto space-y-4 md:space-y-5 pb-6 select-none">
       {/* Journey Completed Notification Banner */}
       {journeySummary && (
-        <div className="bg-emerald-500 text-white rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-lg flex items-center justify-between gap-3 animate-in fade-in">
+        <div className="bg-emerald-600 text-white rounded-xl p-4 shadow-sm flex items-center justify-between gap-3 animate-in fade-in">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl md:rounded-2xl bg-white/20 flex items-center justify-center">
-              <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6 text-white" />
+            <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-bold text-xs md:text-sm">Journey Completed</h3>
-              <p className="text-[10px] md:text-xs text-white/90">
+              <h3 className="font-semibold text-xs md:text-sm">Journey Completed</h3>
+              <p className="text-[11px] md:text-xs text-white/90 mt-0.5">
                 {journeySummary.distance_m
                   ? `Distance: ${(journeySummary.distance_m / 1000).toFixed(2)} km`
                   : 'Zero displacement recorded'}{' '}
@@ -164,18 +162,19 @@ export default function Dashboard() {
           </div>
           <button
             onClick={() => setJourneySummary(null)}
-            className="p-2 hover:bg-white/20 rounded-xl transition-colors"
+            className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+            title="Dismiss"
           >
-            <X className="w-4 h-4 md:w-5 md:h-5 text-white" />
+            <X className="w-4 h-4 text-white" />
           </button>
         </div>
       )}
 
       {/* Mobile Greeting Header */}
-      <div className="md:hidden space-y-3">
+      <div className="md:hidden space-y-2.5">
         <div>
-          <p className="text-sm text-gray-500">{getGreeting()},</p>
-          <h1 className="text-xl font-bold text-brand-navy">
+          <p className="text-xs font-medium text-slate-500">{getGreeting()},</p>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
             {user ? user.full_name : 'Driver'}
           </h1>
         </div>
@@ -183,19 +182,20 @@ export default function Dashboard() {
         {/* Navigation Status Badge */}
         <div className="flex items-center gap-2">
           <GlobalStatusBadge />
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-slate-500">
             {isLive ? 'Navigation Active' : 'All Systems Online'}
           </span>
         </div>
       </div>
 
-      {/* Desktop Header / Control Bar */}
-      <div className="hidden md:flex bg-white rounded-3xl p-6 border border-brand-50 shadow-sm flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Desktop Header / Command Card */}
+      <div className="hidden md:flex bg-white rounded-2xl p-5 md:p-6 border border-slate-200/80 shadow-xs flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-brand-navy">
+          <h1 className="text-xl md:text-[22px] font-bold text-slate-900 tracking-tight">
             Welcome back, {user ? user.full_name : 'Driver'}
           </h1>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs md:text-[13px] text-slate-500 mt-1 flex items-center gap-1.5">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-brand-500" />
             Intelligent Dead Reckoning Navigation • Real Hardware Sensor Streaming
           </p>
         </div>
@@ -207,19 +207,19 @@ export default function Dashboard() {
             <button
               onClick={handleEndSession}
               disabled={isEnding}
-              className="bg-status-danger hover:bg-red-600 disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-2xl text-xs flex items-center gap-2 transition-all shadow-md"
+              className="bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-semibold px-4.5 py-2 rounded-xl text-xs flex items-center gap-2 transition-all shadow-xs"
             >
-              <Square className="w-4 h-4 fill-white" />
+              <Square className="w-3.5 h-3.5 fill-white" />
               {isEnding ? 'Ending Journey...' : 'End Live'}
             </button>
           ) : (
             <button
               onClick={handleStartSession}
               disabled={sessionStatus === 'STARTING'}
-              className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-2xl text-xs flex items-center gap-2 transition-all shadow-lg shadow-brand-500/20"
+              className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold px-4.5 py-2 rounded-xl text-xs flex items-center gap-2 transition-all shadow-sm shadow-brand-500/20"
             >
-              <Play className="w-4 h-4 fill-white" />
-              {sessionStatus === 'STARTING' ? 'Starting Live Session...' : 'Start Live'}
+              <Play className="w-3.5 h-3.5 fill-white" />
+              {sessionStatus === 'STARTING' ? 'Starting Live...' : 'Start Live'}
             </button>
           )}
         </div>
@@ -230,28 +230,34 @@ export default function Dashboard() {
         <DestinationSearch />
       </div>
 
-      {/* Main Grid: Real-Time Map (2 cols) & Telemetry Metrics (1 col) */}
-      <div className="grid lg:grid-cols-3 gap-4 md:gap-6 items-stretch min-h-[320px] md:min-h-[520px]">
-        {/* Map Container */}
-        <div className="lg:col-span-2 bg-white rounded-2xl md:rounded-3xl p-2 md:p-3 border border-brand-50 shadow-sm flex flex-col h-[280px] md:h-[520px] relative">
-          <div className="flex justify-between items-center px-3 md:px-4 py-2 mb-1 md:mb-2">
+      {/* Main Grid: Real-Time Map (70%) & Telemetry Metrics (30%) */}
+      <div className="grid lg:grid-cols-12 gap-4 md:gap-5 items-stretch min-h-[360px] md:min-h-[500px]">
+        {/* Map Container Column */}
+        <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col h-[320px] md:h-[500px] overflow-hidden">
+          {/* Map Card Header */}
+          <div className="flex justify-between items-center px-4 py-3 border-b border-slate-100 shrink-0 bg-white">
             <div className="flex items-center gap-2">
-              <Navigation className="w-4 h-4 md:w-5 md:h-5 text-brand-600" />
-              <span className="font-bold text-xs md:text-sm text-brand-navy">{locationStatusText}</span>
+              <div className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center text-brand-600">
+                <Navigation className="w-4 h-4" />
+              </div>
+              <span className="font-semibold text-xs md:text-sm text-slate-900 tracking-tight">
+                {locationStatusText}
+              </span>
             </div>
-            <div className="text-[10px] md:text-[11px] font-mono text-gray-500 flex items-center gap-1 md:gap-1.5">
-              <MapPin className="w-3 h-3 md:w-3.5 md:h-3.5 text-brand-600" />
+            <div className="text-[11px] font-mono text-slate-500 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200/60 flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-brand-600" />
               {hasCoordinates ? (
                 <span>
                   {displayLat.toFixed(5)}, {displayLon.toFixed(5)}
                 </span>
               ) : (
-                <span className="text-gray-400 italic">No fix</span>
+                <span className="text-slate-400 italic">No GPS fix</span>
               )}
             </div>
           </div>
 
-          <div className="flex-1 w-full h-full relative rounded-xl md:rounded-2xl overflow-hidden min-h-[200px] md:min-h-[440px]">
+          {/* Map Body */}
+          <div className="flex-1 w-full h-full relative overflow-hidden">
             <MapContainer
               onMapLoaded={(map) => {
                 mapRef.current = map;
@@ -283,19 +289,19 @@ export default function Dashboard() {
                 <TrajectoryLayer fusedTrack={trajectory} />
               )}
 
-              <MapControls onRecenter={handleRecenter} className="absolute bottom-6 right-4 z-10 flex flex-col items-end" />
+              <MapControls onRecenter={handleRecenter} className="absolute bottom-4 right-4 z-10" />
             </MapContainer>
 
             {/* Empty / Acquiring Location Overlay */}
             {!hasCoordinates && (
-              <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center pointer-events-none p-4 md:p-6 text-center">
-                <div className="bg-white/95 p-4 md:p-6 rounded-2xl md:rounded-3xl border border-brand-100 shadow-xl space-y-2 max-w-sm">
-                  <Activity className="w-7 h-7 md:w-8 md:h-8 text-brand-600 animate-pulse mx-auto" />
-                  <h4 className="font-bold text-xs md:text-sm text-brand-navy">{locationStatusText}</h4>
-                  <p className="text-[10px] md:text-xs text-gray-500">
+              <div className="absolute inset-0 bg-white/75 backdrop-blur-xs flex items-center justify-center p-4 md:p-6 text-center">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-md space-y-2 max-w-xs">
+                  <Radio className="w-7 h-7 text-brand-600 animate-pulse mx-auto" />
+                  <h4 className="font-bold text-xs md:text-sm text-slate-900">{locationStatusText}</h4>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
                     {locPermission === 'denied'
                       ? 'Please allow browser location permissions.'
-                      : 'Connecting to geolocation sensors...'}
+                      : 'Connecting to GNSS & IMU sensor stream...'}
                   </p>
                 </div>
               </div>
@@ -303,15 +309,15 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Telemetry Metrics Panel */}
-        <div className="space-y-3 md:space-y-4 flex flex-col justify-between">
+        {/* Telemetry Metrics & Status Panel Column */}
+        <div className="lg:col-span-4 flex flex-col justify-between gap-3 md:gap-3.5">
           {/* Mobile Start/End buttons */}
           <div className="md:hidden">
             {isLive ? (
               <button
                 onClick={handleEndSession}
                 disabled={isEnding}
-                className="w-full bg-status-danger hover:bg-red-600 disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 transition-all shadow-md press-scale"
+                className="w-full bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-xs"
               >
                 <Square className="w-4 h-4 fill-white" />
                 {isEnding ? 'Ending Journey...' : 'End Live Navigation'}
@@ -320,7 +326,7 @@ export default function Dashboard() {
               <button
                 onClick={handleStartSession}
                 disabled={sessionStatus === 'STARTING'}
-                className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand-500/20 press-scale"
+                className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-sm shadow-brand-500/20"
               >
                 <Play className="w-4 h-4 fill-white" />
                 {sessionStatus === 'STARTING' ? 'Starting...' : 'Start Live Navigation'}
@@ -328,101 +334,106 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Telemetry cards - horizontal scroll on mobile, vertical on desktop */}
-          <div className="flex md:flex-col gap-3 md:gap-4 overflow-x-auto md:overflow-visible pb-1 md:pb-0 hide-scrollbar">
+          {/* Telemetry Metrics Stack */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3 md:gap-3">
             {/* Speed Card */}
-            <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-5 border border-brand-50 shadow-sm flex items-center justify-between min-w-[200px] md:min-w-0 flex-shrink-0 md:flex-shrink">
+            <div className="bg-white rounded-xl p-3.5 md:p-4 border border-slate-200/80 shadow-xs flex items-center justify-between hover:border-slate-300 transition-colors">
               <div>
-                <div className="text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <Gauge className="w-3.5 h-3.5 md:w-4 md:h-4 text-brand-600" /> Speed
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5 flex items-center gap-1.5">
+                  <Gauge className="w-3.5 h-3.5 text-brand-600" /> Speed
                 </div>
-                <div className="text-2xl md:text-3xl font-bold text-brand-navy">
+                <div className="text-2xl md:text-[26px] font-bold text-slate-900 tracking-tight leading-none">
                   {isLive ? (state.speed * 3.6).toFixed(1) : '0.0'}{' '}
-                  <span className="text-xs md:text-sm font-medium text-gray-500">km/h</span>
+                  <span className="text-xs font-semibold text-slate-400 ml-0.5">km/h</span>
                 </div>
               </div>
-              <div className="w-10 h-10 md:w-12 md:h-12 bg-brand-50 rounded-xl md:rounded-2xl flex items-center justify-center text-brand-600 font-bold text-sm">
+              <div className="w-9 h-9 rounded-lg bg-blue-50/80 border border-blue-100/60 flex items-center justify-center text-brand-700 font-bold text-xs">
                 {isLive ? (state.speed * 3.6).toFixed(0) : '0'}
               </div>
             </div>
 
             {/* Heading Card */}
-            <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-5 border border-brand-50 shadow-sm flex items-center justify-between min-w-[200px] md:min-w-0 flex-shrink-0 md:flex-shrink">
+            <div className="bg-white rounded-xl p-3.5 md:p-4 border border-slate-200/80 shadow-xs flex items-center justify-between hover:border-slate-300 transition-colors">
               <div>
-                <div className="text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <Compass className="w-3.5 h-3.5 md:w-4 md:h-4 text-brand-600" /> Heading
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5 flex items-center gap-1.5">
+                  <Compass className="w-3.5 h-3.5 text-brand-600" /> Heading
                 </div>
-                <div className="text-xl md:text-2xl font-bold text-brand-navy">
-                  {isLive ? `${state.heading_deg.toFixed(0)}°` : 'N/A'}{' '}
+                <div className="text-2xl md:text-[26px] font-bold text-slate-900 tracking-tight leading-none">
+                  {isLive ? `${state.heading_deg.toFixed(0)}°` : '0°'}{' '}
                   {isLive && (
-                    <span className="text-[10px] md:text-xs font-medium text-gray-500">
+                    <span className="text-xs font-medium text-slate-400 ml-1">
                       ({(state.heading_confidence * 100).toFixed(0)}%)
                     </span>
                   )}
                 </div>
               </div>
-              <div className="w-8 h-8 md:w-10 md:h-10 bg-brand-50 rounded-xl md:rounded-2xl flex items-center justify-center text-brand-600">
-                <Compass className="w-4 h-4 md:w-5 md:h-5" />
+              <div className="w-9 h-9 rounded-lg bg-blue-50/80 border border-blue-100/60 flex items-center justify-center text-brand-600">
+                <Compass className="w-4.5 h-4.5" />
               </div>
             </div>
 
             {/* Accuracy Card */}
-            <div className="bg-white rounded-2xl md:rounded-3xl p-4 md:p-5 border border-brand-50 shadow-sm flex items-center justify-between min-w-[200px] md:min-w-0 flex-shrink-0 md:flex-shrink">
+            <div className="bg-white rounded-xl p-3.5 md:p-4 border border-slate-200/80 shadow-xs flex items-center justify-between hover:border-slate-300 transition-colors">
               <div>
-                <div className="text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <Activity className="w-3.5 h-3.5 md:w-4 md:h-4 text-brand-600" /> Accuracy
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5 flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-brand-600" /> Accuracy
                 </div>
-                <div className="text-xl md:text-2xl font-bold text-brand-navy">
+                <div className="text-2xl md:text-[26px] font-bold text-slate-900 tracking-tight leading-none">
                   {isLive
                     ? `± ${state.horizontal_accuracy.toFixed(1)}`
                     : deviceAcc !== null
                     ? `± ${deviceAcc.toFixed(1)}`
-                    : 'N/A'}{' '}
-                  <span className="text-[10px] md:text-xs font-medium text-gray-500">meters</span>
+                    : '± 0.0'}{' '}
+                  <span className="text-xs font-medium text-slate-400 ml-0.5">m</span>
                 </div>
               </div>
-              <div className="w-8 h-8 md:w-10 md:h-10 bg-brand-50 rounded-xl md:rounded-2xl flex items-center justify-center text-brand-600">
-                <ShieldCheck className="w-4 h-4 md:w-5 md:h-5 text-status-success" />
+              <div className="w-9 h-9 rounded-lg bg-emerald-50/80 border border-emerald-100/60 flex items-center justify-center text-emerald-600">
+                <ShieldCheck className="w-4.5 h-4.5" />
               </div>
             </div>
           </div>
 
-          {/* IDR Navigation Mode Card */}
-          <div className="bg-brand-navy rounded-2xl md:rounded-3xl p-4 md:p-5 text-white shadow-xl flex flex-col justify-between flex-1 min-h-[120px]">
+          {/* INEKF IDR STATUS Console Card */}
+          <div className="bg-slate-900 rounded-xl p-4 text-white border border-slate-800 shadow-sm flex flex-col justify-between flex-1 min-h-[135px]">
             <div>
-              <div className="flex items-center justify-between mb-2 md:mb-3">
-                <span className="text-[10px] md:text-xs font-bold text-brand-100 uppercase tracking-wider">
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand-400" />
                   InEKF IDR Status
                 </span>
                 <span
-                  className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
                     isLive
                       ? state.navigation_mode.includes('DEAD_RECKONING')
-                        ? 'bg-status-warning/20 text-status-warning border border-status-warning/30'
-                        : 'bg-status-success/20 text-status-success border border-status-success/30'
-                      : 'bg-white/10 text-white/70'
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      : 'bg-white/10 text-slate-300 border-white/10'
                   }`}
                 >
                   {isLive ? state.navigation_mode : 'STANDBY'}
                 </span>
               </div>
 
-              <div className="space-y-1.5 md:space-y-2 text-xs">
-                <div className="flex justify-between border-b border-white/10 pb-1 md:pb-1.5">
-                  <span className="text-brand-100">ZUPT</span>
-                  <span className="font-semibold text-white">
-                    {isLive && state.zupt_active ? 'ACTIVE' : 'OFF'}
+              <div className="space-y-1.5 text-xs">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-1">
+                  <span className="text-slate-400 text-[11px]">ZUPT (Zero-Velocity)</span>
+                  <span className="font-semibold text-white text-[11px]">
+                    {isLive && state.zupt_active ? (
+                      <span className="text-emerald-400">ACTIVE</span>
+                    ) : (
+                      'OFF'
+                    )}
                   </span>
                 </div>
-                <div className="flex justify-between border-b border-white/10 pb-1 md:pb-1.5">
-                  <span className="text-brand-100">NHC</span>
-                  <span className="font-semibold text-status-success">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-1">
+                  <span className="text-slate-400 text-[11px]">NHC (Non-Holonomic)</span>
+                  <span className="font-semibold text-emerald-400 text-[11px]">
                     {isLive && state.nhc_active ? 'ACTIVE' : 'READY'}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-brand-100">Confidence</span>
-                  <span className="font-bold text-white">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 text-[11px]">Confidence</span>
+                  <span className="font-bold text-white text-[11px]">
                     {isLive ? `${(state.position_confidence * 100).toFixed(0)}%` : '100%'}
                   </span>
                 </div>
@@ -430,8 +441,8 @@ export default function Dashboard() {
             </div>
 
             {isLive && state.navigation_mode.includes('DEAD_RECKONING') && (
-              <div className="mt-3 md:mt-4 p-2.5 md:p-3 bg-status-warning/20 rounded-xl md:rounded-2xl border border-status-warning/30 text-[10px] md:text-[11px] text-status-warning flex items-center gap-2">
-                <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
+              <div className="mt-2.5 p-2 bg-amber-500/15 rounded-lg border border-amber-500/30 text-[11px] text-amber-300 flex items-center gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                 <span>GNSS unavailable. Inertial dead reckoning active.</span>
               </div>
             )}

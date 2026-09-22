@@ -94,14 +94,14 @@ export const DestinationSearch = () => {
 
   return (
     <div className="relative w-full">
-      <div className="bg-white/95 backdrop-blur-md p-2 rounded-2xl md:rounded-3xl border border-brand-100 shadow-xl flex items-center gap-3">
-        <div className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center shrink-0">
+      <div className="bg-white px-3.5 h-[52px] md:h-14 rounded-xl md:rounded-2xl border border-slate-200/90 shadow-xs flex items-center gap-3 transition-all duration-150 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20">
+        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0 text-slate-400">
           {isSearching ? (
-            <Loader2 className="w-5 h-5 text-brand-600 animate-spin" />
+            <Loader2 className="w-4 h-4 text-brand-600 animate-spin" />
           ) : destination ? (
-            <NavIcon className="w-5 h-5 text-brand-600 fill-brand-600" />
+            <NavIcon className="w-4 h-4 text-brand-600 fill-brand-600" />
           ) : (
-            <Search className="w-5 h-5 text-gray-400" />
+            <Search className="w-4 h-4 text-slate-400" />
           )}
         </div>
         
@@ -117,32 +117,36 @@ export const DestinationSearch = () => {
             }
           }}
           onFocus={() => setIsOpen(true)}
-          placeholder="Where to?"
-          className="flex-1 bg-transparent border-none focus:outline-none text-brand-navy font-semibold placeholder:font-normal placeholder:text-gray-400 text-sm md:text-base w-full"
+          placeholder="Where to? (Search destination, city, or coordinates)"
+          className="flex-1 bg-transparent border-none focus:outline-none text-slate-900 font-medium placeholder:font-normal placeholder:text-slate-400 text-sm md:text-[14.5px] w-full"
         />
 
         {query && (
-          <button onClick={handleClear} className="p-2 hover:bg-gray-100 rounded-full mr-1 transition-colors">
-            <X className="w-4 h-4 text-gray-500" />
+          <button
+            onClick={handleClear}
+            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+            title="Clear search"
+          >
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
       {/* Results Dropdown */}
       {isOpen && results.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-brand-100 overflow-hidden z-50">
+        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-xl shadow-lg border border-slate-200/90 overflow-hidden z-50 animate-in fade-in slide-in-from-top-1 duration-150">
           {results.map((result) => (
             <button
               key={result.id}
               onClick={() => handleSelect(result)}
-              className="w-full flex items-center gap-4 p-4 hover:bg-brand-50 transition-colors text-left border-b border-gray-50 last:border-0"
+              className="w-full flex items-center gap-3.5 px-4 py-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-100 last:border-0 group"
             >
-              <div className="w-8 h-8 bg-brand-50 rounded-full flex items-center justify-center shrink-0 text-brand-600">
+              <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center shrink-0 text-brand-600 group-hover:bg-brand-600 group-hover:text-white transition-colors">
                 <MapPin className="w-4 h-4" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-semibold text-brand-navy truncate text-sm">{result.name}</div>
-                <div className="text-[10px] text-gray-500 truncate">{result.place_formatted}</div>
+                <div className="font-semibold text-slate-900 truncate text-xs md:text-sm">{result.name}</div>
+                <div className="text-[11px] text-slate-500 truncate mt-0.5">{result.place_formatted}</div>
               </div>
             </button>
           ))}
@@ -151,3 +155,4 @@ export const DestinationSearch = () => {
     </div>
   );
 };
+

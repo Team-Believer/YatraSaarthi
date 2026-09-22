@@ -41,49 +41,66 @@ export const GlobalStatusBadge: React.FC<GlobalStatusBadgeProps> = ({ status, cl
     }
   }
 
-  let colorClass = 'bg-gray-100 text-gray-800';
+  let colorClass = 'bg-slate-100 text-slate-700 border-slate-200';
+  let dotClass = 'bg-slate-400';
   let label = activeStatus;
 
   switch (activeStatus) {
     case 'LIVE':
-      colorClass = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
-      label = '● LIVE NAVIGATION';
+      colorClass = 'bg-emerald-50 text-emerald-800 border-emerald-200/80';
+      dotClass = 'bg-emerald-500';
+      label = 'LIVE NAVIGATION';
       break;
     case 'DEGRADED':
-      colorClass = 'bg-amber-100 text-amber-800 border border-amber-200';
-      label = '▲ INEKF DEAD RECKONING';
+      colorClass = 'bg-amber-50 text-amber-800 border-amber-200/80';
+      dotClass = 'bg-amber-500';
+      label = 'INEKF DEAD RECKONING';
       break;
     case 'STARTING':
-      colorClass = 'bg-blue-100 text-blue-800 border border-blue-200 animate-pulse';
+      colorClass = 'bg-blue-50 text-blue-800 border-blue-200/80';
+      dotClass = 'bg-blue-500 animate-pulse';
       label = 'CONNECTING...';
       break;
     case 'ENDING':
-      colorClass = 'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse';
+      colorClass = 'bg-amber-50 text-amber-800 border-amber-200/80';
+      dotClass = 'bg-amber-500 animate-pulse';
       label = 'FINALIZING...';
       break;
     case 'STANDBY':
-      colorClass = 'bg-blue-100 text-blue-800 border border-blue-200';
+      colorClass = 'bg-slate-100/90 text-slate-700 border-slate-200/80';
+      dotClass = 'bg-emerald-500';
       label = 'SYSTEM READY';
       break;
     case 'GETTING':
-      colorClass = 'bg-sky-100 text-sky-800 border border-sky-200';
+      colorClass = 'bg-sky-50 text-sky-800 border-sky-200/80';
+      dotClass = 'bg-sky-500 animate-pulse';
       label = 'ACQUIRING FIX...';
       break;
     case 'UNAVAILABLE':
-      colorClass = 'bg-gray-100 text-gray-600 border border-gray-200';
+      colorClass = 'bg-slate-100 text-slate-600 border-slate-200';
+      dotClass = 'bg-slate-400';
       label = 'Sensors Unavailable';
       break;
     case 'PERMISSION_REQUIRED':
-      colorClass = 'bg-rose-100 text-rose-800 border border-rose-200';
+      colorClass = 'bg-rose-50 text-rose-800 border-rose-200/80';
+      dotClass = 'bg-rose-500';
       label = 'Permission Required';
       break;
     case 'ERROR':
-      colorClass = 'bg-red-100 text-red-800 border border-red-200';
+      colorClass = 'bg-red-50 text-red-800 border-red-200/80';
+      dotClass = 'bg-red-500';
       break;
   }
 
   return (
-    <span className={cn('px-3 py-1 text-xs font-semibold rounded-full', colorClass, className)}>
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold tracking-tight rounded-full border shadow-2xs select-none',
+        colorClass,
+        className
+      )}
+    >
+      <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', dotClass)} />
       {label}
     </span>
   );

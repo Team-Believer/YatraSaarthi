@@ -27,27 +27,29 @@ export default function Topbar() {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-brand-100 flex items-center justify-between px-6 shrink-0 w-full">
-      <div className="flex items-center gap-4">
-        <h2 className="text-lg font-bold text-brand-navy">{getPageTitle(location.pathname)}</h2>
+    <header className="h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-6 shrink-0 w-full select-none">
+      <div className="flex items-center gap-3.5">
+        <h2 className="text-[17px] font-bold text-slate-900 tracking-tight">
+          {getPageTitle(location.pathname)}
+        </h2>
+        <div className="h-4 w-px bg-slate-200" />
         <GlobalStatusBadge />
       </div>
 
-      
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {isAuthenticated && user ? (
-          <div className="flex items-center gap-3 pl-4 border-l border-brand-100">
-            <div className="text-right">
-              <p className="text-sm font-semibold text-brand-navy">{user.full_name}</p>
-              <p className="text-xs text-gray-500">{user.email}</p>
+          <div className="flex items-center gap-3 pl-3">
+            <div className="text-right hidden sm:block">
+              <p className="text-xs font-semibold text-slate-900 leading-tight">{user.full_name}</p>
+              <p className="text-[11px] text-slate-500 leading-tight mt-0.5">{user.email}</p>
             </div>
-            <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 font-bold text-sm">
-              <User className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-700 font-bold text-xs">
+              <User className="w-4 h-4" />
             </div>
             <button
               onClick={handleLogout}
               title="Logout"
-              className="p-2 text-gray-400 hover:text-status-danger transition-colors ml-1"
+              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors ml-0.5"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -55,7 +57,7 @@ export default function Topbar() {
         ) : (
           <Link
             to="/login"
-            className="flex items-center gap-2 bg-brand-50 hover:bg-brand-100 text-brand-600 px-4 py-1.5 rounded-full text-xs font-semibold transition-colors border border-brand-100"
+            className="flex items-center gap-2 bg-brand-50 hover:bg-brand-100 text-brand-700 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors border border-brand-200/70 shadow-2xs"
           >
             <LogIn className="w-3.5 h-3.5" />
             Sign In / Register
