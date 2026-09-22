@@ -3,6 +3,8 @@ import { Search, MapPin, Navigation as NavIcon, X, Loader2 } from 'lucide-react'
 import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useLocationStore } from '../../stores/useLocationStore';
 
+import { useRouteStore } from '../../stores/useRouteStore';
+
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 interface SearchResult {
@@ -71,7 +73,15 @@ export const DestinationSearch = () => {
       );
       const data = await res.json();
       if (data.routes && data.routes.length > 0) {
-        setRouteCoordinates(data.routes[0].geometry.coordinates);
+        const route = data.routes[0];
+        setRouteCoordinates(route.geometry.coordinates);
+        useRouteStore.getState().setRoute({
+          origin: [currentLon, currentLat],
+          destination: destCoords,
+          distance_meters: route.distance,
+          duration_seconds: route.duration,
+          geometry: route.geometry.coordinates,
+        });
       }
     } catch (err) {
       console.error('Route error:', err);
@@ -90,6 +100,7 @@ export const DestinationSearch = () => {
     setResults([]);
     setDestination(null);
     setRouteCoordinates(null);
+    useRouteStore.getState().clearRoute();
   };
 
   return (
