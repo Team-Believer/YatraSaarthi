@@ -73,8 +73,7 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
   return (
     <div
       className={clsx(
-        'w-full max-w-4xl mx-auto nav-glass rounded-2xl md:rounded-3xl select-none transition-all duration-300 border border-slate-200/90 shadow-nav-sheet overflow-hidden',
-        'pb-[env(safe-area-inset-bottom)]',
+        'w-full max-w-3xl mx-auto bg-white/95 backdrop-blur-md rounded-2xl md:rounded-3xl select-none transition-all duration-300 border border-slate-200/90 shadow-2xl overflow-hidden',
         className
       )}
     >
@@ -89,13 +88,13 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
       </button>
 
       {/* Main Container Padding */}
-      <div className="p-3 md:p-4.5">
+      <div className="p-3 md:p-4">
         {/* COMPACT HUD VIEW (Always Visible) */}
-        <div className="flex items-center justify-between gap-2.5 md:gap-5">
+        <div className="flex items-center justify-between gap-2.5 md:gap-4">
           {/* Left Block: Speed & Direction */}
-          <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
             <SpeedDisplay compact={!isExpanded} />
-            <div className="h-7 w-px bg-slate-200/80 hidden sm:block shrink-0" />
+            <div className="h-6 w-px bg-slate-200/80 hidden sm:block shrink-0" />
             <HeadingDisplay compact={!isExpanded} />
           </div>
 
@@ -117,12 +116,7 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
           )}
 
           {/* Right Action & Control Group */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Navigation Status Pill */}
-            <div className="hidden sm:block">
-              <NavStatusPill />
-            </div>
-
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Recenter Button */}
             {onRecenter && (
               <button
@@ -180,7 +174,7 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
                 type="button"
                 onClick={handleStartSession}
                 disabled={sessionStatus === 'STARTING'}
-                className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold px-4 md:px-6 py-2 md:py-2.5 rounded-xl md:rounded-2xl text-xs md:text-sm flex items-center gap-1.5 md:gap-2 transition-all shadow-lg shadow-brand-600/25 press-scale cursor-pointer"
+                className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold px-3.5 md:px-5 py-2 md:py-2.5 rounded-xl md:rounded-2xl text-xs md:text-sm flex items-center gap-1.5 md:gap-2 transition-all shadow-md shadow-brand-600/25 press-scale cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5 md:w-4 md:h-4 fill-white" />
                 <span>{sessionStatus === 'STARTING' ? 'Starting...' : 'Start Drive'}</span>
@@ -189,15 +183,9 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
           </div>
         </div>
 
-        {/* Status Strip on Small Devices */}
-        <div className="flex sm:hidden items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100">
-          <NavStatusPill />
-          <ConfidenceIndicator />
-        </div>
-
         {/* EXPANDED DETAILED HUD PANEL */}
         {isExpanded && (
-          <div className="mt-3 pt-3 border-t border-slate-200/80 flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="mt-3 pt-3 border-t border-slate-200/80 flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 max-h-[60vh] overflow-y-auto pr-0.5 hide-scrollbar">
             {/* Expanded Row 1: Destination & Active Route Context */}
             {destination && (
               <div className="p-3 bg-brand-50/70 rounded-2xl border border-brand-200/70 flex items-center justify-between gap-3">
