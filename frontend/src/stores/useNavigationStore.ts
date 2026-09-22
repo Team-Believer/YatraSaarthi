@@ -253,6 +253,8 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
     fusedPosition: null,
     trajectory: [],
     totalDistanceM: 0,
+    destination: null,
+    routeCoordinates: null,
     state: { ...defaultNavigationState },
   }),
 
@@ -266,6 +268,8 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
     fusedPosition: null,
     trajectory: [],
     totalDistanceM: 0,
+    destination: null,
+    routeCoordinates: null,
     journeySummary: null,
     errorMessage: null,
     state: { ...defaultNavigationState },
