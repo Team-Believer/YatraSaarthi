@@ -141,6 +141,9 @@ interface NavigationStore {
   destination: { name: string; coordinates: [number, number] } | null;
   routeCoordinates: [number, number][] | null;
 
+  // Viewport Overlay Modals
+  isNavStatusDrawerOpen: boolean;
+
   // Lifecycle & State Actions
   setSessionStatus: (status: NavigationSessionStatus) => void;
   setWebsocketStatus: (status: WebSocketStatus) => void;
@@ -151,6 +154,10 @@ interface NavigationStore {
   
   setDestination: (dest: { name: string; coordinates: [number, number] } | null) => void;
   setRouteCoordinates: (coords: [number, number][] | null) => void;
+
+  openNavStatusDrawer: () => void;
+  closeNavStatusDrawer: () => void;
+  setNavStatusDrawerOpen: (open: boolean) => void;
 
   updateState: (newState: Partial<NavigationState>) => void;
   clearActiveSession: () => void;
@@ -174,6 +181,11 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
   
   destination: null,
   routeCoordinates: null,
+  isNavStatusDrawerOpen: false,
+
+  openNavStatusDrawer: () => set({ isNavStatusDrawerOpen: true }),
+  closeNavStatusDrawer: () => set({ isNavStatusDrawerOpen: false }),
+  setNavStatusDrawerOpen: (isNavStatusDrawerOpen) => set({ isNavStatusDrawerOpen }),
 
   setSessionStatus: (sessionStatus) => set((store) => ({
     sessionStatus,

@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import MobileBottomNav from './MobileBottomNav';
+import { NavStatusDrawer } from '../navigation/NavStatusDrawer';
 import { useNavigationWebSocket } from '../../hooks/useNavigationWebSocket';
 import { useNavigationStore } from '../../stores/useNavigationStore';
 import { Menu } from 'lucide-react';
@@ -73,6 +74,9 @@ export default function AppLayout() {
         {/* Mobile Bottom Nav Bar (renders across all views on small screens) */}
         <MobileBottomNav />
       </div>
+
+      {/* Global Viewport Navigation Status Drawer Overlay */}
+      <NavStatusDrawer />
     </div>
   );
 }

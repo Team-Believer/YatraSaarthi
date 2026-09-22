@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useLocationStore } from '../../stores/useLocationStore';
-import { NavStatusDrawer } from './NavStatusDrawer';
 import {
   Satellite,
   Compass,
@@ -46,7 +45,7 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
   showSecondary = false,
   onClick,
 }) => {
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const openNavStatusDrawer = useNavigationStore((s) => s.openNavStatusDrawer);
 
   // Store Subscriptions
   const isLive = useNavigationStore((s) => s.isLive);
@@ -175,50 +174,45 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
     if (onClick) {
       onClick();
     } else {
-      setDrawerOpen(true);
+      openNavStatusDrawer();
     }
   };
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={handleClick}
-        title="Click to view real-time navigation telemetry and status"
-        className={twMerge(
-          clsx(
-            'inline-flex items-center gap-2 px-3 py-1.5 rounded-full border backdrop-blur-md select-none cursor-pointer transition-all duration-200 press-scale group text-left',
-            containerStyle,
-            className
-          )
-        )}
-      >
-        {/* Pulsing Dot */}
-        <div className="flex items-center justify-center relative shrink-0">
-          <span className={clsx('w-2 h-2 rounded-full shrink-0', badgeStyle)} />
-        </div>
+    <button
+      type="button"
+      onClick={handleClick}
+      title="Click to view real-time navigation telemetry and status"
+      className={twMerge(
+        clsx(
+          'inline-flex items-center gap-2 px-3 py-1.5 rounded-full border backdrop-blur-md select-none cursor-pointer transition-all duration-200 press-scale group text-left',
+          containerStyle,
+          className
+        )
+      )}
+    >
+      {/* Pulsing Dot */}
+      <div className="flex items-center justify-center relative shrink-0">
+        <span className={clsx('w-2 h-2 rounded-full shrink-0', badgeStyle)} />
+      </div>
 
-        {/* Icon & Title */}
-        <div className="flex items-center gap-1.5 min-w-0">
-          {iconElement}
-          <div className="flex flex-col min-w-0">
-            <span className="text-[11px] font-bold tracking-tight uppercase leading-tight truncate">
-              {title}
+      {/* Icon & Title */}
+      <div className="flex items-center gap-1.5 min-w-0">
+        {iconElement}
+        <div className="flex flex-col min-w-0">
+          <span className="text-[11px] font-bold tracking-tight uppercase leading-tight truncate">
+            {title}
+          </span>
+          {(expanded || showSecondary) && secondary && (
+            <span className="text-[9.5px] font-normal opacity-80 leading-tight truncate">
+              {secondary}
             </span>
-            {(expanded || showSecondary) && secondary && (
-              <span className="text-[9.5px] font-normal opacity-80 leading-tight truncate">
-                {secondary}
-              </span>
-            )}
-          </div>
+          )}
         </div>
+      </div>
 
-        {/* Subtle Chevron indicator on hover */}
-        <ChevronRight className="w-3 h-3 opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all ml-0.5 shrink-0" />
-      </button>
-
-      {/* Embedded Drawer/Sheet when clicked */}
-      <NavStatusDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
-    </>
+      {/* Subtle Chevron indicator on hover */}
+      <ChevronRight className="w-3 h-3 opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all ml-0.5 shrink-0" />
+    </button>
   );
 };
