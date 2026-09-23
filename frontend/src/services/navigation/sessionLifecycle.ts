@@ -4,6 +4,8 @@ import { sensorCollector } from '../sensors/sensorCollector';
 import { navigationService, type EndSessionResponse } from '../api/navigationService';
 import { tripMetadataService, type TripMetadata } from './tripMetadataService';
 import { geocodingService } from '../location/geocodingService';
+import { offlineStorage } from '../storage/offlineStorage';
+import { navigationEngineCoordinator } from './navigationEngineCoordinator';
 
 export class NavigationSessionLifecycle {
   private activeWs: WebSocket | null = null;
@@ -88,7 +90,12 @@ export class NavigationSessionLifecycle {
       store.setSessionId(sessionId);
       store.setSessionStatus('LIVE');
 
-      // 5. Open WebSocket stream
+      // 6. Start dual-engine coordinator (pre-warms local engine in parallel)
+      const originPoint: [number, number] | undefined =
+        startLon !== undefined && startLat !== undefined ? [startLon, startLat] : undefined;
+      navigationEngineCoordinator.start(sessionId, originPoint);
+
+      // 7. Open WebSocket stream
       this.openWebSocket(sessionId, routeCoords, roadName);
 
       return sessionId;
@@ -115,7 +122,8 @@ export class NavigationSessionLifecycle {
     store.setSessionStatus('ENDING');
 
     try {
-      // 2. Stop sensor collection & listeners immediately
+      // 2. Stop dual-engine coordinator and sensor collection
+      navigationEngineCoordinator.stop();
       sensorCollector.stop();
       store.setSensorStreaming(false);
 
@@ -131,7 +139,12 @@ export class NavigationSessionLifecycle {
       store.setWebsocketStatus('CLOSED');
 
       // 4. Tell backend to finalize session and persist summary in SQLite
-      const summary = await navigationService.endSession(sessionId);
+      let summary: EndSessionResponse | null = null;
+      try {
+        summary = await navigationService.endSession(sessionId);
+      } catch (endErr) {
+        console.warn('[SessionLifecycle] Backend endSession call failed (offline/unreachable):', endErr);
+      }
 
       // 5. Update local trip metadata with finalized distance & duration metrics
       if (summary) {
@@ -183,10 +196,28 @@ export class NavigationSessionLifecycle {
           }));
         }
 
-        // Begin pushing real sensor measurements over WebSocket
+        // Begin pushing real sensor measurements over WebSocket and buffering locally
         sensorCollector.start((packet) => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify(packet));
+          } else {
+            // Buffer locally if WS drops during live session
+            if (packet.type === 'imu' && packet.accel_x !== undefined) {
+              offlineStorage.bufferSensorBatch(sessionId, [{
+                session_id: sessionId,
+                timestamp: packet.timestamp || Date.now() / 1000.0,
+                seq_num: packet.seq_num || 0,
+                type: 'imu',
+                imu: {
+                  ax: packet.accel_x ?? 0,
+                  ay: packet.accel_y ?? 0,
+                  az: packet.accel_z ?? 0,
+                  gx: packet.gyro_x ?? 0,
+                  gy: packet.gyro_y ?? 0,
+                  gz: packet.gyro_z ?? 0,
+                },
+              }]).catch(() => {});
+            }
           }
         });
       };
@@ -195,7 +226,8 @@ export class NavigationSessionLifecycle {
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'navigation_state') {
-            store.updateState(data);
+            // Forward to Dual-Engine Coordinator to maintain server priority & continuity
+            navigationEngineCoordinator.onServerNavigationState(data);
           }
         } catch (e) {
           console.error('Failed to parse navigation WS packet', e);
@@ -204,8 +236,12 @@ export class NavigationSessionLifecycle {
 
       ws.onclose = () => {
         store.setWebsocketStatus('CLOSED');
-        sensorCollector.stop();
-        store.setSensorStreaming(false);
+        if (store.sessionStatus === 'LIVE') {
+          console.warn('[SessionLifecycle] WebSocket lost during live session. Local fallback engine taking over.');
+        } else {
+          sensorCollector.stop();
+          store.setSensorStreaming(false);
+        }
       };
 
       ws.onerror = (err) => {

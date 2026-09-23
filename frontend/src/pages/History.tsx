@@ -18,6 +18,7 @@ import {
   Copy,
   Check,
   Clock3,
+  WifiOff,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Link, useNavigate } from 'react-router-dom';
@@ -29,6 +30,7 @@ import {
   type SessionSummary,
   type SessionDetail,
 } from '../services/api/historyService';
+import { offlineStorage } from '../services/storage/offlineStorage';
 import { tripMetadataService, type TripMetadata } from '../services/navigation/tripMetadataService';
 import { savedRouteService, type SavedPlaceItem } from '../services/navigation/savedRouteService';
 import { geocodingService } from '../services/location/geocodingService';
@@ -108,6 +110,9 @@ export default function History() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+
   // Client-persisted trip metadata, saved routes, and geocoded place names
   const [tripMetadataMap, setTripMetadataMap] = useState<Record<string, TripMetadata>>(() => {
     return {
@@ -138,6 +143,10 @@ export default function History() {
 
   const handleExportJson = () => {
     if (!selectedTrip) return;
+    if (selectedTrip.session_id.startsWith('local-offline-')) {
+      offlineStorage.exportSessionAsJson(selectedTrip.session_id);
+      return;
+    }
     const meta = tripMetadataMap[selectedTrip.session_id];
     const exportData = {
       ...(selectedDetail || selectedTrip),
@@ -197,51 +206,74 @@ export default function History() {
     };
   }, []);
 
-  // Fetch session list (combines backend history records + pre-seeded frontend route fixtures)
-  const loadSessions = useCallback(() => {
+  // Fetch session list (combines backend history records + offline sessions + route fixtures)
+  const loadSessions = useCallback(async () => {
     setLoading(true);
     setError(null);
-    historyService
-      .getSessions(50)
-      .then((data) => {
-        const backendList = data || [];
-        // Combine backend sessions with route fixtures seamlessly
-        const fixtureSummaries = TRIP_FIXTURES.map((f) => f.summary);
-        
-        // Prevent duplicate IDs if fixtures already exist in backend
-        const existingIds = new Set(backendList.map((s) => s.session_id));
-        const uniqueFixtures = fixtureSummaries.filter((f) => !existingIds.has(f.session_id));
-        
-        const combined = [...backendList, ...uniqueFixtures].sort(
-          (a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
-        );
+    try {
+      const res = await historyService.getSessions(50);
+      setIsOfflineMode(res.isOfflineFallback || !navigator.onLine);
+      if (res.lastSyncTime) setLastSyncTime(res.lastSyncTime);
 
-        setSessions(combined);
-        setLoading(false);
+      const backendList = res.sessions || [];
 
-        // Collect all distinct coordinates to reverse geocode in background
-        const coordsToResolve: Array<{ lat: number; lon: number }> = [];
-        for (const item of combined) {
-          if (item.start_lat !== null && item.start_lat !== undefined && item.start_lon !== null && item.start_lon !== undefined) {
-            coordsToResolve.push({ lat: item.start_lat, lon: item.start_lon });
-          }
-          if (item.end_lat !== null && item.end_lat !== undefined && item.end_lon !== null && item.end_lon !== undefined) {
-            coordsToResolve.push({ lat: item.end_lat, lon: item.end_lon });
-          }
+      // Also read local offline sessions from IndexedDB
+      let localOfflineList: SessionSummary[] = [];
+      try {
+        const idbSessions = await offlineStorage.getOfflineSessions();
+        localOfflineList = idbSessions.map((s) => ({
+          session_id: s.session_id,
+          start_time: s.started_at,
+          end_time: s.ended_at || null,
+          distance_meters: s.summary_metrics?.estimated_distance_m || 0,
+          duration_seconds: s.summary_metrics?.total_duration_s || 0,
+          vehicle_type: s.vehicle_type || 'CAR',
+          start_lat: s.geometry && s.geometry.length > 0 ? s.geometry[0][1] : 23.0225,
+          start_lon: s.geometry && s.geometry.length > 0 ? s.geometry[0][0] : 72.5714,
+          end_lat: s.geometry && s.geometry.length > 0 ? s.geometry[s.geometry.length - 1][1] : 23.2156,
+          end_lon: s.geometry && s.geometry.length > 0 ? s.geometry[s.geometry.length - 1][0] : 72.6369,
+          is_offline_cached: true,
+        }));
+      } catch (idbErr) {
+        console.warn('Could not read offline sessions:', idbErr);
+      }
+
+      // Combine backend sessions with route fixtures seamlessly
+      const fixtureSummaries = TRIP_FIXTURES.map((f) => f.summary);
+      
+      const existingIds = new Set([...backendList, ...localOfflineList].map((s) => s.session_id));
+      const uniqueFixtures = fixtureSummaries.filter((f) => !existingIds.has(f.session_id));
+      
+      const combined = [...localOfflineList, ...backendList, ...uniqueFixtures].sort(
+        (a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
+      );
+
+      setSessions(combined);
+      setLoading(false);
+
+      // Collect all distinct coordinates to reverse geocode in background
+      const coordsToResolve: Array<{ lat: number; lon: number }> = [];
+      for (const item of combined) {
+        if (item.start_lat !== null && item.start_lat !== undefined && item.start_lon !== null && item.start_lon !== undefined) {
+          coordsToResolve.push({ lat: item.start_lat, lon: item.start_lon });
         }
-
-        if (coordsToResolve.length > 0) {
-          geocodingService.resolveCoordinates(coordsToResolve).then((resolvedMap) => {
-            setGeoNamesMap((prev) => ({ ...prev, ...resolvedMap }));
-          });
+        if (item.end_lat !== null && item.end_lat !== undefined && item.end_lon !== null && item.end_lon !== undefined) {
+          coordsToResolve.push({ lat: item.end_lat, lon: item.end_lon });
         }
-      })
-      .catch((err) => {
-        console.error('History API error, falling back to local routes:', err);
-        const fixtureSummaries = TRIP_FIXTURES.map((f) => f.summary);
-        setSessions(fixtureSummaries);
-        setLoading(false);
-      });
+      }
+
+      if (coordsToResolve.length > 0) {
+        geocodingService.resolveCoordinates(coordsToResolve).then((resolvedMap) => {
+          setGeoNamesMap((prev) => ({ ...prev, ...resolvedMap }));
+        });
+      }
+    } catch (err) {
+      console.error('History fetch error, falling back to local fixtures:', err);
+      setIsOfflineMode(true);
+      const fixtureSummaries = TRIP_FIXTURES.map((f) => f.summary);
+      setSessions(fixtureSummaries);
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -498,6 +530,23 @@ export default function History() {
           )}
         </div>
       </div>
+
+      {/* Offline Cache Indicator */}
+      {isOfflineMode && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/90 px-4 py-2.5 text-xs text-slate-700 shadow-2xs backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/90 dark:text-slate-300">
+          <div className="flex items-center gap-2">
+            <WifiOff className="h-4 w-4 text-slate-500" />
+            <span>
+              <strong className="font-semibold text-slate-900 dark:text-slate-100">Offline</strong> · Showing cached trip history
+            </span>
+          </div>
+          {lastSyncTime && (
+            <span className="text-[11px] text-slate-500">
+              Last synced: {formatTripDateTime(lastSyncTime).timeStr} {formatTripDateTime(lastSyncTime).monthDay}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* 2. Search + Filter Bar (hidden on mobile when viewing trip detail) */}
       {!loading && !error && meaningfulSessions.length > 0 && (

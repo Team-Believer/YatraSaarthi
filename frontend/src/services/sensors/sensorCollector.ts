@@ -21,7 +21,7 @@ export class SensorCollectorSubsystem {
   private orientation = new OrientationCollector();
   private normalizer = new SensorNormalizer();
   
-  private onPacket: PacketCallback | null = null;
+  private subscribers = new Set<PacketCallback>();
   private isRunning = false;
   private gnssSuppressed = false;
 
@@ -33,9 +33,18 @@ export class SensorCollectorSubsystem {
     return this.gnssSuppressed;
   }
 
-  public async start(onPacket: PacketCallback) {
+  public subscribe(callback: PacketCallback): () => void {
+    this.subscribers.add(callback);
+    return () => {
+      this.subscribers.delete(callback);
+    };
+  }
+
+  public async start(onPacket?: PacketCallback) {
+    if (onPacket) {
+      this.subscribers.add(onPacket);
+    }
     if (this.isRunning) return;
-    this.onPacket = onPacket;
     this.isRunning = true;
 
     // Detect capabilities and report them
@@ -44,14 +53,12 @@ export class SensorCollectorSubsystem {
     store.updateCapabilities(caps);
 
     // Initial packet with capabilities
-    if (this.onPacket) {
-      this.onPacket({
-        type: 'combined',
-        timestamp: Date.now() / 1000.0,
-        seq_num: 0,
-        capabilities: caps as any
-      });
-    }
+    this.broadcast({
+      type: 'combined',
+      timestamp: Date.now() / 1000.0,
+      seq_num: 0,
+      capabilities: caps as any,
+    });
 
     // Geolocation
     if (caps.geolocation) {
@@ -89,26 +96,36 @@ export class SensorCollectorSubsystem {
     this.motion.stop();
     this.orientation.stop();
     this.isRunning = false;
-    this.onPacket = null;
+    this.subscribers.clear();
     this.gnssSuppressed = false;
   }
 
+  private broadcast(packet: NormalizedSensorPacket) {
+    this.subscribers.forEach((cb) => {
+      try {
+        cb(packet);
+      } catch (err) {
+        console.error('[SensorCollector] Subscriber dispatch error:', err);
+      }
+    });
+  }
+
   private handleGeoData = (data: GeolocationData) => {
-    if (!this.onPacket || this.gnssSuppressed) return;
+    if (this.gnssSuppressed || this.subscribers.size === 0) return;
     const packet = this.normalizer.normalizeGnss(data);
-    this.onPacket(packet);
+    this.broadcast(packet);
   };
 
   private handleMotionData = (data: MotionData) => {
-    if (!this.onPacket) return;
+    if (this.subscribers.size === 0) return;
     const packet = this.normalizer.normalizeImu(data);
-    this.onPacket(packet);
+    this.broadcast(packet);
   };
 
   private handleOrientationData = (data: OrientationData) => {
-    if (!this.onPacket) return;
+    if (this.subscribers.size === 0) return;
     const packet = this.normalizer.normalizeOrientation(data);
-    this.onPacket(packet);
+    this.broadcast(packet);
   };
 }
 

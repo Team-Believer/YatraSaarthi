@@ -13,10 +13,14 @@ import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
 import NavigationMemoryPage from './pages/NavigationMemoryPage';
+import { PwaInstallPrompt } from './components/pwa/PwaInstallPrompt';
+import { PwaUpdatePrompt } from './components/pwa/PwaUpdatePrompt';
 
 function App() {
   return (
     <Router>
+      <PwaUpdatePrompt />
+      <PwaInstallPrompt />
       <Routes>
         <Route path="/" element={<SplashScreen />} />
         <Route path="/onboarding" element={<OnboardingPage />} />

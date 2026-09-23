@@ -2,10 +2,12 @@
  * YatraSaarthi - Saved Route & Place Persistence Service
  *
  * Centralized client-side persistence for saved routes and places.
- * Stores data in localStorage under 'yatrasaarthi_saved_routes_v1'.
+ * Stores data in localStorage and IndexedDB ('yatrasaarthi_offline_db_v1')
+ * for 100% offline access to geometries, waypoints, and turn steps.
  */
 
 import { type TravelMode, type RouteStep } from '../../stores/useRouteStore';
+import { offlineStorage } from '../storage/offlineStorage';
 
 export interface SavedPlaceItem {
   id: string;
@@ -93,6 +95,9 @@ export const savedRouteService = {
   setSavedItems(items: SavedPlaceItem[]): void {
     try {
       localStorage.setItem(SAVED_ROUTES_STORAGE_KEY, JSON.stringify(items));
+      offlineStorage.cacheSavedRoutes(items).catch((err) => {
+        console.warn('Failed to sync saved routes to IndexedDB:', err);
+      });
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent(SAVED_ROUTES_EVENT, { detail: items }));
       }

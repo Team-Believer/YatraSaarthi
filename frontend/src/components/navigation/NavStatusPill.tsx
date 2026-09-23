@@ -53,8 +53,8 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
   const outageDuration = useNavigationStore((s) => s.state.gnss_outage_duration);
   const envState = useNavigationStore((s) => s.state.environment_state);
 
+  const engineSource = useNavigationStore((s) => s.state.engine_source);
   const websocketStatus = useNavigationStore((s) => s.websocketStatus);
-  const errorMessage = useNavigationStore((s) => s.errorMessage);
 
   const locPermission = useLocationStore((s) => s.permission);
   const locAvailability = useLocationStore((s) => s.availability);
@@ -68,16 +68,43 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
     return null;
   }
 
-  // Derive precise category from real backend state
+  // Derive precise category from real backend / local state
   let category: NavStateCategory = 'STANDBY';
   let title = 'Navigation ready';
   let secondary = 'Sensors standby';
 
   if (isLiveNav) {
-    if (websocketStatus === 'ERROR' || websocketStatus === 'CLOSED') {
+    if (engineSource === 'LOCAL') {
+      const modeUpper = (navMode || '').toUpperCase();
+      if (modeUpper.includes('REACQUISITION') || modeUpper.includes('RECOVERY')) {
+        category = 'GNSS_RECOVERING';
+        title = 'GNSS recovering';
+        secondary = 'Validating satellite fix';
+      } else if (
+        modeUpper.includes('DEAD_RECKONING') ||
+        modeUpper.includes('LOST') ||
+        !gnssAvailable ||
+        envState === 'TUNNEL'
+      ) {
+        category = 'DEAD_RECKONING';
+        title = 'Dead reckoning';
+        secondary =
+          typeof outageDuration === 'number' && outageDuration > 0
+            ? `GNSS unavailable · ${formatOutageDuration(outageDuration)}`
+            : 'Local AI engine active';
+      } else if (gnssAvailable) {
+        category = 'GNSS_FIX';
+        title = 'GNSS signal';
+        secondary = 'Local engine aiding';
+      } else {
+        category = 'DEAD_RECKONING';
+        title = 'Dead reckoning';
+        secondary = 'Local offline engine';
+      }
+    } else if (websocketStatus === 'ERROR' || websocketStatus === 'CLOSED' || engineSource === 'UNAVAILABLE') {
       category = 'ERROR';
       title = 'Connection lost';
-      secondary = errorMessage || 'Telemetry disconnected';
+      secondary = 'Local sensor logging active';
     } else {
       const modeUpper = (navMode || '').toUpperCase();
 
@@ -121,6 +148,10 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
     category = 'STANDBY';
     title = 'Finalizing...';
     secondary = 'Saving trip summary';
+  } else if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    category = 'STANDBY';
+    title = 'Offline mode';
+    secondary = 'Saved routes available';
   } else if (locPermission === 'denied') {
     category = 'PERMISSION_REQUIRED';
     title = 'Location required';

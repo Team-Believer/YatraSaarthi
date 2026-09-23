@@ -18,12 +18,14 @@ import {
   Clock3,
   Milestone,
   Compass,
+  WifiOff,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useNavigate } from 'react-router-dom';
 import { useNavigationStore } from '../stores/useNavigationStore';
 import { useRouteStore, type TravelMode } from '../stores/useRouteStore';
 import { useLocationStore } from '../stores/useLocationStore';
+import { useSystemState } from '../hooks/useSystemState';
 import { routeService } from '../services/navigation/routeService';
 import { savedRouteService, type SavedPlaceItem } from '../services/navigation/savedRouteService';
 import { TripRouteMap } from '../components/map/TripRouteMap';
@@ -79,6 +81,7 @@ export default function NavigationMemoryPage() {
   const userLat = useLocationStore((s) => s.latitude);
   const userLon = useLocationStore((s) => s.longitude);
   const userPlaceName = useLocationStore((s) => s.placeName);
+  const { networkState } = useSystemState();
 
   // Saved items from persistence service
   const [savedItems, setSavedItems] = useState<SavedPlaceItem[]>(() => {
@@ -255,6 +258,16 @@ export default function NavigationMemoryPage() {
           <Plus className="w-5 h-5 stroke-[2.4]" />
         </button>
       </div>
+
+      {/* Offline Alert Banner */}
+      {networkState === 'OFFLINE' && (
+        <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/90 px-3.5 py-2.5 text-xs text-slate-700 shadow-2xs backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/90 dark:text-slate-300">
+          <WifiOff className="h-4 w-4 text-slate-500 shrink-0" />
+          <span>
+            <strong className="font-semibold text-slate-900 dark:text-slate-100">Offline Mode</strong> · Saved routes and route geometries are fully available without internet.
+          </span>
+        </div>
+      )}
 
       {/* 2. Clean Navigation Search Field */}
       <div className="relative w-full">

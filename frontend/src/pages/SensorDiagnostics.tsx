@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigationStore } from '../stores/useNavigationStore';
 import { useSensorStore } from '../stores/useSensorStore';
+import { useSystemState } from '../hooks/useSystemState';
+import { offlineStorage } from '../services/storage/offlineStorage';
 import { ModelManagerCard } from '../components/dashboard/ModelManagerCard';
 import {
   Cpu,
@@ -18,6 +20,7 @@ import {
   Scale,
   MapPin,
   CheckCircle2,
+  Database,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { sensorService } from '../services/api/sensorService';
@@ -39,8 +42,16 @@ export default function SensorDiagnostics() {
   const fusedPosition = useNavigationStore((s) => s.fusedPosition);
 
   const capabilities = useSensorStore((s) => s.capabilities);
+  const { networkState } = useSystemState();
   const [mlStatus, setMlStatus] = useState<MLStatusResponse | null>(null);
   const [copiedSnapshot, setCopiedSnapshot] = useState(false);
+  const [storageMetrics, setStorageMetrics] = useState<{
+    sessionCount: number;
+    totalSensorSamples: number;
+    cachedTripsCount: number;
+    savedRoutesCount: number;
+    estimatedStorageBytes?: number;
+  } | null>(null);
   
   // Advanced Details accordion state (collapsed by default)
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -54,6 +65,10 @@ export default function SensorDiagnostics() {
     fetchMLStatus()
       .then((res) => setMlStatus(res))
       .catch(() => {});
+
+    offlineStorage.getStorageMetrics().then((m) => {
+      setStorageMetrics(m);
+    }).catch(() => {});
   }, []);
 
   // Track state transitions into the timeline
@@ -169,10 +184,29 @@ export default function SensorDiagnostics() {
       {/* 2. COMPACT SYSTEM STATUS BAR & SNAPSHOT ACTION                            */}
       {/* ========================================================================= */}
       <section aria-label="System health summary" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* Left: Compact Status Pill */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-border-clean shadow-2xs text-xs font-semibold text-ink self-start sm:self-auto">
-          <span className={clsx('w-2.5 h-2.5 rounded-full shrink-0', primaryDotColor)} />
-          <span className={primaryTextColor}>{primaryStatus}</span>
+        {/* Left: Compact Status Pill & Engine Source */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-border-clean shadow-2xs text-xs font-semibold text-ink self-start sm:self-auto">
+            <span className={clsx('w-2.5 h-2.5 rounded-full shrink-0', primaryDotColor)} />
+            <span className={primaryTextColor}>{primaryStatus}</span>
+          </div>
+
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-border-clean shadow-2xs text-xs font-medium text-ink-body">
+            <Cpu className="w-3.5 h-3.5 text-[#083335]" />
+            <span>Engine:</span>
+            <span
+              className={clsx(
+                'font-bold uppercase tracking-wider text-[11px] px-2 py-0.5 rounded-md',
+                state.engine_source === 'SERVER'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200/60'
+                  : state.engine_source === 'LOCAL'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                  : 'bg-amber-50 text-amber-700 border border-amber-200/60'
+              )}
+            >
+              {state.engine_source || (isLive ? 'SERVER' : 'STANDBY')}
+            </span>
+          </div>
         </div>
 
         {/* Right: Confidence Badge & Subtle Copy Snapshot */}
@@ -554,6 +588,58 @@ export default function SensorDiagnostics() {
           <span>GNSS Updates: <strong className="text-ink">{state.gnss_available ? 'Active (1 Hz)' : 'Unavailable'}</strong></span>
           <span>Innovation: <strong className="text-ink tabular-nums">{state.innovation_norm.toFixed(3)}</strong></span>
           <span>Covariance: <strong className="text-ink tabular-nums">{state.covariance_trace.toFixed(2)}</strong></span>
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 6B. OFFLINE PWA & STORAGE READINESS                                        */}
+      {/* ========================================================================= */}
+      <section className="bg-white rounded-xl border border-border-clean p-4 sm:p-5 shadow-2xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Database className="w-4 h-4 text-[#083335]" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[#083335]">
+              OFFLINE & STORAGE READINESS
+            </h2>
+          </div>
+          <span className="text-[11px] text-ink-mute">IndexedDB & PWA Infrastructure</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+          <div className="p-3 bg-slate-50 rounded-lg border border-border-clean flex flex-col justify-between">
+            <span className="text-[10.5px] uppercase font-bold text-ink-mute">Network Mode</span>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={clsx('w-2 h-2 rounded-full', networkState === 'ONLINE' ? 'bg-emerald-500' : 'bg-slate-400')} />
+              <span className="font-semibold text-ink">{networkState}</span>
+            </div>
+            <span className="text-[10px] text-ink-mute mt-1">PWA Shell: Cached</span>
+          </div>
+
+          <div className="p-3 bg-slate-50 rounded-lg border border-border-clean flex flex-col justify-between">
+            <span className="text-[10.5px] uppercase font-bold text-ink-mute">Local Database</span>
+            <span className="font-semibold text-ink mt-1">IndexedDB v1</span>
+            <span className="text-[10px] text-ink-mute mt-1">
+              {storageMetrics ? `${storageMetrics.totalSensorSamples} IMU samples stored` : 'Ready'}
+            </span>
+          </div>
+
+          <div className="p-3 bg-slate-50 rounded-lg border border-border-clean flex flex-col justify-between">
+            <span className="text-[10.5px] uppercase font-bold text-ink-mute">Cached Data</span>
+            <span className="font-semibold text-ink mt-1">
+              {storageMetrics?.cachedTripsCount || 0} Trips · {storageMetrics?.savedRoutesCount || 0} Routes
+            </span>
+            <span className="text-[10px] text-ink-mute mt-1">Dual-sync active</span>
+          </div>
+
+          <div className="p-3 bg-slate-50 rounded-lg border border-border-clean flex flex-col justify-between">
+            <span className="text-[10.5px] uppercase font-bold text-ink-mute">Dead Reckoning Engine</span>
+            <span className="font-semibold text-ink mt-1">
+              {networkState === 'ONLINE' ? 'Server InEKF' : 'Client-Side DR Not Ported'}
+            </span>
+            <span className="text-[10px] text-ink-mute mt-1">
+              {networkState === 'ONLINE' ? 'Streaming active' : 'Offline sensor logging ready'}
+            </span>
+          </div>
         </div>
       </section>
 

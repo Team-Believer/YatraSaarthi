@@ -71,6 +71,7 @@ export interface NavigationState {
   // App specific state
   session_id: string | null;
   packets_received: number;
+  engine_source?: 'SERVER' | 'LOCAL' | 'UNAVAILABLE';
 }
 
 const defaultNavigationState: NavigationState = {
@@ -117,6 +118,7 @@ const defaultNavigationState: NavigationState = {
 
   session_id: null,
   packets_received: 0,
+  engine_source: 'SERVER',
 };
 
 interface NavigationStore {
