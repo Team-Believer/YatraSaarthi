@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, MapPin, X, Loader2 } from 'lucide-react';
+import { Search, MapPin, X, Loader2, ArrowLeft } from 'lucide-react';
 import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useLocationStore } from '../../stores/useLocationStore';
 
@@ -97,7 +97,7 @@ export const DestinationSearch = () => {
             className="w-9 h-9 rounded-full bg-canvas-soft hover:bg-surface-pressed flex items-center justify-center shrink-0 text-ink transition-colors cursor-pointer active:scale-95"
             title="Clear destination"
           >
-            <span className="text-lg font-bold leading-none select-none">←</span>
+            <ArrowLeft className="w-5 h-5 text-ink" />
           </button>
         ) : (
           <div className="w-9 h-9 rounded-full bg-canvas-soft flex items-center justify-center shrink-0 text-ink select-none">

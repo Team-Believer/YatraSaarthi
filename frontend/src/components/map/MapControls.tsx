@@ -131,20 +131,24 @@ export const MapControls: React.FC<MapControlsProps> = ({
           type="button"
           onClick={handleZoomIn}
           aria-label="Zoom in"
-          title="Zoom in"
-          className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-canvas-soft text-ink transition-colors cursor-pointer select-none active:scale-[0.96]"
+          className="group relative w-11 h-11 flex items-center justify-center rounded-xl hover:bg-canvas-soft text-ink transition-colors cursor-pointer select-none active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
         >
           <Plus className="w-4.5 h-4.5" />
+          <div className="absolute right-full mr-3 px-3 py-1 bg-white border border-slate-200/90 text-slate-900 text-xs font-semibold rounded-xl shadow-lg shadow-slate-900/5 whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-150 delay-150 pointer-events-none z-50">
+            Zoom in
+          </div>
         </button>
         <div className="h-px bg-border-clean mx-1.5" />
         <button
           type="button"
           onClick={handleZoomOut}
           aria-label="Zoom out"
-          title="Zoom out"
-          className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-canvas-soft text-ink transition-colors cursor-pointer select-none active:scale-[0.96]"
+          className="group relative w-11 h-11 flex items-center justify-center rounded-xl hover:bg-canvas-soft text-ink transition-colors cursor-pointer select-none active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
         >
           <Minus className="w-4.5 h-4.5" />
+          <div className="absolute right-full mr-3 px-3 py-1 bg-white border border-slate-200/90 text-slate-900 text-xs font-semibold rounded-xl shadow-lg shadow-slate-900/5 whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-150 delay-150 pointer-events-none z-50">
+            Zoom out
+          </div>
         </button>
       </div>
 
@@ -158,13 +162,8 @@ export const MapControls: React.FC<MapControlsProps> = ({
               ? 'Orientation: Heading-Up. Click to switch to North-Up'
               : 'Orientation: North-Up. Click to switch to Heading-Up'
           }
-          title={
-            orientationMode === 'HEADING_UP'
-              ? 'Orientation: Heading-Up'
-              : 'Orientation: North-Up'
-          }
           className={clsx(
-            'w-11 h-11 rounded-xl flex items-center justify-center relative transition-colors cursor-pointer select-none active:scale-[0.96]',
+            'group relative w-11 h-11 rounded-xl flex items-center justify-center transition-colors cursor-pointer select-none active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
             orientationMode === 'HEADING_UP'
               ? 'bg-canvas-softer text-ink'
               : 'hover:bg-canvas-soft text-ink-body hover:text-ink'
@@ -179,6 +178,9 @@ export const MapControls: React.FC<MapControlsProps> = ({
           <span className="absolute bottom-1 right-1 text-[7px] font-bold tracking-tight leading-none text-ink">
             {orientationMode === 'HEADING_UP' ? 'HDG' : 'N'}
           </span>
+          <div className="absolute right-full mr-3 px-3 py-1 bg-white border border-slate-200/90 text-slate-900 text-xs font-semibold rounded-xl shadow-lg shadow-slate-900/5 whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-150 delay-150 pointer-events-none z-50">
+            {orientationMode === 'HEADING_UP' ? 'Orient north' : 'Heading up'}
+          </div>
         </button>
       </div>
 
@@ -188,30 +190,34 @@ export const MapControls: React.FC<MapControlsProps> = ({
           type="button"
           onClick={handleToggle3D}
           aria-label={is3D ? 'Switch to 2D view' : 'Switch to 3D perspective'}
-          title={is3D ? '3D Navigation Perspective' : '2D Top-Down View'}
           className={clsx(
-            'w-11 h-11 rounded-xl flex items-center justify-center transition-colors cursor-pointer select-none active:scale-[0.96]',
+            'group relative w-11 h-11 rounded-xl flex items-center justify-center transition-colors cursor-pointer select-none active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
             is3D
               ? 'bg-canvas-softer text-ink'
               : 'hover:bg-canvas-soft text-ink-body hover:text-ink'
           )}
         >
           <Box className="w-4.5 h-4.5 text-ink" />
+          <div className="absolute right-full mr-3 px-3 py-1 bg-white border border-slate-200/90 text-slate-900 text-xs font-semibold rounded-xl shadow-lg shadow-slate-900/5 whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-150 delay-150 pointer-events-none z-50">
+            {is3D ? '2D view' : '3D perspective'}
+          </div>
         </button>
         <div className="h-px w-8 bg-border-clean mx-auto" />
         <button
           type="button"
           onClick={() => setShowStyles(!showStyles)}
           aria-label="Toggle map layers and styles"
-          title="Change map style"
           className={clsx(
-            'w-11 h-11 rounded-xl flex items-center justify-center transition-colors cursor-pointer select-none active:scale-[0.96]',
+            'group relative w-11 h-11 rounded-xl flex items-center justify-center transition-colors cursor-pointer select-none active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
             showStyles
               ? 'bg-canvas-softer text-ink'
               : 'hover:bg-canvas-soft text-ink-body hover:text-ink'
           )}
         >
           <Layers className="w-4.5 h-4.5 text-ink" />
+          <div className="absolute right-full mr-3 px-3 py-1 bg-white border border-slate-200/90 text-slate-900 text-xs font-semibold rounded-xl shadow-lg shadow-slate-900/5 whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-150 delay-150 pointer-events-none z-50">
+            Map styles
+          </div>
         </button>
       </div>
 
@@ -222,10 +228,12 @@ export const MapControls: React.FC<MapControlsProps> = ({
             type="button"
             onClick={onRecenter}
             aria-label="Center camera on vehicle"
-            title="Centered on vehicle"
-            className="w-11 h-11 rounded-xl bg-canvas-soft text-ink hover:bg-surface-pressed transition-colors flex items-center justify-center cursor-pointer select-none active:scale-[0.96]"
+            className="group relative w-11 h-11 rounded-xl bg-canvas-soft text-ink hover:bg-surface-pressed transition-colors flex items-center justify-center cursor-pointer select-none active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
           >
             <LocateFixed className="w-4.5 h-4.5 text-ink" />
+            <div className="absolute right-full mr-3 px-3 py-1 bg-white border border-slate-200/90 text-slate-900 text-xs font-semibold rounded-xl shadow-lg shadow-slate-900/5 whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-150 delay-150 pointer-events-none z-50">
+              Recenter
+            </div>
           </button>
         </div>
       )}

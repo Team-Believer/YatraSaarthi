@@ -20,36 +20,43 @@ export default function AppLayout() {
   const isMapPage = mapPages.includes(location.pathname);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-slate-900 flex">
-      {/* Floating Menu Drawer Backdrop (when open) */}
+    <div className="relative h-screen w-screen overflow-hidden bg-slate-50">
+      {/* 1. Mobile Floating Menu Drawer Backdrop */}
       {drawerOpen && (
         <div
           onClick={() => setDrawerOpen(false)}
-          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 animate-in fade-in duration-200"
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 md:hidden animate-in fade-in duration-200"
         />
       )}
 
-      {/* Slide-out Navigation Drawer */}
+      {/* 2. Mobile Slide-out Navigation Drawer (Only on small screens) */}
       <div
-        className={`fixed top-0 bottom-0 left-0 z-50 transform transition-transform duration-300 ease-out ${
+        className={`fixed top-0 bottom-0 left-0 z-50 transform transition-transform duration-300 ease-out md:hidden ${
           drawerOpen ? 'translate-x-0' : '-translate-x-full'
-        } ${!isMapPage ? 'md:relative md:translate-x-0' : ''}`}
+        }`}
       >
-        <Sidebar onClose={() => setDrawerOpen(false)} isDrawer={isMapPage} />
+        <Sidebar onClose={() => setDrawerOpen(false)} isDrawer={true} />
       </div>
 
-      {/* Main Viewport */}
-      <div className="flex-1 flex flex-col h-full w-full overflow-hidden relative">
-        {/* On secondary pages, render the topbar */}
+      {/* 3. Desktop Vertical Floating Navigation Rail Overlay (Reference UI Pattern) */}
+      <div className="fixed top-4 left-4 z-40 hidden md:flex items-center pointer-events-none">
+        <div className="pointer-events-auto flex flex-col">
+          <Sidebar />
+        </div>
+      </div>
+
+      {/* 4. Main Viewport Canvas (Full 100vw x 100vh) */}
+      <div className="w-full h-full relative flex flex-col overflow-hidden">
+        {/* On secondary pages, render topbar offset from the floating sidebar */}
         {!isMapPage && (
-          <div className="shrink-0 z-20">
+          <div className="shrink-0 z-20 md:pl-28">
             <Topbar onMenuClick={() => setDrawerOpen(true)} />
           </div>
         )}
 
-        {/* Floating Menu Trigger Button on Map Pages */}
+        {/* Floating Mobile Menu Button on Map Pages */}
         {isMapPage && location.pathname !== '/app/tunnel' && (
-          <div className="absolute top-4 sm:top-6 left-4 sm:left-6 z-30 flex items-center gap-2">
+          <div className="absolute top-4 sm:top-6 left-4 z-30 md:hidden flex items-center gap-2">
             <button
               onClick={() => setDrawerOpen(true)}
               aria-label="Open menu"
@@ -61,18 +68,18 @@ export default function AppLayout() {
           </div>
         )}
 
-        {/* Content Body */}
+        {/* Content Body (Full bleed on map pages; padded on secondary pages) */}
         <main
           className={`flex-1 w-full h-full relative ${
             isMapPage
               ? 'p-0 overflow-hidden'
-              : 'p-4 md:p-6 pb-20 md:pb-6 overflow-y-auto bg-slate-50'
+              : 'p-4 md:p-6 md:pl-28 pb-20 md:pb-6 overflow-y-auto bg-slate-50'
           }`}
         >
           <Outlet />
         </main>
 
-        {/* Mobile Bottom Nav Bar (renders across all views on small screens) */}
+        {/* Mobile Bottom Nav Bar (renders across all views on mobile screens) */}
         <MobileBottomNav />
       </div>
 

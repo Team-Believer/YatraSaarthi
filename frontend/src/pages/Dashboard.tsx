@@ -249,7 +249,7 @@ export default function Dashboard() {
 
         {/* ROUTE PREVIEW PLANNING PANEL (Lower-Left / Bottom Sheet) */}
         {!isLive && destination && routeCoordinates && (
-          <div className="absolute bottom-20 sm:bottom-6 left-4 sm:left-6 z-20 pointer-events-auto w-[calc(100%-2rem)] sm:w-[420px] max-w-[420px] pb-[env(safe-area-inset-bottom)]">
+          <div className="absolute bottom-20 sm:bottom-6 left-4 sm:left-24 z-20 pointer-events-auto w-[calc(100%-2rem)] sm:w-[420px] max-w-[420px] pb-[env(safe-area-inset-bottom)]">
             <RoutePreviewCard onStart={() => setFollowVehicle(true)} />
           </div>
         )}

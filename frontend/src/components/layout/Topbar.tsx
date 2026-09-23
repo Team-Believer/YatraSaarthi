@@ -58,14 +58,14 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
           <Link
             to="/app"
             aria-label="Back to navigation"
-            className="inline-flex items-center gap-1.5 h-10 px-2.5 rounded-lg text-[#111111] text-[15px] font-medium hover:bg-[#F3F3F3] active:bg-[#EDEDED] transition-colors duration-150 cursor-pointer"
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-900 text-xs font-semibold border border-slate-200/90 shadow-2xs transition-colors duration-150 cursor-pointer"
           >
-            <ArrowLeft className="w-4.5 h-4.5 text-[#111111]" strokeWidth={2} />
+            <ArrowLeft className="w-3.5 h-3.5 text-slate-900" strokeWidth={2.2} />
             <span className="hidden sm:inline">Navigate</span>
           </Link>
         )}
 
-        <h2 className="text-[18px] sm:text-[19px] font-bold text-[#111111] tracking-tight hidden md:inline">
+        <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight hidden md:inline">
           {getPageTitle(location.pathname)}
         </h2>
 
