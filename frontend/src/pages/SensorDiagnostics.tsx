@@ -25,6 +25,8 @@ import { clsx } from 'clsx';
 import { sensorService } from '../services/api/sensorService';
 import { fetchMLStatus, type MLStatusResponse } from '../services/api/mlService';
 
+import { formatISTTime24 } from '../utils/timeFormat';
+
 interface StateTimelineEvent {
   id: string;
   timestamp: string;
@@ -59,7 +61,7 @@ export default function SensorDiagnostics() {
   useEffect(() => {
     const currentMode = state.navigation_mode;
     if (currentMode && currentMode !== prevModeRef.current) {
-      const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false });
+      const timeStr = formatISTTime24(new Date());
       let category = 'GNSS';
       let details = 'Operating in GNSS satellite navigation mode';
 
@@ -94,7 +96,7 @@ export default function SensorDiagnostics() {
       setTimeline([
         {
           id: 'init-1',
-          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+          timestamp: formatISTTime24(new Date()),
           mode: state.navigation_mode || 'STANDBY',
           category: 'INITIALIZATION',
           details: 'Telemetry stream initialized. InEKF navigation engine ready.',
@@ -145,11 +147,11 @@ export default function SensorDiagnostics() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-5 animate-in fade-in duration-300 pb-28 md:pb-12 select-none">
+    <div className="max-w-[1240px] w-full mx-auto space-y-5 animate-in fade-in duration-300 pb-28 md:pb-12 select-none">
       {/* TOP HEADER & TELEMETRY TOOLBAR */}
-      <div className="bg-slate-900 text-white p-5 md:p-6 rounded-3xl border border-slate-800 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-[#083335] text-white p-5 md:p-6 rounded-3xl border border-[#0e4345] shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-brand-600/30 border border-brand-500/40 flex items-center justify-center text-brand-400 shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white shrink-0">
             <Terminal className="w-6 h-6" />
           </div>
           <div>
@@ -157,11 +159,11 @@ export default function SensorDiagnostics() {
               <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white">
                 Engineering Diagnostics & AI Center
               </h1>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-brand-400 border border-slate-700">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-white border border-white/20">
                 v2.4 InEKF
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-white/70 mt-0.5">
               Real-time Invariant EKF state vector, neural motion intelligence, and multi-sensor diagnostics
             </p>
           </div>
@@ -311,7 +313,7 @@ export default function SensorDiagnostics() {
       </div>
 
       {/* SECTION 2: AI MOTION INTELLIGENCE CENTER (E5 & U2 MODELS) */}
-      <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-brand-950 rounded-3xl p-5 md:p-6 text-white border border-slate-800 shadow-xl space-y-5">
+      <div className="bg-gradient-to-br from-[#052426] via-[#083335] to-[#0e4345] rounded-3xl p-5 md:p-6 text-white border border-[#0e4345] shadow-xl space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-brand-500/20 border border-brand-400/30 flex items-center justify-center text-brand-400 shrink-0">

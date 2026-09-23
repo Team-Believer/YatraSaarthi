@@ -41,12 +41,7 @@ export interface TelemetryInsights {
 
 export const historyService = {
   getSessions: async (limit: number = 50): Promise<SessionSummary[]> => {
-    try {
-      return await apiClient.get<SessionSummary[]>(`/api/v1/history/sessions?limit=${limit}`);
-    } catch {
-      // Fallback try legacy endpoint
-      return await apiClient.get<SessionSummary[]>(`/api/v1/history?limit=${limit}`);
-    }
+    return await apiClient.get<SessionSummary[]>(`/api/v1/history/sessions?limit=${limit}`);
   },
 
   getSessionDetail: async (sessionId: string): Promise<SessionDetail> => {

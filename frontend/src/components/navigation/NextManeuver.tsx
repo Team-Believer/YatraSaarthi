@@ -58,7 +58,7 @@ export const NextManeuver: React.FC<NextManeuverProps> = ({ className }) => {
       )}
     >
       {/* Maneuver Icon */}
-      <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center shrink-0 shadow-xs">
+      <div className="w-10 h-10 rounded-full bg-[#083335] flex items-center justify-center shrink-0 shadow-xs">
         {getManeuverIcon()}
       </div>
 

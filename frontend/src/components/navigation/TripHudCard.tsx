@@ -181,7 +181,7 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
                 onClick={handleStartSession}
                 disabled={sessionStatus === 'STARTING'}
                 aria-label="Start navigation"
-                className="h-10 md:h-11 px-4 md:px-5 bg-black hover:bg-neutral-800 text-white rounded-full text-xs md:text-sm font-medium flex items-center gap-2 shadow-2xs transition-colors cursor-pointer select-none active:scale-[0.97]"
+                className="h-10 md:h-11 px-4 md:px-5 bg-[#083335] hover:bg-[#052426] active:bg-[#031718] text-white rounded-full text-xs md:text-sm font-medium flex items-center gap-2 shadow-2xs transition-colors cursor-pointer select-none active:scale-[0.97]"
               >
                 <Play className="w-3.5 h-3.5 fill-white" />
                 <span>{sessionStatus === 'STARTING' ? 'Starting...' : 'Start navigation'}</span>

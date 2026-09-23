@@ -1,6 +1,17 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
+:root {
+  --color-primary: #083335;
+  --color-primary-hover: #052426;
+  --color-primary-active: #031718;
+  --color-primary-soft: #E6EDED;
+  --color-primary-foreground: #FFFFFF;
+  --color-ink: #083335;
+  --color-ink-body: #4A6364;
+  --color-ink-mute: #8CA5A6;
+}
+
 @layer base {
   body {
     @apply bg-white text-ink font-sans antialiased overflow-hidden;
@@ -31,16 +42,16 @@
   }
 
   .nav-glass-dark {
-    @apply bg-ink-elevated border border-white/10 text-white shadow-nav-floating;
+    @apply bg-primary border border-white/10 text-white shadow-nav-floating;
   }
 
   .nav-pill-base {
     @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-white text-ink border border-border-clean shadow-nav-pill transition-all duration-150;
   }
 
-  /* Core Pill Button System */
+  /* Core Pill Button System - Evergreen #083335 */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white text-sm font-medium transition-all duration-150 cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97];
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-primary hover:bg-primary-hover active:bg-primary-active text-white text-sm font-medium transition-all duration-150 cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97];
   }
 
   .btn-secondary {

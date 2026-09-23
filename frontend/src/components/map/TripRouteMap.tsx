@@ -6,6 +6,7 @@ import type { TrajectoryPoint } from '../../services/api/historyService';
 
 interface TripRouteMapProps {
   points?: TrajectoryPoint[];
+  geometry?: [number, number][];
   startLat?: number | null;
   startLon?: number | null;
   endLat?: number | null;
@@ -15,6 +16,7 @@ interface TripRouteMapProps {
 
 export const TripRouteMap: React.FC<TripRouteMapProps> = ({
   points = [],
+  geometry,
   startLat,
   startLon,
   endLat,
@@ -33,6 +35,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
   const coordinates: [number, number][] = React.useMemo(() => {
     const coords: [number, number][] = [];
 
+    // 1. First priority: recorded trajectory points from live navigation
     if (points && points.length > 0) {
       for (const p of points) {
         if (
@@ -48,7 +51,16 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
       }
     }
 
-    // Fallback to start/end points if points array has < 2 valid coordinates but start & end exist
+    // 2. Second priority: direct route geometry array [lon, lat]
+    if (coords.length < 2 && geometry && geometry.length >= 2) {
+      for (const pt of geometry) {
+        if (Array.isArray(pt) && pt.length >= 2 && !isNaN(pt[0]) && !isNaN(pt[1])) {
+          coords.push([pt[0], pt[1]]);
+        }
+      }
+    }
+
+    // 3. Fallback: start/end coordinates if points array has < 2 valid coordinates
     if (
       coords.length < 2 &&
       startLat !== null &&
@@ -65,7 +77,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
     }
 
     return coords;
-  }, [points, startLat, startLon, endLat, endLon]);
+  }, [points, geometry, startLat, startLon, endLat, endLon]);
 
   const hasValidRoute = coordinates.length >= 2;
 
@@ -223,7 +235,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
   if (!hasValidRoute) {
     return (
       <div className="bg-[#FAFAFA] border border-[#E5E5E5] rounded-xl flex flex-col items-center justify-center p-4 text-center select-none h-24 sm:h-28">
-        <p className="text-[13px] font-semibold text-ink">Route map unavailable</p>
+        <p className="text-[13px] font-semibold text-ink">Route geometry unavailable for this trip</p>
         <p className="text-[12px] text-[#5E5E5E] mt-0.5 max-w-xs">
           This trip did not record route geometry.
         </p>

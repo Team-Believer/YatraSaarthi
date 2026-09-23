@@ -53,9 +53,9 @@ export default function LandingPage() {
                 </div>
               </div>
               
-              <div className="self-end bg-black text-white rounded-2xl p-4 shadow-nav-floating">
+              <div className="self-end bg-[#083335] text-white rounded-2xl p-4 shadow-nav-floating">
                  <div className="flex items-center gap-3">
-                   <div className="w-9 h-9 rounded-full bg-neutral-800 flex items-center justify-center">
+                   <div className="w-9 h-9 rounded-full bg-[#052426] flex items-center justify-center">
                      <Map className="w-4.5 h-4.5 text-white" />
                    </div>
                    <div>

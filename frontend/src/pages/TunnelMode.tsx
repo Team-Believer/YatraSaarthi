@@ -342,7 +342,7 @@ export default function TunnelMode() {
 
               {/* Compact timer pill during DR */}
               {isDRActive && (
-                <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-black text-white tabular-nums">
+                <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-[#083335] text-white tabular-nums">
                   {formatDuration(displayOutageDuration)}
                 </span>
               )}
@@ -467,7 +467,7 @@ export default function TunnelMode() {
                       className={clsx(
                         'py-1.5 px-1 rounded-xl text-[10px] font-medium border transition-all truncate',
                         st.active
-                          ? 'bg-black text-white border-black font-bold shadow-2xs'
+                          ? 'bg-[#083335] text-white border-[#083335] font-bold shadow-2xs'
                           : 'bg-canvas-soft text-ink-mute border-border-clean'
                       )}
                     >
@@ -519,7 +519,7 @@ export default function TunnelMode() {
                   type="button"
                   onClick={handleStartSession}
                   aria-label="Start test session"
-                  className="h-11 px-5 bg-black hover:bg-neutral-800 text-white rounded-full text-xs sm:text-sm font-medium flex items-center gap-2 shadow-2xs transition-all cursor-pointer active:scale-97 shrink-0"
+                  className="h-11 px-5 bg-[#083335] hover:bg-[#052426] active:bg-[#031718] text-white rounded-full text-xs sm:text-sm font-medium flex items-center gap-2 shadow-2xs transition-all cursor-pointer active:scale-97 shrink-0"
                 >
                   <Play className="w-3.5 h-3.5 fill-white" />
                   <span>Start test session</span>
@@ -533,7 +533,7 @@ export default function TunnelMode() {
                     'h-11 px-4 sm:px-5 rounded-full text-xs sm:text-sm font-medium flex items-center gap-2 shadow-2xs transition-all cursor-pointer active:scale-97 shrink-0',
                     isSimulatingOutage
                       ? 'bg-white hover:bg-canvas-soft text-ink border border-border-clean'
-                      : 'bg-black hover:bg-neutral-800 text-white'
+                      : 'bg-[#083335] hover:bg-[#052426] active:bg-[#031718] text-white'
                   )}
                 >
                   {isSimulatingOutage ? (
@@ -607,7 +607,7 @@ export default function TunnelMode() {
               className={clsx(
                 'h-11 px-3.5 sm:px-4 rounded-full text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 border',
                 showTechnicalPanel
-                  ? 'bg-black text-white border-black shadow-2xs'
+                  ? 'bg-[#083335] text-white border-[#083335] shadow-2xs'
                   : 'bg-canvas-soft hover:bg-surface-pressed text-ink border-border-clean shadow-2xs'
               )}
             >

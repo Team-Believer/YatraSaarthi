@@ -13,7 +13,6 @@ import {
   RouteLayer,
 } from '../components/map';
 import type { MapOrientationMode } from '../components/map/MapController';
-import { NavStatusPill } from '../components/navigation/NavStatusPill';
 import { TripHudCard } from '../components/navigation/TripHudCard';
 import { RoutePreviewCard } from '../components/navigation/RoutePreviewCard';
 import { NextManeuver } from '../components/navigation/NextManeuver';
@@ -242,10 +241,7 @@ export default function LiveMap() {
           )}
         </div>
 
-        {/* TOP-RIGHT ACTIVE NAVIGATION STATUS PILL (Only renders when starting or live) */}
-        <div className="absolute top-4 sm:top-6 right-4 sm:right-6 z-20 pointer-events-auto shrink-0">
-          <NavStatusPill />
-        </div>
+
 
         {/* ROUTE PREVIEW PLANNING PANEL (Lower-Left / Bottom Sheet) */}
         {!isLive && destination && routeCoordinates && (

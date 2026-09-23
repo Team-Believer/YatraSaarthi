@@ -69,11 +69,11 @@ export default function ProfilePage() {
               to={item.path}
               className="flex items-center gap-4 px-5 py-4 hover:bg-canvas-softer transition-colors group cursor-pointer"
             >
-              <div className="w-10 h-10 bg-canvas-soft group-hover:bg-black group-hover:text-white rounded-full flex items-center justify-center text-ink shrink-0 transition-colors">
+              <div className="w-10 h-10 bg-canvas-soft group-hover:bg-[#083335] group-hover:text-white rounded-full flex items-center justify-center text-ink shrink-0 transition-colors">
                 <Icon className="w-4.5 h-4.5" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-xs sm:text-sm font-semibold text-ink group-hover:text-black transition-colors">
+                <div className="text-xs sm:text-sm font-semibold text-ink group-hover:text-[#083335] transition-colors">
                   {item.label}
                 </div>
                 <div className="text-[11px] text-ink-body truncate mt-0.5">{item.desc}</div>

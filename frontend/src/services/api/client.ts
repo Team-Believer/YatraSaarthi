@@ -19,7 +19,8 @@ export class ApiError extends Error {
 
 class ApiClient {
   private getBaseUrl(): string {
-    return import.meta.env.VITE_API_URL || '';
+    const rawUrl = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '').trim();
+    return rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
   }
 
   private getAuthHeaders(): Record<string, string> {

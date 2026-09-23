@@ -19,6 +19,7 @@ import {
   Compass,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { formatISTTime24 } from '../utils/timeFormat';
 
 interface VelocitySample {
   timestamp: string;
@@ -82,7 +83,7 @@ export default function LearningInsights() {
       const now = Date.now();
       if (now - lastSampleTimeRef.current >= 800) {
         lastSampleTimeRef.current = now;
-        const timeStr = new Date().toLocaleTimeString('en-US', { hour12: false, minute: '2-digit', second: '2-digit' });
+        const timeStr = formatISTTime24(new Date());
         const currentAiVel = typeof aiVelocity === 'number' ? aiVelocity : speed;
         const currentUncertainty = typeof aiUncertainty === 'number' ? aiUncertainty : 0.25;
 
@@ -104,15 +105,15 @@ export default function LearningInsights() {
   const hasLiveAiData = isNavActive && typeof aiVelocity === 'number' && aiVelocity > 0;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300 pb-24 md:pb-12 select-none">
+    <div className="max-w-[1240px] w-full mx-auto space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300 pb-24 md:pb-12 select-none">
       {/* 1. PAGE HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-5">
         <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-brand-700 to-brand-500 text-white flex items-center justify-center shadow-md shadow-brand-500/20 shrink-0">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#083335] to-[#0e4345] text-white flex items-center justify-center shadow-md shrink-0">
             <BrainCircuit className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold text-ink tracking-tight">
               AI Motion Intelligence
             </h1>
             <p className="text-xs sm:text-[13px] text-slate-500">
@@ -136,17 +137,17 @@ export default function LearningInsights() {
       </div>
 
       {/* 2. AI SYSTEM OVERVIEW & FUSION PIPELINE FLOW */}
-      <div className="bg-slate-900 text-white rounded-3xl p-5 sm:p-7 border border-slate-800 shadow-xl relative overflow-hidden">
+      <div className="bg-[#083335] text-white rounded-3xl p-5 sm:p-7 border border-[#0e4345] shadow-xl relative overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
           <div>
-            <span className="text-[10.5px] font-bold uppercase tracking-wider text-brand-400 block mb-1">
+            <span className="text-[10.5px] font-bold uppercase tracking-wider text-emerald-400 block mb-1">
               Architecture Overview
             </span>
             <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
               AI-Assisted Inertial Navigation Pipeline
             </h2>
           </div>
-          <span className="text-[11px] font-mono text-slate-300 bg-white/10 px-3 py-1 rounded-lg border border-white/10 self-start sm:self-auto">
+          <span className="text-[11px] font-mono text-white/80 bg-white/10 px-3 py-1 rounded-lg border border-white/10 self-start sm:self-auto">
             Lie-Group InEKF Fusion
           </span>
         </div>
@@ -154,7 +155,7 @@ export default function LearningInsights() {
         {/* Visual Pipeline Flow Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Step 1: Smartphone IMU */}
-          <div className="bg-slate-800/80 rounded-2xl p-4 border border-slate-700/60 flex flex-col justify-between min-h-[120px]">
+          <div className="bg-[#052426]/90 rounded-2xl p-4 border border-white/10 flex flex-col justify-between min-h-[120px]">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-mono text-blue-400 font-bold">01 • INPUT</span>
@@ -171,69 +172,69 @@ export default function LearningInsights() {
           </div>
 
           {/* Step 2: AI Motion Model */}
-          <div className="bg-slate-800/80 rounded-2xl p-4 border border-slate-700/60 flex flex-col justify-between min-h-[120px]">
+          <div className="bg-[#052426]/90 rounded-2xl p-4 border border-white/10 flex flex-col justify-between min-h-[120px]">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-mono text-purple-400 font-bold">02 • INFERENCE</span>
                 <BrainCircuit className="w-3.5 h-3.5 text-purple-400" />
               </div>
               <h3 className="text-xs font-bold text-white">AI Motion Model</h3>
-              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+              <p className="text-[11px] text-slate-300 mt-1 leading-snug">
                 Temporal ConvNet predicts body-frame longitudinal velocity.
               </p>
             </div>
-            <div className="text-[10px] font-mono text-slate-400 pt-2 border-t border-slate-700/60">
+            <div className="text-[10px] font-mono text-slate-400 pt-2 border-t border-white/10">
               2.0s Sliding Window
             </div>
           </div>
 
           {/* Step 3: Calibrated Uncertainty */}
-          <div className="bg-slate-800/80 rounded-2xl p-4 border border-slate-700/60 flex flex-col justify-between min-h-[120px]">
+          <div className="bg-[#052426]/90 rounded-2xl p-4 border border-white/10 flex flex-col justify-between min-h-[120px]">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-mono text-amber-400 font-bold">03 • VARIANCE</span>
                 <Sliders className="w-3.5 h-3.5 text-amber-400" />
               </div>
               <h3 className="text-xs font-bold text-white">Uncertainty Bounds</h3>
-              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+              <p className="text-[11px] text-slate-300 mt-1 leading-snug">
                 Heteroscedastic model scales dynamic covariance noise (σ).
               </p>
             </div>
-            <div className="text-[10px] font-mono text-slate-400 pt-2 border-t border-slate-700/60">
+            <div className="text-[10px] font-mono text-slate-400 pt-2 border-t border-white/10">
               Residual Calibration
             </div>
           </div>
 
           {/* Step 4: InEKF Fusion */}
-          <div className="bg-slate-800/80 rounded-2xl p-4 border border-slate-700/60 flex flex-col justify-between min-h-[120px]">
+          <div className="bg-[#052426]/90 rounded-2xl p-4 border border-white/10 flex flex-col justify-between min-h-[120px]">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-mono text-emerald-400 font-bold">04 • FUSION</span>
                 <Cpu className="w-3.5 h-3.5 text-emerald-400" />
               </div>
               <h3 className="text-xs font-bold text-white">InEKF Estimator</h3>
-              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+              <p className="text-[11px] text-slate-300 mt-1 leading-snug">
                 Invariant Lie-group filter fuses AI velocity with NHC & ZUPT constraints.
               </p>
             </div>
-            <div className="text-[10px] font-mono text-slate-400 pt-2 border-t border-slate-700/60">
+            <div className="text-[10px] font-mono text-slate-400 pt-2 border-t border-white/10">
               SE₂(3) Lie Group
             </div>
           </div>
 
           {/* Step 5: Navigation Estimate */}
-          <div className="bg-slate-800/80 rounded-2xl p-4 border border-slate-700/60 flex flex-col justify-between min-h-[120px]">
+          <div className="bg-[#052426]/90 rounded-2xl p-4 border border-white/10 flex flex-col justify-between min-h-[120px]">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-mono text-sky-400 font-bold">05 • OUTPUT</span>
                 <Compass className="w-3.5 h-3.5 text-sky-400" />
               </div>
               <h3 className="text-xs font-bold text-white">Navigation Track</h3>
-              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+              <p className="text-[11px] text-slate-300 mt-1 leading-snug">
                 Continuous smooth trajectory sustained through GNSS outages.
               </p>
             </div>
-            <div className="text-[10px] font-mono text-slate-400 pt-2 border-t border-slate-700/60">
+            <div className="text-[10px] font-mono text-slate-400 pt-2 border-t border-white/10">
               Zero-GNSS Resilient
             </div>
           </div>

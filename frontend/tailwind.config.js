@@ -7,40 +7,49 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Mobility White Theme Canvas & Ink Tokens
+        // Mobility White Theme Canvas & Evergreen Ink Tokens
         'canvas': '#FFFFFF',
-        'canvas-soft': '#EFEFEF',
-        'canvas-softer': '#F3F3F3',
-        'surface-pressed': '#E2E2E2',
-        'ink': '#000000',
-        'ink-body': '#5E5E5E',
-        'ink-mute': '#AFAFAF',
-        'ink-elevated': '#282828',
+        'canvas-soft': '#F0F4F4',
+        'canvas-softer': '#F5F8F8',
+        'surface-pressed': '#E2EBEB',
+        'ink': '#083335',
+        'ink-body': '#4A6364',
+        'ink-mute': '#8CA5A6',
+        'ink-elevated': '#0E4345',
         'border-clean': '#E5E5E5',
         'hairline': '#E5E5E5',
 
-        // Legacy brand mappings gracefully transitioning to crisp black/white mobility style
+        // Primary Evergreen Brand System
+        'primary': {
+          DEFAULT: '#083335',
+          hover: '#052426',
+          active: '#031718',
+          soft: '#E6EDED',
+          subtle: '#F0F4F4',
+          foreground: '#FFFFFF',
+        },
         'brand': {
-          '50': '#F3F3F3',
-          '100': '#EFEFEF',
-          '200': '#E2E2E2',
-          '300': '#AFAFAF',
-          '400': '#5E5E5E',
-          '500': '#282828',
-          '600': '#000000',
-          '700': '#000000',
-          '800': '#000000',
-          '900': '#000000',
-          'navy': '#1A1A1A',
+          '50': '#F0F5F5',
+          '100': '#E1EAEA',
+          '200': '#C3D5D5',
+          '300': '#95B5B6',
+          '400': '#5F8F90',
+          '500': '#336C6E',
+          '600': '#083335',
+          '700': '#062B2D',
+          '800': '#052426',
+          '900': '#031819',
+          '950': '#020E0F',
+          'navy': '#083335',
         },
         'nav': {
           'surface': '#FFFFFF',
-          'surface-dark': '#1A1A1A',
+          'surface-dark': '#062B2D',
           'card': '#FFFFFF',
-          'card-dark': '#282828',
+          'card-dark': '#083335',
           'border': '#E5E5E5',
-          'border-dark': '#383838',
-          'accent': '#000000',
+          'border-dark': '#1C4A4C',
+          'accent': '#083335',
         },
         // Restrained Semantic Navigation Indicators
         'status': {

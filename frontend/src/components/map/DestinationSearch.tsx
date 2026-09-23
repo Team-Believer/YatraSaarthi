@@ -88,7 +88,7 @@ export const DestinationSearch = () => {
 
   return (
     <div className="relative w-full max-w-[560px]">
-      <div className="bg-white px-3 sm:px-4 h-[52px] sm:h-14 rounded-full border border-border-clean shadow-nav-floating flex items-center gap-3 transition-all duration-150 focus-within:border-black focus-within:ring-1 focus-within:ring-black/10">
+      <div className="bg-white px-3 sm:px-4 h-[52px] sm:h-14 rounded-full border border-border-clean shadow-nav-floating flex items-center gap-3 transition-all duration-150 focus-within:border-[#083335] focus-within:ring-1 focus-within:ring-[#083335]/10">
         {destination ? (
           <button
             type="button"
@@ -153,7 +153,7 @@ export const DestinationSearch = () => {
               onClick={() => handleSelect(result)}
               className="w-full flex items-center gap-3.5 px-4 py-3.5 hover:bg-canvas-softer transition-colors text-left border-b border-border-clean last:border-0 group cursor-pointer"
             >
-              <div className="w-9 h-9 bg-canvas-soft rounded-full flex items-center justify-center shrink-0 text-ink group-hover:bg-black group-hover:text-white transition-colors">
+              <div className="w-9 h-9 bg-canvas-soft rounded-full flex items-center justify-center shrink-0 text-ink group-hover:bg-[#083335] group-hover:text-white transition-colors">
                 <MapPin className="w-4.5 h-4.5" />
               </div>
               <div className="min-w-0 flex-1">

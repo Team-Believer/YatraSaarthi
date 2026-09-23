@@ -82,7 +82,7 @@ export default function OnboardingPage() {
             <div className="py-6">
               <div className="relative w-64 h-64 mx-auto">
                 {/* Central icon */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-black rounded-full flex items-center justify-center shadow-xs z-10">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-[#083335] rounded-full flex items-center justify-center shadow-xs z-10">
                   <ShieldCheck className="w-8 h-8 text-white" />
                 </div>
 
@@ -135,7 +135,7 @@ export default function OnboardingPage() {
           {step === 1 && (
             <div className="py-6 space-y-4">
               <div className="bg-canvas-soft rounded-2xl p-6 border border-border-clean text-left space-y-3">
-                <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white">
+                <div className="w-10 h-10 bg-[#083335] rounded-full flex items-center justify-center text-white">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <h3 className="font-bold text-ink text-sm sm:text-base">
@@ -158,7 +158,7 @@ export default function OnboardingPage() {
             <div
               key={i}
               className={`h-1.5 rounded-full transition-all duration-300 ${
-                i === step ? 'w-6 bg-black' : 'w-1.5 bg-neutral-200'
+                i === step ? 'w-6 bg-[#083335]' : 'w-1.5 bg-neutral-200'
               }`}
             />
           ))}

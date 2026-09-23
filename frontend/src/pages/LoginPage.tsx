@@ -84,7 +84,7 @@ export default function LoginPage() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Full name"
-                  className="w-full pl-10 pr-4 py-2.5 bg-canvas-soft rounded-full border border-border-clean text-sm text-ink placeholder:text-ink-mute focus:outline-none focus:border-black focus:bg-white transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-canvas-soft rounded-full border border-border-clean text-sm text-ink placeholder:text-ink-mute focus:outline-none focus:border-[#083335] focus:bg-white transition-all"
                 />
               </div>
             </div>
@@ -100,7 +100,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
-                className="w-full pl-10 pr-4 py-2.5 bg-canvas-soft rounded-full border border-border-clean text-sm text-ink placeholder:text-ink-mute focus:outline-none focus:border-black focus:bg-white transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-canvas-soft rounded-full border border-border-clean text-sm text-ink placeholder:text-ink-mute focus:outline-none focus:border-[#083335] focus:bg-white transition-all"
               />
             </div>
           </div>
@@ -115,7 +115,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-2.5 bg-canvas-soft rounded-full border border-border-clean text-sm text-ink placeholder:text-ink-mute focus:outline-none focus:border-black focus:bg-white transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-canvas-soft rounded-full border border-border-clean text-sm text-ink placeholder:text-ink-mute focus:outline-none focus:border-[#083335] focus:bg-white transition-all"
               />
             </div>
           </div>

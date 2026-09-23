@@ -145,7 +145,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                   className={clsx(
                     'group flex items-center justify-between px-3.5 h-12 rounded-2xl text-[14px] transition-all duration-150 ease-out cursor-pointer',
                     isActive
-                      ? 'bg-slate-900 text-white font-medium shadow-2xs'
+                      ? 'bg-[#083335] text-white font-medium shadow-2xs'
                       : 'text-ink hover:bg-slate-100 font-normal'
                   )}
                 >
@@ -153,7 +153,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                     <Icon
                       className={clsx(
                         'w-5 h-5 shrink-0 transition-colors',
-                        isActive ? 'text-white' : 'text-slate-500 group-hover:text-ink'
+                        isActive ? 'text-white' : 'text-[#4A6364] group-hover:text-ink'
                       )}
                       strokeWidth={2}
                     />
@@ -162,7 +162,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                       <span
                         className={clsx(
                           'text-[11px] truncate leading-tight mt-0.5',
-                          isActive ? 'text-slate-300' : 'text-slate-400'
+                          isActive ? 'text-white/80' : 'text-[#8CA5A6]'
                         )}
                       >
                         {item.tooltip}
@@ -200,7 +200,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                   className={clsx(
                     'group flex items-center justify-between px-3.5 h-12 rounded-2xl text-[14px] transition-all duration-150 ease-out cursor-pointer',
                     isActive
-                      ? 'bg-slate-900 text-white font-medium shadow-2xs'
+                      ? 'bg-[#083335] text-white font-medium shadow-2xs'
                       : 'text-ink hover:bg-slate-100 font-normal'
                   )}
                 >
@@ -208,7 +208,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                     <Icon
                       className={clsx(
                         'w-5 h-5 shrink-0 transition-colors',
-                        isActive ? 'text-white' : 'text-slate-500 group-hover:text-ink'
+                        isActive ? 'text-white' : 'text-[#4A6364] group-hover:text-ink'
                       )}
                       strokeWidth={2}
                     />
@@ -217,7 +217,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                       <span
                         className={clsx(
                           'text-[11px] truncate leading-tight mt-0.5',
-                          isActive ? 'text-slate-300' : 'text-slate-400'
+                          isActive ? 'text-white/80' : 'text-[#8CA5A6]'
                         )}
                       >
                         {item.tooltip}
@@ -238,11 +238,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
         </nav>
 
         {/* Engine Status Footer */}
-        <div className="p-3.5 m-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+        <div className="p-3.5 m-3.5 rounded-2xl bg-[#F0F4F4] border border-[#E5E5E5]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 min-w-0">
-              <ShieldCheck className="w-3.5 h-3.5 text-slate-900 shrink-0" />
-              <span className="text-xs font-semibold text-slate-900 truncate">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#083335] shrink-0" />
+              <span className="text-xs font-semibold text-[#083335] truncate">
                 Navigation Engine
               </span>
             </div>
@@ -251,13 +251,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                 'text-[10px] font-bold px-2 py-0.5 rounded-full border leading-tight shrink-0 shadow-2xs',
                 isLive
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-white text-slate-700 border-slate-200'
+                  : 'bg-white text-[#083335] border-border-clean'
               )}
             >
               {isLive ? 'LIVE' : 'READY'}
             </span>
           </div>
-          <p className="text-[11px] leading-tight text-slate-500 mt-1.5">
+          <p className="text-[11px] leading-tight text-[#4A6364] mt-1.5">
             {isLive
               ? 'Dead reckoning active for GNSS-denied guidance.'
               : 'InEKF ready for vehicle navigation.'}
@@ -267,27 +267,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
     );
   }
 
-  // DESKTOP NARROW VERTICAL FLOATING RAIL (Matching Reference UI Pattern)
+  // DESKTOP NARROW VERTICAL FLOATING RAIL (Matching Reference UI Pattern with Evergreen Active State)
   return (
     <aside
       aria-label="Primary Navigation"
-      className="hidden md:flex flex-col items-center w-[70px] lg:w-[72px] h-fit bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/90 shadow-[0_8px_30px_rgb(0,0,0,0.08)] py-3 px-2 select-none shrink-0 z-40 transition-all duration-200 gap-2.5"
+      className="hidden md:flex flex-col items-center w-[70px] lg:w-[72px] h-fit bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/90 shadow-[0_8px_30px_rgba(8,51,53,0.08)] py-3 px-2 select-none shrink-0 z-40 transition-all duration-200 gap-2.5"
     >
       {/* 1. TOP: YatraSaarthi Brand Logo */}
       <div className="flex flex-col items-center gap-2 shrink-0 w-full">
         <Link
           to="/app"
-          className="w-11 h-11 lg:w-12 lg:h-12 rounded-2xl bg-slate-50 hover:bg-slate-100/90 border border-slate-200/80 flex items-center justify-center transition-all group relative cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+          className="w-11 h-11 lg:w-12 lg:h-12 rounded-2xl bg-[#F0F4F4] hover:bg-[#E2EBEB] border border-border-clean flex items-center justify-center transition-all group relative cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#083335]"
           title="YatraSaarthi"
           aria-label="YatraSaarthi Home"
         >
           <YatraSaarthiLogo variant="icon" height={28} />
-          {/* Flyout Tooltip (White card, subtle border, soft shadow) */}
-          <div className="absolute left-full ml-3 px-3 py-1.5 bg-white border border-slate-200/90 text-slate-900 text-xs font-semibold rounded-xl shadow-lg shadow-slate-900/5 whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-150 delay-150 pointer-events-none z-50 translate-x-1 group-hover:translate-x-0 group-focus-visible:translate-x-0">
+          {/* Flyout Tooltip */}
+          <div className="absolute left-full ml-3 px-3 py-1.5 bg-white border border-border-clean text-ink text-xs font-semibold rounded-xl shadow-lg shadow-black/5 whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-150 delay-150 pointer-events-none z-50 translate-x-1 group-hover:translate-x-0 group-focus-visible:translate-x-0">
             YatraSaarthi
           </div>
         </Link>
-        <div className="w-8 h-px bg-slate-200/80" />
+        <div className="w-8 h-px bg-border-clean" />
       </div>
 
       {/* 2. MAIN: Navigation Stack */}
@@ -303,22 +303,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
               aria-label={item.name}
               aria-current={isActive ? 'page' : undefined}
               className={clsx(
-                'w-11 h-11 lg:w-12 lg:h-12 rounded-2xl flex items-center justify-center transition-all duration-150 group relative cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+                'w-11 h-11 lg:w-12 lg:h-12 rounded-2xl flex items-center justify-center transition-all duration-150 group relative cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#083335]',
                 isActive
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100/90 active:scale-[0.96]'
+                  ? 'bg-[#083335] text-white shadow-xs'
+                  : 'text-[#4A6364] hover:text-[#083335] hover:bg-[#F0F4F4] active:scale-[0.96]'
               )}
             >
               <Icon
                 className={clsx(
                   'w-5 h-5 transition-colors',
-                  isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-900'
+                  isActive ? 'text-white' : 'text-[#4A6364] group-hover:text-[#083335]'
                 )}
                 strokeWidth={2}
               />
 
-              {/* Flyout Tooltip (White card, subtle border, soft shadow, delay 150ms) */}
-              <div className="absolute left-full ml-3 px-3.5 py-1.5 bg-white border border-slate-200/90 text-slate-900 text-xs font-semibold rounded-xl shadow-lg shadow-slate-900/5 whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-150 delay-150 pointer-events-none z-50 translate-x-1 group-hover:translate-x-0 group-focus-visible:translate-x-0 flex items-center gap-1.5">
+              {/* Flyout Tooltip */}
+              <div className="absolute left-full ml-3 px-3.5 py-1.5 bg-white border border-border-clean text-ink text-xs font-semibold rounded-xl shadow-lg shadow-black/5 whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-150 delay-150 pointer-events-none z-50 translate-x-1 group-hover:translate-x-0 group-focus-visible:translate-x-0 flex items-center gap-1.5">
                 <span>{item.tooltip}</span>
               </div>
             </Link>
@@ -328,7 +328,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
 
       {/* 3. BOTTOM: Settings & Profile Stack */}
       <div className="flex flex-col items-center gap-1.5 shrink-0 w-full">
-        <div className="w-8 h-px bg-slate-200/80 my-0.5" />
+        <div className="w-8 h-px bg-border-clean my-0.5" />
         {BOTTOM_NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = isItemActive(item.path);
@@ -340,22 +340,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
               aria-label={item.name}
               aria-current={isActive ? 'page' : undefined}
               className={clsx(
-                'w-11 h-11 lg:w-12 lg:h-12 rounded-2xl flex items-center justify-center transition-all duration-150 group relative cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+                'w-11 h-11 lg:w-12 lg:h-12 rounded-2xl flex items-center justify-center transition-all duration-150 group relative cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#083335]',
                 isActive
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100/90 active:scale-[0.96]'
+                  ? 'bg-[#083335] text-white shadow-xs'
+                  : 'text-[#4A6364] hover:text-[#083335] hover:bg-[#F0F4F4] active:scale-[0.96]'
               )}
             >
               <Icon
                 className={clsx(
                   'w-5 h-5 transition-colors',
-                  isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-900'
+                  isActive ? 'text-white' : 'text-[#4A6364] group-hover:text-[#083335]'
                 )}
                 strokeWidth={2}
               />
 
               {/* Flyout Tooltip */}
-              <div className="absolute left-full ml-3 px-3.5 py-1.5 bg-white border border-slate-200/90 text-slate-900 text-xs font-semibold rounded-xl shadow-lg shadow-slate-900/5 whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-150 delay-150 pointer-events-none z-50 translate-x-1 group-hover:translate-x-0 group-focus-visible:translate-x-0 flex items-center gap-1.5">
+              <div className="absolute left-full ml-3 px-3.5 py-1.5 bg-white border border-border-clean text-ink text-xs font-semibold rounded-xl shadow-lg shadow-black/5 whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-150 delay-150 pointer-events-none z-50 translate-x-1 group-hover:translate-x-0 group-focus-visible:translate-x-0 flex items-center gap-1.5">
                 <span>{item.tooltip}</span>
               </div>
             </Link>

@@ -13,7 +13,7 @@ export default function SettingsPage() {
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300 pb-24 md:pb-12 text-ink select-none">
       {/* Header */}
       <div className="flex items-center gap-3.5 border-b border-border-clean pb-5">
-        <div className="p-2.5 bg-black text-white rounded-2xl shadow-xs">
+        <div className="p-2.5 bg-[#083335] text-white rounded-2xl shadow-xs">
           <SettingsIcon className="w-5 h-5 text-white" />
         </div>
         <div>
@@ -54,14 +54,14 @@ export default function SettingsPage() {
                 className={clsx(
                   "p-4 rounded-2xl border text-left transition-all flex flex-col justify-between min-h-[110px] press-scale cursor-pointer",
                   isSelected
-                    ? "bg-canvas-soft border-black text-ink ring-1 ring-black"
+                    ? "bg-[#EAF0F0] border-[#083335] text-ink ring-1 ring-[#083335]"
                     : "bg-white border-border-clean hover:bg-canvas-softer text-ink-body hover:text-ink"
                 )}
               >
                 <div className="flex justify-between items-center w-full">
                   <div className={clsx(
                     "p-2 rounded-full",
-                    isSelected ? "bg-black text-white" : "bg-canvas-soft text-ink"
+                    isSelected ? "bg-[#083335] text-white" : "bg-canvas-soft text-ink"
                   )}>
                     <Icon className="w-5 h-5" />
                   </div>
@@ -105,7 +105,7 @@ export default function SettingsPage() {
                 onClick={() => updateSettings({ distance_unit: 'km' })}
                 className={clsx(
                   "px-3.5 py-1.5 rounded-full transition-colors cursor-pointer",
-                  settings.distance_unit === 'km' ? "bg-black text-white" : "text-ink-body hover:text-ink"
+                  settings.distance_unit === 'km' ? "bg-[#083335] text-white" : "text-ink-body hover:text-ink"
                 )}
               >
                 km
@@ -114,7 +114,7 @@ export default function SettingsPage() {
                 onClick={() => updateSettings({ distance_unit: 'mi' })}
                 className={clsx(
                   "px-3.5 py-1.5 rounded-full transition-colors cursor-pointer",
-                  settings.distance_unit === 'mi' ? "bg-black text-white" : "text-ink-body hover:text-ink"
+                  settings.distance_unit === 'mi' ? "bg-[#083335] text-white" : "text-ink-body hover:text-ink"
                 )}
               >
                 mi
@@ -133,7 +133,7 @@ export default function SettingsPage() {
                 onClick={() => updateSettings({ speed_unit: 'km/h' })}
                 className={clsx(
                   "px-3.5 py-1.5 rounded-full transition-colors cursor-pointer",
-                  settings.speed_unit === 'km/h' ? "bg-black text-white" : "text-ink-body hover:text-ink"
+                  settings.speed_unit === 'km/h' ? "bg-[#083335] text-white" : "text-ink-body hover:text-ink"
                 )}
               >
                 km/h
@@ -142,7 +142,7 @@ export default function SettingsPage() {
                 onClick={() => updateSettings({ speed_unit: 'mph' })}
                 className={clsx(
                   "px-3.5 py-1.5 rounded-full transition-colors cursor-pointer",
-                  settings.speed_unit === 'mph' ? "bg-black text-white" : "text-ink-body hover:text-ink"
+                  settings.speed_unit === 'mph' ? "bg-[#083335] text-white" : "text-ink-body hover:text-ink"
                 )}
               >
                 mph
@@ -194,7 +194,7 @@ export default function SettingsPage() {
                   onClick={() => updateSettings({ [toggle.key]: !active })}
                   className={clsx(
                     "w-12 h-6.5 rounded-full transition-colors relative p-0.5 shrink-0 cursor-pointer shadow-2xs",
-                    active ? "bg-black" : "bg-neutral-300"
+                    active ? "bg-[#083335]" : "bg-neutral-300"
                   )}
                 >
                   <div

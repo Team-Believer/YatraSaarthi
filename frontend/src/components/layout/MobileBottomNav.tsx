@@ -32,7 +32,7 @@ export default function MobileBottomNav() {
               )}
             >
               {isActive && (
-                <span className="absolute -top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-black rounded-full" />
+                <span className="absolute -top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-[#083335] rounded-full" />
               )}
               <Icon
                 className={clsx(

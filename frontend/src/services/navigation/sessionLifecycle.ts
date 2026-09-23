@@ -2,6 +2,8 @@ import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useLocationStore } from '../../stores/useLocationStore';
 import { sensorCollector } from '../sensors/sensorCollector';
 import { navigationService, type EndSessionResponse } from '../api/navigationService';
+import { tripMetadataService, type TripMetadata } from './tripMetadataService';
+import { geocodingService } from '../location/geocodingService';
 
 export class NavigationSessionLifecycle {
   private activeWs: WebSocket | null = null;
@@ -10,7 +12,8 @@ export class NavigationSessionLifecycle {
   public async startLiveSession(
     vehicleType: string = 'CAR',
     routeCoords?: number[][] | null,
-    roadName: string = 'Active Route'
+    roadName: string = 'Active Route',
+    metadata?: Partial<TripMetadata>
   ): Promise<string> {
     const store = useNavigationStore.getState();
     if (store.sessionStatus === 'STARTING' || store.sessionStatus === 'LIVE') {
@@ -23,10 +26,10 @@ export class NavigationSessionLifecycle {
     store.setJourneySummary(null);
 
     try {
-      // 1. Get real location from global location store
+      // 1. Get real location from global location store or route origin coordinates
       const loc = useLocationStore.getState();
-      const startLat = loc.latitude ?? undefined;
-      const startLon = loc.longitude ?? undefined;
+      const startLat = loc.latitude ?? (metadata?.sourceCoords ? metadata.sourceCoords[1] : undefined);
+      const startLon = loc.longitude ?? (metadata?.sourceCoords ? metadata.sourceCoords[0] : undefined);
 
       // 2. Create session on backend
       const res = await navigationService.startSession(vehicleType, startLat, startLon);
@@ -42,10 +45,50 @@ export class NavigationSessionLifecycle {
         }
       }
 
+      // 4. Resolve clean source name (preferring real place name over generic placeholder)
+      let resolvedSourceName = metadata?.sourceName;
+      if (!resolvedSourceName || resolvedSourceName === 'Start location' || resolvedSourceName === 'Unknown location') {
+        if (loc.placeName && loc.placeName !== 'Start location') {
+          resolvedSourceName = loc.placeName;
+        } else if (startLat !== undefined && startLon !== undefined) {
+          resolvedSourceName = geocodingService.getCachedName(startLat, startLon) || undefined;
+        }
+      }
+
+      // 5. Save client-side rich trip metadata mapped to this sessionId
+      if (sessionId) {
+        tripMetadataService.saveTripMetadata({
+          sessionId,
+          sourceName: resolvedSourceName,
+          destinationName: metadata?.destinationName || roadName,
+          sourceCoords: metadata?.sourceCoords || (startLon !== undefined && startLat !== undefined ? [startLon, startLat] : undefined),
+          destinationCoords: metadata?.destinationCoords,
+          roadSummary: roadName !== 'Active Route' ? roadName : metadata?.roadSummary,
+          distance_meters: metadata?.distance_meters,
+          duration_seconds: metadata?.duration_seconds,
+          geometry: (routeCoords as [number, number][]) || metadata?.geometry,
+          travelMode: metadata?.travelMode,
+          vehicleType: vehicleType,
+          startedAt: new Date().toISOString(),
+        });
+
+        // If source name was not yet cached, resolve asynchronously and update metadata
+        if (!resolvedSourceName && startLat !== undefined && startLon !== undefined) {
+          geocodingService.reverseGeocode(startLat, startLon).then((name) => {
+            if (name) {
+              tripMetadataService.saveTripMetadata({
+                sessionId,
+                sourceName: name,
+              });
+            }
+          });
+        }
+      }
+
       store.setSessionId(sessionId);
       store.setSessionStatus('LIVE');
 
-      // 4. Open WebSocket stream
+      // 5. Open WebSocket stream
       this.openWebSocket(sessionId, routeCoords, roadName);
 
       return sessionId;
@@ -90,11 +133,16 @@ export class NavigationSessionLifecycle {
       // 4. Tell backend to finalize session and persist summary in SQLite
       const summary = await navigationService.endSession(sessionId);
 
-      // 5. Store verified journey summary and mark ENDED
+      // 5. Update local trip metadata with finalized distance & duration metrics
+      if (summary) {
+        tripMetadataService.updateTripMetrics(sessionId, summary.distance_m, summary.duration_s);
+      }
+
+      // 6. Store verified journey summary and mark ENDED
       store.setJourneySummary(summary);
       store.setSessionStatus('ENDED');
 
-      // 6. Clear active session telemetry from Zustand
+      // 7. Clear active session telemetry from Zustand
       store.clearActiveSession();
 
       return summary;
