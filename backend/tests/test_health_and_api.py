@@ -56,3 +56,24 @@ def test_navigation_session_end_and_idempotent():
     assert history_res.status_code == 200
     sessions = history_res.json()
     assert any(s["session_id"] == session_id for s in sessions)
+
+
+def test_session_route_load():
+    # Test loading route into active engine via ws_manager mock session
+    from app.websocket.manager import ws_manager, ActiveSession
+    session_id = "test_route_session"
+    ws_manager._sessions[session_id] = ActiveSession(session_id, None, "CAR")
+    
+    route_coords = [[77.2090, 28.6139], [77.2190, 28.6139]]
+    res = client.post(f"/api/v1/navigation/session/{session_id}/route", json={
+        "coordinates": route_coords,
+        "road_name": "Test Express Highway"
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "SUCCESS"
+    assert data["segments_loaded"] == 1
+    
+    # Clean up
+    ws_manager.disconnect(session_id)
+

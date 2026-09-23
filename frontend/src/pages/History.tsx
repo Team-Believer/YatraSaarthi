@@ -12,6 +12,9 @@ import {
   AlertCircle,
   RotateCw,
   X,
+  Download,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Link } from 'react-router-dom';
@@ -136,6 +139,27 @@ export default function History() {
 
   // UI state
   const [showMobileDetail, setShowMobileDetail] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
+
+  const handleCopyId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 2000);
+  };
+
+  const handleExportJson = () => {
+    if (!selectedTrip) return;
+    const exportData = selectedDetail || selectedTrip;
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `yatrasaarthi_session_${selectedTrip.session_id}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   // Fetch initial session list
   const loadSessions = useCallback(() => {
@@ -660,6 +684,58 @@ export default function History() {
                     endLon={selectedTrip.end_lon}
                     className="w-full h-60 sm:h-64"
                   />
+                </div>
+
+                {/* 4. Trip Data & Telemetry Export */}
+                <div className="pt-2 border-t border-[#E5E5E5] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12px] font-semibold text-[#5E5E5E] uppercase tracking-wider">
+                      Trip Data & Export
+                    </span>
+                    <span className="text-[11px] text-[#5E5E5E] font-medium">
+                      {selectedDetail?.points ? `${selectedDetail.points.length} samples logged` : 'Loading...'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-xl text-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[#5E5E5E] shrink-0 font-medium">Session ID:</span>
+                      <span className="font-mono font-medium text-ink truncate text-[11px]">
+                        {selectedTrip.session_id}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyId(selectedTrip.session_id)}
+                        className="px-2.5 py-1.5 rounded-lg bg-white border border-[#E5E5E5] hover:bg-canvas-soft text-ink font-medium text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer"
+                        title="Copy Session ID"
+                      >
+                        {copiedId ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            <span className="text-emerald-600">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3 text-[#5E5E5E]" />
+                            <span>Copy ID</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleExportJson}
+                        className="px-3 py-1.5 rounded-lg bg-black hover:bg-neutral-800 text-white font-medium text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                        title="Download session trajectory JSON"
+                      >
+                        <Download className="w-3 h-3" />
+                        <span>Export JSON</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (

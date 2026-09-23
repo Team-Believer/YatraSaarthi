@@ -7,7 +7,11 @@ export class NavigationSessionLifecycle {
   private activeWs: WebSocket | null = null;
   private isTerminating = false;
 
-  public async startLiveSession(vehicleType: string = 'CAR'): Promise<string> {
+  public async startLiveSession(
+    vehicleType: string = 'CAR',
+    routeCoords?: number[][] | null,
+    roadName: string = 'Active Route'
+  ): Promise<string> {
     const store = useNavigationStore.getState();
     if (store.sessionStatus === 'STARTING' || store.sessionStatus === 'LIVE') {
       console.warn('Session already starting or active');
@@ -28,11 +32,21 @@ export class NavigationSessionLifecycle {
       const res = await navigationService.startSession(vehicleType, startLat, startLon);
       const sessionId = res.session_id;
 
+      // 3. Inject route geometry to backend MapMatcher if available
+      if (sessionId && routeCoords && routeCoords.length >= 2) {
+        try {
+          await navigationService.loadSessionRoute(sessionId, routeCoords, roadName);
+          console.info(`[SessionLifecycle] Injected route (${routeCoords.length} points) to session ${sessionId}`);
+        } catch (routeErr) {
+          console.warn('[SessionLifecycle] Non-blocking route injection notice:', routeErr);
+        }
+      }
+
       store.setSessionId(sessionId);
       store.setSessionStatus('LIVE');
 
-      // 3. Open WebSocket stream
-      this.openWebSocket(sessionId);
+      // 4. Open WebSocket stream
+      this.openWebSocket(sessionId, routeCoords, roadName);
 
       return sessionId;
     } catch (err: any) {
@@ -95,7 +109,7 @@ export class NavigationSessionLifecycle {
     }
   }
 
-  private openWebSocket(sessionId: string) {
+  private openWebSocket(sessionId: string, routeCoords?: number[][] | null, roadName?: string) {
     const store = useNavigationStore.getState();
     store.setWebsocketStatus('CONNECTING');
 
@@ -110,6 +124,16 @@ export class NavigationSessionLifecycle {
       ws.onopen = () => {
         store.setWebsocketStatus('CONNECTED');
         store.setSensorStreaming(true);
+
+        // Send initial route geometry if available
+        if (routeCoords && routeCoords.length >= 2) {
+          ws.send(JSON.stringify({
+            type: 'route',
+            coordinates: routeCoords,
+            road_name: roadName || 'Active Route',
+            timestamp: Date.now() / 1000.0,
+          }));
+        }
 
         // Begin pushing real sensor measurements over WebSocket
         sensorCollector.start((packet) => {

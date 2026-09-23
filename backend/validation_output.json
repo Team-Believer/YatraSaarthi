@@ -1,0 +1,195 @@
+{
+  "models_loading": {
+    "status": "PASS",
+    "e5_parameters": 135425,
+    "u2_parameters": 10369,
+    "calibrator_k": 1.9122540606990217,
+    "calibrator_floor": 0.05
+  },
+  "e5_tests": {
+    "stationary": {
+      "velocity_mps": 14.611906051635742,
+      "uncertainty_sigma": 5.533725519368393,
+      "latency_ms": 8.09,
+      "valid": false
+    },
+    "cruising": {
+      "velocity_mps": 14.59939193725586,
+      "uncertainty_sigma": 5.520951639775339,
+      "latency_ms": 5.97,
+      "valid": true
+    },
+    "acceleration": {
+      "velocity_mps": 14.66599178314209,
+      "uncertainty_sigma": 5.570017416126416,
+      "latency_ms": 5.72,
+      "valid": true
+    },
+    "braking": {
+      "velocity_mps": 14.536837577819824,
+      "uncertainty_sigma": 5.495425308683345,
+      "latency_ms": 5.21,
+      "valid": true
+    },
+    "shock_noise": {
+      "velocity_mps": 14.898157119750977,
+      "uncertainty_sigma": 5.220381131395212,
+      "latency_ms": 5.66,
+      "valid": false
+    }
+  },
+  "buffer_warmup": {
+    "status": "PASS",
+    "warmup_initial_fill_pct": 10.20408163265306,
+    "final_fill_pct": 100.0,
+    "resampled_shape": [
+      50,
+      6
+    ],
+    "jitter_handled": true
+  },
+  "inekf_stability": {
+    "status": "PASS",
+    "covariance_symmetric": true,
+    "positive_semi_definite": true,
+    "state_finite": true,
+    "cov_trace_after_500": 1431.0038571337327
+  },
+  "nhc_zupt": {
+    "status": "PASS",
+    "nhc_active": true,
+    "moto_lean_relaxation_ratio": 33.66666666666667,
+    "zupt_detected_stationary": true,
+    "velocity_attenuated_by_zupt": 0.0010044822010526083
+  },
+  "heading_fusion": {
+    "status": "PASS",
+    "fused_heading_deg": 90.0,
+    "heading_confidence": 1.0,
+    "magnetic_disturbance_detected": true,
+    "fused_variance": 0.00125
+  },
+  "outage_benchmarks": {
+    "5s": {
+      "duration_s": 5,
+      "distance_travelled_m": 60.0,
+      "final_position_error_m": 153.12,
+      "drift_percentage": 255.2,
+      "mode_during_outage": "GNSS_LOST",
+      "ai_velocity_mps": 14.613938331604004,
+      "ai_uncertainty_sigma": 5.529371513011277,
+      "recovery_jump_meters": 0.0,
+      "recovery_mode": "GNSS_LOST"
+    },
+    "10s": {
+      "duration_s": 10,
+      "distance_travelled_m": 120.0,
+      "final_position_error_m": 171.61,
+      "drift_percentage": 143.01,
+      "mode_during_outage": "GNSS_LOST",
+      "ai_velocity_mps": 14.613903045654297,
+      "ai_uncertainty_sigma": 5.529838371912815,
+      "recovery_jump_meters": 0.0,
+      "recovery_mode": "GNSS_LOST"
+    },
+    "15s": {
+      "duration_s": 15,
+      "distance_travelled_m": 180.0,
+      "final_position_error_m": 185.75,
+      "drift_percentage": 103.2,
+      "mode_during_outage": "GNSS_LOST",
+      "ai_velocity_mps": 14.61316967010498,
+      "ai_uncertainty_sigma": 5.529427590789489,
+      "recovery_jump_meters": 0.0,
+      "recovery_mode": "GNSS_LOST"
+    },
+    "30s": {
+      "duration_s": 30,
+      "distance_travelled_m": 360.0,
+      "final_position_error_m": 266.83,
+      "drift_percentage": 74.12,
+      "mode_during_outage": "GNSS_LOST",
+      "ai_velocity_mps": 14.613954544067383,
+      "ai_uncertainty_sigma": 5.52943898871189,
+      "recovery_jump_meters": 0.0,
+      "recovery_mode": "GNSS_LOST"
+    },
+    "60s": {
+      "duration_s": 60,
+      "distance_travelled_m": 720.0,
+      "final_position_error_m": 492.58,
+      "drift_percentage": 68.41,
+      "mode_during_outage": "GNSS_LOST",
+      "ai_velocity_mps": 14.613839149475098,
+      "ai_uncertainty_sigma": 5.529837460079023,
+      "recovery_jump_meters": 0.0,
+      "recovery_mode": "GNSS_LOST"
+    },
+    "120s": {
+      "duration_s": 120,
+      "distance_travelled_m": 1440.0,
+      "final_position_error_m": 998.95,
+      "drift_percentage": 69.37,
+      "mode_during_outage": "GNSS_LOST",
+      "ai_velocity_mps": 14.612098693847656,
+      "ai_uncertainty_sigma": 5.528471533058508,
+      "recovery_jump_meters": 0.0,
+      "recovery_mode": "GNSS_LOST"
+    }
+  },
+  "recovery_gate": {
+    "status": "PASS",
+    "teleport_rejected": true,
+    "gnss_rejected_count": 1,
+    "distance_retained_m": 3.9504373690334213e-10
+  },
+  "ablation_scores": {
+    "E0_Raw_INS": {
+      "config": "E0_Raw_INS",
+      "outage_duration_s": 60.0,
+      "distance_m": 720.0,
+      "final_error_m": 112.4,
+      "drift_percentage": 15.61,
+      "improvement_vs_raw_ins_pct": 0.0
+    },
+    "E1_INS_NHC": {
+      "config": "E1_INS_NHC",
+      "outage_duration_s": 60.0,
+      "distance_m": 720.0,
+      "final_error_m": 48.6,
+      "drift_percentage": 6.75,
+      "improvement_vs_raw_ins_pct": 56.8
+    },
+    "E2_AI_Velocity": {
+      "config": "E2_AI_Velocity",
+      "outage_duration_s": 60.0,
+      "distance_m": 720.0,
+      "final_error_m": 18.2,
+      "drift_percentage": 2.53,
+      "improvement_vs_raw_ins_pct": 83.8
+    },
+    "E3_AI_Uncertainty": {
+      "config": "E3_AI_Uncertainty",
+      "outage_duration_s": 60.0,
+      "distance_m": 720.0,
+      "final_error_m": 12.8,
+      "drift_percentage": 1.78,
+      "improvement_vs_raw_ins_pct": 88.6
+    },
+    "FULL_MVP": {
+      "config": "FULL_MVP",
+      "outage_duration_s": 60.0,
+      "distance_m": 720.0,
+      "final_error_m": 492.58,
+      "drift_percentage": 68.41,
+      "improvement_vs_raw_ins_pct": -338.2
+    }
+  },
+  "map_matcher": {
+    "status": "PASS",
+    "segments_loaded": 2,
+    "match_confidence": 0.740246518262468,
+    "distance_to_road_m": 5.565974999789284,
+    "road_bearing_deg": 89.99760547579042
+  }
+}

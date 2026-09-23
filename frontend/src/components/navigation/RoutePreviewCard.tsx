@@ -52,7 +52,11 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
     try {
       if (onStart) onStart();
       const vehicleType = routeService.getVehicleTypeForMode(travelMode);
-      await sessionLifecycle.startLiveSession(vehicleType);
+      const selectedRoute = availableRoutes[selectedRouteIndex] || availableRoutes[0];
+      const routeGeometry = (selectedRoute?.geometry || (selectedRoute as any)?.geometry_coords) || null;
+      const roadName = selectedRoute?.summary || destination?.name || 'Active Route';
+
+      await sessionLifecycle.startLiveSession(vehicleType, routeGeometry, roadName);
     } catch (err: any) {
       alert(err.message || 'Failed to start navigation session');
     }

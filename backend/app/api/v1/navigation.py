@@ -160,6 +160,26 @@ def get_session_diagnostics(session_id: str):
     return diag
 
 
+@router.post("/session/{session_id}/route")
+@router.post("/sessions/{session_id}/route")
+def load_session_route(session_id: str, data: dict):
+    """Load route geometry coordinates into active session map matcher."""
+    session = ws_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="No active engine for this session")
+    coords = data.get("coordinates") or data.get("geometry_coords") or []
+    road_name = data.get("road_name") or "Active Route"
+    if not coords:
+        raise HTTPException(status_code=400, detail="Missing route coordinates")
+    session.engine.map_matcher.load_route_geometry(coords, road_name)
+    return {
+        "status": "SUCCESS",
+        "session_id": session_id,
+        "segments_loaded": len(session.engine.map_matcher.road_segments),
+        "road_name": road_name
+    }
+
+
 @router.get("/ml/status")
 def get_navigation_ml_status():
     """Get real-time AI/ML model status and diagnostics."""

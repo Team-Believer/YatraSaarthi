@@ -46,5 +46,16 @@ export const navigationService = {
   getSession: async (sessionId: string): Promise<StartSessionResponse> => {
     return await apiClient.get<StartSessionResponse>(`/api/v1/navigation/session/${sessionId}`);
   },
+
+  loadSessionRoute: async (
+    sessionId: string,
+    coordinates: number[][],
+    roadName: string = 'Active Route'
+  ): Promise<{ status: string; session_id?: string; segments_loaded?: number; road_name?: string }> => {
+    return await apiClient.post(`/api/v1/navigation/session/${sessionId}/route`, {
+      coordinates,
+      road_name: roadName,
+    });
+  },
 };
 

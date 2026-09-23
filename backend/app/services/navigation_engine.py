@@ -116,6 +116,11 @@ class NavigationSessionEngine:
             self._process_imu(packet, ts)
         elif ptype == "orientation":
             self._process_orientation(packet, ts)
+        elif ptype == "route" or packet.get("route_geometry") is not None:
+            coords = packet.get("route_geometry") or packet.get("coordinates") or []
+            road_name = packet.get("road_name", "Active Route")
+            if coords:
+                self.map_matcher.load_route_geometry(coords, road_name)
         elif ptype == "combined":
             # Combined packet with multiple sensor types
             if packet.get("latitude") is not None:
@@ -124,6 +129,10 @@ class NavigationSessionEngine:
                 self._process_imu(packet, ts)
             if packet.get("alpha") is not None:
                 self._process_orientation(packet, ts)
+            if packet.get("route_geometry") is not None:
+                coords = packet.get("route_geometry")
+                road_name = packet.get("road_name", "Active Route")
+                self.map_matcher.load_route_geometry(coords, road_name)
         
         # Update navigation state
         self._update_nav_state(ts)

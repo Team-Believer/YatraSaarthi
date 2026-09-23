@@ -53,6 +53,9 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
   const outageDuration = useNavigationStore((s) => s.state.gnss_outage_duration);
   const envState = useNavigationStore((s) => s.state.environment_state);
 
+  const websocketStatus = useNavigationStore((s) => s.websocketStatus);
+  const errorMessage = useNavigationStore((s) => s.errorMessage);
+
   const locPermission = useLocationStore((s) => s.permission);
   const locAvailability = useLocationStore((s) => s.availability);
 
@@ -71,38 +74,44 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
   let secondary = 'Sensors standby';
 
   if (isLiveNav) {
-    const modeUpper = (navMode || '').toUpperCase();
-
-    if (modeUpper.includes('REACQUISITION') || modeUpper.includes('RECOVERY')) {
-      category = 'GNSS_RECOVERING';
-      title = 'GNSS recovering';
-      secondary = 'Validating satellite fix';
-    } else if (
-      modeUpper.includes('DEAD_RECKONING') ||
-      modeUpper.includes('LOST') ||
-      modeUpper.includes('INEKF') ||
-      modeUpper.includes('INERTIAL') ||
-      !gnssAvailable ||
-      envState === 'TUNNEL'
-    ) {
-      category = 'DEAD_RECKONING';
-      title = 'Dead reckoning';
-      secondary =
-        typeof outageDuration === 'number' && outageDuration > 0
-          ? `GNSS unavailable · ${formatOutageDuration(outageDuration)}`
-          : 'Inertial dead reckoning';
-    } else if (modeUpper.includes('DEGRADING') || gnssQuality === 'POOR' || gnssQuality === 'FAIR') {
-      category = 'GNSS_DEGRADED';
-      title = 'GNSS degraded';
-      secondary = 'Signal quality reduced';
-    } else if (gnssAvailable || modeUpper.includes('AIDED')) {
-      category = 'GNSS_FIX';
-      title = 'GNSS signal';
-      secondary = 'Satellite lock active';
+    if (websocketStatus === 'ERROR' || websocketStatus === 'CLOSED') {
+      category = 'ERROR';
+      title = 'Connection lost';
+      secondary = errorMessage || 'Telemetry disconnected';
     } else {
-      category = 'GNSS_DEGRADED';
-      title = 'GNSS degraded';
-      secondary = 'Inertial aiding active';
+      const modeUpper = (navMode || '').toUpperCase();
+
+      if (modeUpper.includes('REACQUISITION') || modeUpper.includes('RECOVERY')) {
+        category = 'GNSS_RECOVERING';
+        title = 'GNSS recovering';
+        secondary = 'Validating satellite fix';
+      } else if (
+        modeUpper.includes('DEAD_RECKONING') ||
+        modeUpper.includes('LOST') ||
+        modeUpper.includes('INEKF') ||
+        modeUpper.includes('INERTIAL') ||
+        !gnssAvailable ||
+        envState === 'TUNNEL'
+      ) {
+        category = 'DEAD_RECKONING';
+        title = 'Dead reckoning';
+        secondary =
+          typeof outageDuration === 'number' && outageDuration > 0
+            ? `GNSS unavailable · ${formatOutageDuration(outageDuration)}`
+            : 'Inertial dead reckoning';
+      } else if (modeUpper.includes('DEGRADING') || gnssQuality === 'POOR' || gnssQuality === 'FAIR') {
+        category = 'GNSS_DEGRADED';
+        title = 'GNSS degraded';
+        secondary = 'Signal quality reduced';
+      } else if (gnssAvailable || modeUpper.includes('AIDED')) {
+        category = 'GNSS_FIX';
+        title = 'GNSS signal';
+        secondary = 'Satellite lock active';
+      } else {
+        category = 'GNSS_DEGRADED';
+        title = 'GNSS degraded';
+        secondary = 'Inertial aiding active';
+      }
     }
   } else if (isStarting) {
     category = 'ACQUIRING';
@@ -159,6 +168,11 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
     case 'PERMISSION_REQUIRED':
       dotColor = 'bg-rose-500';
       dotPulse = false;
+      break;
+
+    case 'ERROR':
+      dotColor = 'bg-rose-500';
+      dotPulse = true;
       break;
 
     case 'STANDBY':
