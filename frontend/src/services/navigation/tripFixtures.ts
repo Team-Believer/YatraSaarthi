@@ -183,6 +183,39 @@ export const TRIP_FIXTURES: RouteTripFixture[] = [
       ],
     },
   },
+  {
+    summary: {
+      session_id: 'trip-ahmedabad-gandhinagar',
+      start_time: new Date(nowMs - 1000 * 60 * 60 * 48).toISOString(), // 2 days ago (This week)
+      end_time: new Date(nowMs - 1000 * 60 * 60 * 47.3).toISOString(),
+      distance_meters: 28500,
+      duration_seconds: 2400,
+      vehicle_type: 'car',
+      start_lat: 23.0225,
+      start_lon: 72.5714,
+      end_lat: 23.2156,
+      end_lon: 72.6369,
+    },
+    metadata: {
+      sessionId: 'trip-ahmedabad-gandhinagar',
+      sourceName: 'Ahmedabad',
+      destinationName: 'Gandhinagar',
+      sourceCoords: [72.5714, 23.0225],
+      destinationCoords: [72.6369, 23.2156],
+      roadSummary: 'SG Highway, Gandhinagar Highway',
+      distance_meters: 28500,
+      duration_seconds: 2400,
+      travelMode: 'car',
+      vehicleType: 'car',
+      geometry: [
+        [72.5714, 23.0225],
+        [72.5400, 23.0700],
+        [72.5350, 23.1300],
+        [72.5800, 23.1800],
+        [72.6369, 23.2156],
+      ],
+    },
+  },
 ];
 
 /**

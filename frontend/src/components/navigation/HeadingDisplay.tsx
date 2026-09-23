@@ -22,11 +22,11 @@ export const HeadingDisplay: React.FC<HeadingDisplayProps> = ({
           style={{ transform: valid && headingDeg !== null ? `rotate(${headingDeg}deg)` : undefined }}
         />
         {valid && headingDeg !== null ? (
-          <span className="text-sm sm:text-base font-semibold font-mono tabular-nums text-ink">
+          <span className="text-sm sm:text-base font-semibold font-sans tabular-nums text-ink">
             {headingDeg}°{cardinal ? ` ${cardinal}` : ''}
           </span>
         ) : (
-          <span className="text-sm sm:text-base font-medium text-ink-mute">
+          <span className="text-sm sm:text-base font-medium text-ink-mute font-sans">
             —
           </span>
         )}
@@ -41,11 +41,11 @@ export const HeadingDisplay: React.FC<HeadingDisplayProps> = ({
         style={{ transform: valid && headingDeg !== null ? `rotate(${headingDeg}deg)` : undefined }}
       />
       {valid && headingDeg !== null ? (
-        <span className="text-base sm:text-[17px] font-semibold font-mono tabular-nums text-ink">
+        <span className="text-base sm:text-[17px] font-semibold font-sans tabular-nums text-ink">
           {headingDeg}°{cardinal ? ` ${cardinal}` : ''}
         </span>
       ) : (
-        <span className="text-base sm:text-[17px] font-medium text-ink-mute">
+        <span className="text-base sm:text-[17px] font-medium text-ink-mute font-sans">
           —
         </span>
       )}

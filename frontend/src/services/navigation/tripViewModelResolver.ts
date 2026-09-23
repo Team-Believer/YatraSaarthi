@@ -13,6 +13,7 @@ import { geocodingService, getCoordKey } from '../location/geocodingService';
 
 export interface ResolvedTripViewModel {
   sessionId: string;
+  kind: 'recorded' | 'fixture';
   sourceName: string;
   destinationName: string;
   roadSummary?: string;
@@ -46,8 +47,11 @@ export function resolveTripViewModel(
   meta?: TripMetadata | null,
   detail?: SessionDetail | null,
   savedPlaces?: SavedPlaceItem[],
-  geoNames?: Record<string, string>
+  geoNames?: Record<string, string>,
+  explicitKind?: 'recorded' | 'fixture'
 ): ResolvedTripViewModel {
+  const isFixtureId = trip.session_id.startsWith('trip-vastral') || trip.session_id.startsWith('trip-ahmedabad');
+  const kind: 'recorded' | 'fixture' = explicitKind || (isFixtureId ? 'fixture' : 'recorded');
   // 1. Extract start and end coordinates from all available sources in priority order
   let startLat: number | null | undefined = trip.start_lat;
   let startLon: number | null | undefined = trip.start_lon;
@@ -192,6 +196,7 @@ export function resolveTripViewModel(
 
   return {
     sessionId: trip.session_id,
+    kind,
     sourceName,
     destinationName,
     roadSummary,
@@ -207,3 +212,43 @@ export function resolveTripViewModel(
     hasRealDestName,
   };
 }
+
+/**
+ * Validates whether a trip view model represents a meaningful route for UI presentation.
+ * Filters out empty/uninitialized sessions with no usable source or destination.
+ */
+export function isMeaningfulTrip(vm: ResolvedTripViewModel): boolean {
+  // Fixtures are always meaningful
+  if (vm.kind === 'fixture') {
+    return true;
+  }
+
+  const isSourceUnavailable = !vm.sourceName || vm.sourceName === 'Location unavailable' || vm.sourceName.trim() === '';
+  const isDestUnavailable = !vm.destinationName || vm.destinationName === 'Location unavailable' || vm.destinationName.trim() !== '' && vm.destinationName === 'Location unavailable';
+
+  // If both source and destination are unavailable
+  if (isSourceUnavailable && isDestUnavailable) {
+    return false;
+  }
+
+  // If both source and destination are exact 'Location unavailable'
+  if (vm.sourceName === 'Location unavailable' && vm.destinationName === 'Location unavailable') {
+    return false;
+  }
+
+  const hasValidStartCoord = vm.startLat !== null && vm.startLat !== undefined && vm.startLon !== null && vm.startLon !== undefined && (vm.startLat !== 0 || vm.startLon !== 0);
+  const hasValidEndCoord = vm.endLat !== null && vm.endLat !== undefined && vm.endLon !== null && vm.endLon !== undefined && (vm.endLat !== 0 || vm.endLon !== 0);
+
+  // If neither has a real place name and no valid coordinates
+  if (!vm.hasRealSourceName && !vm.hasRealDestName && !hasValidStartCoord && !hasValidEndCoord) {
+    return false;
+  }
+
+  // If neither has a real place name and distance <= 0 with no geometry points
+  if (!vm.hasRealSourceName && !vm.hasRealDestName && vm.distanceMeters <= 0 && (!vm.geometry || vm.geometry.length === 0)) {
+    return false;
+  }
+
+  return true;
+}
+

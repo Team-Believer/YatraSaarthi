@@ -48,8 +48,8 @@ export default function LandingPage() {
                     <Activity className="w-4 h-4" />
                     High accuracy
                   </div>
-                  <div className="text-2xl font-bold font-mono text-ink">± 2.5 m</div>
-                  <div className="text-xs text-ink-mute mt-0.5">Fused GNSS + InEKF</div>
+                  <div className="text-2xl font-bold font-sans tabular-nums text-ink">± 2.5 m</div>
+                  <div className="text-xs text-ink-mute mt-0.5 font-sans">Fused GNSS + InEKF</div>
                 </div>
               </div>
               

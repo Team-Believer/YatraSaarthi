@@ -8,16 +8,23 @@ import {
   Cpu,
   ShieldCheck,
   Gauge,
-  CheckCircle2,
-  TrendingUp,
   Radio,
-  Clock,
   Smartphone,
   GitMerge,
   Navigation2,
-  AlertTriangle,
+  ChevronDown,
+  Layers,
+  Compass,
+  MapPin,
+  TrendingUp,
+  Clock,
   ArrowRight,
-  Info,
+  ArrowDown,
+  AlertTriangle,
+  CheckCircle2,
+  Scale,
+  Sparkles,
+  type LucideIcon,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { formatISTTime24 } from '../utils/timeFormat';
@@ -28,6 +35,82 @@ interface VelocitySample {
   speed: number;
   uncertainty: number;
 }
+
+interface ComponentRoleItem {
+  id: string;
+  name: string;
+  badge: string;
+  badgeColor: string;
+  icon: LucideIcon;
+  summary: string;
+  detail: string;
+}
+
+const COMPONENT_ROLES: ComponentRoleItem[] = [
+  {
+    id: 'e5',
+    name: 'E5 — Velocity',
+    badge: 'Neural',
+    badgeColor: 'text-[#083335] bg-[#083335]/8 border-[#083335]/15',
+    icon: BrainCircuit,
+    summary: 'Estimates forward vehicle motion from a temporal IMU window.',
+    detail: 'A 1D convolutional neural network trained on vehicle motion sequences. Operates on a 2.0-second sliding buffer of 3-axis accelerometer and gyro data to infer longitudinal speed without satellite reference.'
+  },
+  {
+    id: 'u2',
+    name: 'U2 — Uncertainty',
+    badge: 'Neural',
+    badgeColor: 'text-[#083335] bg-[#083335]/8 border-[#083335]/15',
+    icon: ShieldCheck,
+    summary: 'Estimates confidence in the AI motion measurement.',
+    detail: 'Predicts the instantaneous standard deviation (σ) of the velocity estimate. Enables the Kalman filter to adapt measurement covariance dynamically based on road roughness, vibration, and maneuvering dynamics.'
+  },
+  {
+    id: 'inekf',
+    name: 'InEKF — State estimation',
+    badge: 'Filter',
+    badgeColor: 'text-emerald-800 bg-emerald-50 border-emerald-200/60',
+    icon: GitMerge,
+    summary: 'Maintains the navigation state and fuses inertial and external measurements.',
+    detail: 'Right-invariant Extended Kalman Filter formulated on matrix Lie groups SE_2(3). Guarantees consistent error dynamics and provable covariance convergence regardless of vehicle trajectory.'
+  },
+  {
+    id: 'nhc',
+    name: 'NHC — Motion constraint',
+    badge: 'Physics',
+    badgeColor: 'text-emerald-800 bg-emerald-50 border-emerald-200/60',
+    icon: Scale,
+    summary: 'Constrains lateral and vertical vehicle-frame velocity.',
+    detail: 'Enforces non-holonomic kinematic constraints (v_y ≈ 0, v_z ≈ 0) in the vehicle body frame, effectively eliminating lateral slide and vertical elevation drift during road travel.'
+  },
+  {
+    id: 'zupt',
+    name: 'ZUPT — Zero-velocity update',
+    badge: 'Physics',
+    badgeColor: 'text-emerald-800 bg-emerald-50 border-emerald-200/60',
+    icon: CheckCircle2,
+    summary: 'Uses stationary periods to correct accumulated motion error.',
+    detail: 'Detects vehicle standstills at traffic signals and halts. Injects zero-velocity pseudo-measurements to reset velocity errors and re-estimate IMU accelerometer and gyroscope bias offsets.'
+  },
+  {
+    id: 'heading',
+    name: 'Heading fusion',
+    badge: 'Sensor',
+    badgeColor: 'text-blue-800 bg-blue-50 border-blue-200/60',
+    icon: Compass,
+    summary: 'Combines available directional cues while rejecting unreliable measurements.',
+    detail: 'Integrates high-rate gyroscope yaw rates with magnetometer azimuth, GPS course-over-ground, and map bearings, with innovation gating to reject magnetic anomalies in urban canyons.'
+  },
+  {
+    id: 'map',
+    name: 'Map assistance',
+    badge: 'Context',
+    badgeColor: 'text-indigo-800 bg-indigo-50 border-indigo-200/60',
+    icon: MapPin,
+    summary: 'Adds road/context information when a reliable match is available.',
+    detail: 'Projects the dead-reckoning trajectory onto topological road geometry when candidate confidence is high, supplying road tangent heading and corridor bounds as a secondary aid.'
+  }
+];
 
 export default function LearningInsights() {
   // Store Subscriptions
@@ -43,25 +126,25 @@ export default function LearningInsights() {
 
   const capabilities = useSensorStore((s) => s.capabilities);
 
-  // Local state for ML metadata and history insights
+  // Local state
   const [mlStatus, setMlStatus] = useState<MLStatusResponse | null>(null);
   const [insights, setInsights] = useState<TelemetryInsights | null>(null);
 
-  // Live rolling sample buffer for velocity comparison chart
+  // Accordion state: keep max 2 expanded
+  const [expandedRoles, setExpandedRoles] = useState<string[]>(['e5']);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  // Live rolling sample buffer for velocity comparison
   const [samples, setSamples] = useState<VelocitySample[]>([]);
   const lastSampleTimeRef = useRef<number>(0);
 
   useEffect(() => {
-    // Fetch ML engine metadata
     fetchMLStatus()
       .then((res) => setMlStatus(res))
       .catch(() => {});
 
-    // Fetch accumulated historical learning insights
     historyService.getInsights()
-      .then((res) => {
-        setInsights(res);
-      })
+      .then((res) => setInsights(res))
       .catch(() => {});
   }, []);
 
@@ -88,833 +171,671 @@ export default function LearningInsights() {
     }
   }, [isLive, aiVelocity, aiUncertainty, speed]);
 
-  // Derived state
+  const toggleRole = (id: string) => {
+    setExpandedRoles((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((item) => item !== id);
+      } else {
+        // Keep max 2 open at a time
+        const next = [...prev, id];
+        return next.slice(-2);
+      }
+    });
+  };
+
   const isNavActive = isLive || sessionStatus === 'LIVE';
   const hasLiveAiData = isNavActive && typeof aiVelocity === 'number' && aiVelocity > 0;
 
   return (
-    <div className="max-w-[1240px] w-full mx-auto space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-24 md:pb-12 select-none">
-      {/* 1. PAGE HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-clean pb-5">
+    <div className="max-w-[1080px] w-full mx-auto space-y-8 sm:space-y-10 animate-in fade-in duration-300 select-none pb-28 md:pb-16">
+      {/* ========================================================================= */}
+      {/* 1. HEADER                                                                 */}
+      {/* ========================================================================= */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-clean pb-5">
         <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-[#083335] text-white flex items-center justify-center shadow-2xs shrink-0">
-            <BrainCircuit className="w-5.5 h-5.5 text-white" />
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#083335] text-white flex items-center justify-center shadow-2xs shrink-0">
+            <BrainCircuit className="w-5 h-5 sm:w-5.5 sm:h-5.5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-ink tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold font-display text-ink tracking-tight">
               Navigation Intelligence
             </h1>
-            <p className="text-xs sm:text-[13px] text-ink-body font-normal mt-0.5">
+            <p className="text-xs sm:text-[13px] text-ink-body font-normal font-sans mt-0.5">
               How motion intelligence assists YatraSaarthi navigation
             </p>
           </div>
         </div>
 
-        {/* System Status Pill */}
+        {/* Status indicator */}
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-border-clean shadow-2xs text-xs font-semibold text-ink">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-border-clean shadow-2xs text-xs font-semibold text-ink font-sans">
             <span
               className={clsx(
                 'w-2 h-2 rounded-full shrink-0',
                 isNavActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
               )}
             />
-            <span>{isNavActive ? 'Active' : 'Standby'}</span>
+            <span>{isNavActive ? 'Active' : 'Standby / Ready'}</span>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* 2. TOP STATUS CARDS (4 Columns) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: AI Velocity */}
-        <div className="bg-white p-5 rounded-2xl border border-border-clean shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-ink-body text-xs font-medium mb-1">
-            <span>AI Velocity</span>
-            <div className="w-7 h-7 rounded-lg bg-[#083335]/5 flex items-center justify-center text-[#083335]">
-              <Gauge className="w-4 h-4" />
+      {/* ========================================================================= */}
+      {/* 2. COMPACT 2x2 STATUS GRID                                                */}
+      {/* ========================================================================= */}
+      <section aria-label="System status">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* 1: AI Velocity */}
+          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-border-clean shadow-2xs flex flex-col justify-between h-[96px] sm:h-[104px]">
+            <div className="flex items-center justify-between text-xs font-medium text-ink-body">
+              <span className="font-semibold text-ink text-[12px] truncate">AI Velocity</span>
+              <Gauge className="w-3.5 h-3.5 text-[#083335] shrink-0" />
+            </div>
+            <div className="my-0.5">
+              <span className="text-lg sm:text-2xl font-bold font-sans tabular-nums text-ink tracking-tight">
+                {hasLiveAiData
+                  ? `${(aiVelocity as number).toFixed(2)}`
+                  : isNavActive && typeof speed === 'number'
+                  ? `${speed.toFixed(2)}`
+                  : 'Standby'}
+              </span>
+              {isNavActive && (
+                <span className="text-[11px] font-semibold text-ink-mute ml-1 uppercase font-sans">
+                  m/s
+                </span>
+              )}
+            </div>
+            <div className="text-[10.5px] text-ink-mute truncate font-sans">
+              Forward motion estimate
             </div>
           </div>
-          <div className="my-2">
-            <span className="text-2xl sm:text-3xl font-bold font-mono text-ink">
-              {hasLiveAiData
-                ? `${(aiVelocity as number).toFixed(2)}`
-                : isNavActive && typeof speed === 'number'
-                ? `${speed.toFixed(2)}`
-                : 'Standby'}
-            </span>
-            <span className="text-xs font-semibold text-ink-mute ml-1.5 uppercase">
-              {isNavActive ? 'm/s' : ''}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-[11px] text-ink-mute pt-2 border-t border-border-clean/60">
-            <span>Forward velocity estimate</span>
-            <span className="font-semibold text-ink-body">{isNavActive ? 'Active' : 'Standby'}</span>
-          </div>
-        </div>
 
-        {/* Card 2: Uncertainty */}
-        <div className="bg-white p-5 rounded-2xl border border-border-clean shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-ink-body text-xs font-medium mb-1">
-            <span>Uncertainty</span>
-            <div className="w-7 h-7 rounded-lg bg-[#083335]/5 flex items-center justify-center text-[#083335]">
-              <ShieldCheck className="w-4 h-4" />
+          {/* 2: Uncertainty */}
+          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-border-clean shadow-2xs flex flex-col justify-between h-[96px] sm:h-[104px]">
+            <div className="flex items-center justify-between text-xs font-medium text-ink-body">
+              <span className="font-semibold text-ink text-[12px] truncate">Uncertainty</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-[#083335] shrink-0" />
+            </div>
+            <div className="my-0.5">
+              <span className="text-lg sm:text-2xl font-bold font-sans tabular-nums text-ink tracking-tight">
+                {hasLiveAiData && typeof aiUncertainty === 'number'
+                  ? `±${aiUncertainty.toFixed(2)}`
+                  : isNavActive
+                  ? '±0.25'
+                  : 'Standby'}
+              </span>
+              {isNavActive && (
+                <span className="text-[11px] font-semibold text-ink-mute ml-1 uppercase font-sans">
+                  m/s
+                </span>
+              )}
+            </div>
+            <div className="text-[10.5px] text-ink-mute truncate font-sans">
+              Dynamic variance (σ)
             </div>
           </div>
-          <div className="my-2">
-            <span className="text-2xl sm:text-3xl font-bold font-mono text-ink">
-              {hasLiveAiData && typeof aiUncertainty === 'number'
-                ? `±${aiUncertainty.toFixed(2)}`
-                : isNavActive
-                ? '±0.25'
-                : 'Standby'}
-            </span>
-            <span className="text-xs font-semibold text-ink-mute ml-1.5 uppercase">
-              {isNavActive ? 'm/s' : ''}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-[11px] text-ink-mute pt-2 border-t border-border-clean/60">
-            <span>Calibrated variance (σ)</span>
-            <span className="font-semibold text-ink-body">{isNavActive ? 'Calibrated' : 'Standby'}</span>
-          </div>
-        </div>
 
-        {/* Card 3: Motion Sensors */}
-        <div className="bg-white p-5 rounded-2xl border border-border-clean shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-ink-body text-xs font-medium mb-1">
-            <span>Motion Sensors</span>
-            <div className="w-7 h-7 rounded-lg bg-[#083335]/5 flex items-center justify-center text-[#083335]">
-              <Radio className="w-4 h-4" />
+          {/* 3: Motion Sensors */}
+          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-border-clean shadow-2xs flex flex-col justify-between h-[96px] sm:h-[104px]">
+            <div className="flex items-center justify-between text-xs font-medium text-ink-body">
+              <span className="font-semibold text-ink text-[12px] truncate">Motion</span>
+              <Radio className="w-3.5 h-3.5 text-[#083335] shrink-0" />
+            </div>
+            <div className="my-0.5">
+              <span className="text-lg sm:text-2xl font-bold text-ink font-sans">
+                {capabilities.deviceMotion ? 'Connected' : 'Connected'}
+              </span>
+            </div>
+            <div className="text-[10.5px] text-emerald-600 font-semibold font-sans truncate">
+              50 Hz IMU Stream
             </div>
           </div>
-          <div className="my-2">
-            <span className="text-2xl sm:text-3xl font-bold text-ink">
-              {capabilities.deviceMotion ? 'Connected' : 'Connected'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-[11px] text-ink-mute pt-2 border-t border-border-clean/60">
-            <span>IMU Accelerometer & Gyro</span>
-            <span className="font-semibold text-emerald-600 font-mono">50 Hz</span>
-          </div>
-        </div>
 
-        {/* Card 4: Inference Engine */}
-        <div className="bg-white p-5 rounded-2xl border border-border-clean shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-ink-body text-xs font-medium mb-1">
-            <span>Inference Engine</span>
-            <div className="w-7 h-7 rounded-lg bg-[#083335]/5 flex items-center justify-center text-[#083335]">
-              <Cpu className="w-4 h-4" />
+          {/* 4: Inference Engine */}
+          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-border-clean shadow-2xs flex flex-col justify-between h-[96px] sm:h-[104px]">
+            <div className="flex items-center justify-between text-xs font-medium text-ink-body">
+              <span className="font-semibold text-ink text-[12px] truncate">Inference</span>
+              <Cpu className="w-3.5 h-3.5 text-[#083335] shrink-0" />
+            </div>
+            <div className="my-0.5">
+              <span className="text-lg sm:text-2xl font-bold font-sans tabular-nums text-ink tracking-tight">
+                {isNavActive && typeof aiLatency === 'number' && aiLatency > 0
+                  ? `${aiLatency.toFixed(1)} ms`
+                  : mlStatus?.last_latency_ms
+                  ? `${mlStatus.last_latency_ms.toFixed(1)} ms`
+                  : 'Ready'}
+              </span>
+            </div>
+            <div className="text-[10.5px] text-ink-mute truncate font-sans">
+              ONNX Runtime Engine
             </div>
           </div>
-          <div className="my-2">
-            <span className="text-2xl sm:text-3xl font-bold font-mono text-ink">
-              {isNavActive && typeof aiLatency === 'number' && aiLatency > 0
-                ? `${aiLatency.toFixed(1)}`
-                : mlStatus?.last_latency_ms
-                ? `${mlStatus.last_latency_ms.toFixed(1)}`
-                : 'Ready'}
-            </span>
-            <span className="text-xs font-semibold text-ink-mute ml-1.5 uppercase">
-              {(isNavActive && typeof aiLatency === 'number') || mlStatus?.last_latency_ms ? 'ms' : ''}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-[11px] text-ink-mute pt-2 border-t border-border-clean/60">
-            <span>ONNX Runtime</span>
-            <span className="font-semibold text-emerald-600">Ready</span>
-          </div>
         </div>
-      </div>
+      </section>
 
-      {/* 3. ASSISTED ESTIMATION PIPELINE */}
-      <div className="bg-white rounded-2xl p-5 sm:p-7 border border-border-clean shadow-2xs space-y-5">
+      {/* ========================================================================= */}
+      {/* 3. HOW IT WORKS — HERO PIPELINE (Continuous Single Visual Flow)            */}
+      {/* ========================================================================= */}
+      <section className="space-y-4">
         <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] block mb-1">
-            Assisted Estimation Pipeline
-          </span>
-          <h2 className="text-base sm:text-lg font-bold text-ink tracking-tight">
-            How Motion Intelligence Flows Into Navigation
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] font-sans">
+              System Pipeline
+            </span>
+          </div>
+          <h2 className="text-lg sm:text-xl font-bold font-display text-ink tracking-tight">
+            HOW IT WORKS
           </h2>
-          <p className="text-xs sm:text-[13px] text-ink-body mt-1">
-            Continuous sensor streaming through neural temporal models into the invariant filter
+          <p className="text-xs sm:text-[13px] text-ink-body font-sans mt-0.5 max-w-2xl leading-relaxed">
+            Motion intelligence provides motion estimates and uncertainty to assist the navigation filter.
           </p>
         </div>
 
-        {/* 5-Step Light Pipeline Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 relative">
-          {/* Step 1: Smartphone IMU */}
-          <div className="bg-canvas-soft/60 rounded-xl p-4 border border-border-clean flex flex-col justify-between min-h-[140px] relative group hover:border-[#083335]/30 transition-colors">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-mono text-ink-mute font-bold">01</span>
-                <div
-                  title="IMU sensor input"
-                  aria-label="IMU sensor input"
-                  className="w-8 h-8 rounded-lg bg-[#083335]/5 border border-[#083335]/10 flex items-center justify-center text-[#083335] shrink-0"
-                >
-                  <Smartphone className="w-4.5 h-4.5" />
-                </div>
+        {/* Continuous Connected Pipeline (Single integrated visual structure) */}
+        <div className="bg-white rounded-2xl border border-border-clean p-4 sm:p-6 shadow-2xs">
+          <div className="relative pl-7 sm:pl-8 space-y-6 sm:space-y-7 before:absolute before:left-[17px] sm:before:left-[19px] before:top-3 before:bottom-3 before:w-[2px] before:bg-gradient-to-b before:from-[#083335] before:via-[#083335]/40 before:to-emerald-500">
+            
+            {/* Stage 01 */}
+            <div className="relative flex items-start gap-3 sm:gap-4">
+              <div className="absolute -left-7 sm:-left-8 top-0.5 w-[22px] h-[22px] rounded-full bg-[#083335] text-white flex items-center justify-center text-[10px] font-bold font-sans shadow-2xs z-10">
+                01
               </div>
-              <h3 className="text-xs font-bold text-ink">Smartphone IMU</h3>
-              <p className="text-[11px] text-ink-body mt-1.5 leading-relaxed">
-                Raw 3-axis accelerometer and gyroscope sampled at 50 Hz.
-              </p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-[#083335] shrink-0" />
+                  <h3 className="text-sm font-bold text-ink font-display">Smartphone IMU</h3>
+                </div>
+                <p className="text-xs text-ink-body font-sans mt-1 leading-relaxed">
+                  Raw 3-axis accelerometer and gyroscope sampled at 50 Hz.
+                </p>
+              </div>
             </div>
-            <div className="text-[10.5px] font-medium text-ink-mute pt-2 border-t border-border-clean/60 flex items-center justify-between">
-              <span>Kinematic input</span>
+
+            {/* Stage 02 */}
+            <div className="relative flex items-start gap-3 sm:gap-4">
+              <div className="absolute -left-7 sm:-left-8 top-0.5 w-[22px] h-[22px] rounded-full bg-[#083335] text-white flex items-center justify-center text-[10px] font-bold font-sans shadow-2xs z-10">
+                02
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <BrainCircuit className="w-4 h-4 text-[#083335] shrink-0" />
+                  <h3 className="text-sm font-bold text-ink font-display">Motion Intelligence</h3>
+                </div>
+                <p className="text-xs text-ink-body font-sans mt-1 leading-relaxed">
+                  Temporal ConvNet extracts motion features across a 2.0s sliding window.
+                </p>
+              </div>
+            </div>
+
+            {/* Stage 03 */}
+            <div className="relative flex items-start gap-3 sm:gap-4">
+              <div className="absolute -left-7 sm:-left-8 top-0.5 w-[22px] h-[22px] rounded-full bg-[#083335] text-white flex items-center justify-center text-[10px] font-bold font-sans shadow-2xs z-10">
+                03
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <Gauge className="w-4 h-4 text-[#083335] shrink-0" />
+                  <h3 className="text-sm font-bold text-ink font-display">Velocity + Uncertainty</h3>
+                </div>
+                <p className="text-xs text-ink-body font-sans mt-1 leading-relaxed">
+                  Outputs forward velocity estimate with dynamic covariance bounds.
+                </p>
+              </div>
+            </div>
+
+            {/* Stage 04 */}
+            <div className="relative flex items-start gap-3 sm:gap-4">
+              <div className="absolute -left-7 sm:-left-8 top-0.5 w-[22px] h-[22px] rounded-full bg-[#083335] text-white flex items-center justify-center text-[10px] font-bold font-sans shadow-2xs z-10">
+                04
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <GitMerge className="w-4 h-4 text-[#083335] shrink-0" />
+                  <h3 className="text-sm font-bold text-ink font-display">Invariant EKF</h3>
+                </div>
+                <p className="text-xs text-ink-body font-sans mt-1 leading-relaxed">
+                  Fuses AI velocity with physical kinematic constraints (NHC & ZUPT).
+                </p>
+              </div>
+            </div>
+
+            {/* Stage 05 */}
+            <div className="relative flex items-start gap-3 sm:gap-4">
+              <div className="absolute -left-7 sm:-left-8 top-0.5 w-[22px] h-[22px] rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold font-sans shadow-2xs z-10">
+                05
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <Navigation2 className="w-4 h-4 text-emerald-600 rotate-45 shrink-0" />
+                  <h3 className="text-sm font-bold text-ink font-display">Navigation State</h3>
+                </div>
+                <p className="text-xs text-ink-body font-sans mt-1 leading-relaxed">
+                  Continuous accurate trajectory sustained through GNSS outages.
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 4. WHY THIS ARCHITECTURE (3 Concise Principles in Compact Rows)            */}
+      {/* ========================================================================= */}
+      <section className="space-y-4">
+        <div>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] font-sans block mb-1">
+            Design Principles
+          </span>
+          <h2 className="text-lg sm:text-xl font-bold font-display text-ink tracking-tight">
+            WHY THIS ARCHITECTURE
+          </h2>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-border-clean divide-y divide-border-clean shadow-2xs overflow-hidden">
+          {/* Principle 1 */}
+          <div className="p-4 sm:p-5 flex items-start gap-3.5">
+            <div className="w-8 h-8 rounded-lg bg-[#083335]/6 text-[#083335] flex items-center justify-center shrink-0 mt-0.5">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-xs sm:text-[13px] font-bold font-display text-[#083335] uppercase tracking-wide">
+                AI AUGMENTS
+              </h3>
+              <p className="text-xs text-ink-body font-sans mt-0.5 leading-relaxed">
+                AI estimates forward motion and confidence without taking over filter state.
+              </p>
             </div>
           </div>
 
-          {/* Step 2: Motion Intelligence */}
-          <div className="bg-canvas-soft/60 rounded-xl p-4 border border-border-clean flex flex-col justify-between min-h-[140px] relative group hover:border-[#083335]/30 transition-colors">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-mono text-ink-mute font-bold">02</span>
-                <div
-                  title="Motion feature inference"
-                  aria-label="Motion feature inference"
-                  className="w-8 h-8 rounded-lg bg-[#083335]/5 border border-[#083335]/10 flex items-center justify-center text-[#083335] shrink-0"
-                >
-                  <BrainCircuit className="w-4.5 h-4.5" />
-                </div>
-              </div>
-              <h3 className="text-xs font-bold text-ink">Motion Intelligence</h3>
-              <p className="text-[11px] text-ink-body mt-1.5 leading-relaxed">
-                Temporal ConvNet extracts motion features across a 2.0s sliding window.
-              </p>
+          {/* Principle 2 */}
+          <div className="p-4 sm:p-5 flex items-start gap-3.5">
+            <div className="w-8 h-8 rounded-lg bg-[#083335]/6 text-[#083335] flex items-center justify-center shrink-0 mt-0.5">
+              <GitMerge className="w-4 h-4" />
             </div>
-            <div className="text-[10.5px] font-medium text-ink-mute pt-2 border-t border-border-clean/60 flex items-center justify-between">
-              <span>Feature inference</span>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-xs sm:text-[13px] font-bold font-display text-[#083335] uppercase tracking-wide">
+                FILTER CONTROLS
+              </h3>
+              <p className="text-xs text-ink-body font-sans mt-0.5 leading-relaxed">
+                The navigation filter maintains the physical navigation state with Lie group geometry.
+              </p>
             </div>
           </div>
 
-          {/* Step 3: Velocity & Uncertainty */}
-          <div className="bg-canvas-soft/60 rounded-xl p-4 border border-border-clean flex flex-col justify-between min-h-[140px] relative group hover:border-[#083335]/30 transition-colors">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-mono text-ink-mute font-bold">03</span>
-                <div
-                  title="Velocity and uncertainty"
-                  aria-label="Velocity and uncertainty"
-                  className="w-8 h-8 rounded-lg bg-[#083335]/5 border border-[#083335]/10 flex items-center justify-center text-[#083335] shrink-0"
-                >
-                  <Gauge className="w-4.5 h-4.5" />
-                </div>
-              </div>
-              <h3 className="text-xs font-bold text-ink">Velocity & Uncertainty</h3>
-              <p className="text-[11px] text-ink-body mt-1.5 leading-relaxed">
-                Outputs forward velocity estimate with dynamic covariance bounds.
+          {/* Principle 3 */}
+          <div className="p-4 sm:p-5 flex items-start gap-3.5">
+            <div className="w-8 h-8 rounded-lg bg-[#083335]/6 text-[#083335] flex items-center justify-center shrink-0 mt-0.5">
+              <Scale className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-xs sm:text-[13px] font-bold font-display text-[#083335] uppercase tracking-wide">
+                PHYSICAL CONSTRAINTS
+              </h3>
+              <p className="text-xs text-ink-body font-sans mt-0.5 leading-relaxed">
+                NHC and ZUPT constrain physically implausible lateral slide and vertical drift.
               </p>
-            </div>
-            <div className="text-[10.5px] font-medium text-ink-mute pt-2 border-t border-border-clean/60 flex items-center justify-between">
-              <span>Assisted estimate</span>
-            </div>
-          </div>
-
-          {/* Step 4: Invariant EKF */}
-          <div className="bg-canvas-soft/60 rounded-xl p-4 border border-border-clean flex flex-col justify-between min-h-[140px] relative group hover:border-[#083335]/30 transition-colors">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-mono text-ink-mute font-bold">04</span>
-                <div
-                  title="Invariant EKF fusion"
-                  aria-label="Invariant EKF fusion"
-                  className="w-8 h-8 rounded-lg bg-[#083335]/5 border border-[#083335]/10 flex items-center justify-center text-[#083335] shrink-0"
-                >
-                  <GitMerge className="w-4.5 h-4.5" />
-                </div>
-              </div>
-              <h3 className="text-xs font-bold text-ink">Invariant EKF</h3>
-              <p className="text-[11px] text-ink-body mt-1.5 leading-relaxed">
-                Fuses AI velocity with physical kinematic constraints (NHC & ZUPT).
-              </p>
-            </div>
-            <div className="text-[10.5px] font-medium text-ink-mute pt-2 border-t border-border-clean/60 flex items-center justify-between">
-              <span>Filter fusion</span>
-            </div>
-          </div>
-
-          {/* Step 5: Navigation Output */}
-          <div className="bg-canvas-soft/60 rounded-xl p-4 border border-border-clean flex flex-col justify-between min-h-[140px] relative group hover:border-[#083335]/30 transition-colors">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-mono text-ink-mute font-bold">05</span>
-                <div
-                  title="Navigation state"
-                  aria-label="Navigation state"
-                  className="w-8 h-8 rounded-lg bg-[#083335]/5 border border-[#083335]/10 flex items-center justify-center text-[#083335] shrink-0"
-                >
-                  <Navigation2 className="w-4.5 h-4.5 rotate-45" />
-                </div>
-              </div>
-              <h3 className="text-xs font-bold text-ink">Navigation</h3>
-              <p className="text-[11px] text-ink-body mt-1.5 leading-relaxed">
-                Continuous accurate trajectory sustained through GNSS outages.
-              </p>
-            </div>
-            <div className="text-[10.5px] font-medium text-ink-mute pt-2 border-t border-border-clean/60 flex items-center justify-between">
-              <span>Dead reckoning track</span>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* 4. WHY CONTINUOUS POSITIONING MATTERS & WHY IMU ALONE DRIFTS (2 Columns) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Section 4: Why Continuous Positioning Matters */}
-        <div className="bg-white rounded-2xl p-5 sm:p-7 border border-border-clean shadow-2xs space-y-3 flex flex-col justify-between">
+      {/* ========================================================================= */}
+      {/* 5. COMPONENT ROLES (Accessible Interactive Accordion / List)               */}
+      {/* ========================================================================= */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] block mb-1">
-              Problem Context
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] font-sans block mb-1">
+              Modular Stack
             </span>
-            <h2 className="text-base sm:text-lg font-bold text-ink tracking-tight">
-              Why Continuous Positioning Matters
+            <h2 className="text-lg sm:text-xl font-bold font-display text-ink tracking-tight">
+              COMPONENT ROLES
             </h2>
-            <p className="text-xs sm:text-[13px] text-ink-body leading-relaxed mt-2">
-              GNSS provides an absolute position reference during normal open-sky navigation. In tunnels, underground parking, underpasses, urban corridors, or other signal-obstructed environments, that reference can become unavailable.
-            </p>
-            <p className="text-xs sm:text-[13px] text-ink-body leading-relaxed mt-2">
-              When satellite signals disappear, the navigation system must rely on on-device sensors and motion estimation to maintain track continuity until a valid satellite fix returns.
+          </div>
+          <span className="text-[11px] text-ink-mute font-sans hidden sm:inline">
+            Tap to inspect roles
+          </span>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-border-clean divide-y divide-border-clean shadow-2xs overflow-hidden">
+          {COMPONENT_ROLES.map((role) => {
+            const isExpanded = expandedRoles.includes(role.id);
+            const RoleIcon = role.icon;
+
+            return (
+              <div key={role.id} className="transition-colors">
+                <button
+                  type="button"
+                  onClick={() => toggleRole(role.id)}
+                  aria-expanded={isExpanded}
+                  aria-controls={`role-content-${role.id}`}
+                  className="w-full p-3.5 sm:p-4 flex items-center justify-between text-left hover:bg-slate-50/70 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-3 min-w-0 pr-2">
+                    <div className="w-7 h-7 rounded-lg bg-[#083335]/5 text-[#083335] flex items-center justify-center shrink-0">
+                      <RoleIcon className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs sm:text-[13px] font-bold font-display text-ink truncate">
+                          {role.name}
+                        </span>
+                        <span className={clsx("text-[10px] font-sans px-1.5 py-0.5 rounded border uppercase font-semibold", role.badgeColor)}>
+                          {role.badge}
+                        </span>
+                      </div>
+                      <p className="text-[11.5px] text-ink-body font-sans truncate mt-0.5">
+                        {role.summary}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-ink-mute shrink-0 ml-1">
+                    <ChevronDown
+                      className={clsx(
+                        'w-4 h-4 transition-transform duration-200',
+                        isExpanded && 'transform rotate-180 text-[#083335]'
+                      )}
+                    />
+                  </div>
+                </button>
+
+                {isExpanded && (
+                  <div
+                    id={`role-content-${role.id}`}
+                    className="px-4 pb-4 pt-1 sm:px-5 sm:pb-4 text-xs text-ink-body font-sans border-t border-border-clean/50 bg-slate-50/50 leading-relaxed animate-in fade-in duration-150"
+                  >
+                    <p>{role.detail}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 6. PROBLEM CONTEXT & FILTER INTEGRITY                                      */}
+      {/* ========================================================================= */}
+      <section className="space-y-6">
+        {/* Why Continuous Positioning Matters */}
+        <div className="bg-white rounded-2xl border border-border-clean p-4 sm:p-6 shadow-2xs space-y-4">
+          <div>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] font-sans block mb-1">
+              Operational Reality
+            </span>
+            <h2 className="text-base sm:text-lg font-bold font-display text-ink tracking-tight">
+              WHY CONTINUOUS POSITIONING MATTERS
+            </h2>
+            <p className="text-xs sm:text-[13px] text-ink-body font-sans leading-relaxed mt-2">
+              GNSS provides an absolute position reference during normal navigation. In tunnels, underground parking, underpasses, and other obstructed environments that reference can become unavailable.
             </p>
           </div>
-          <div className="p-3.5 bg-canvas-soft/60 rounded-xl border border-border-clean text-xs text-ink-body flex items-center gap-2.5">
-            <Info className="w-4 h-4 text-[#083335] shrink-0" />
-            <span>Ensures turn-by-turn guidance and ETA continuity remain functional during signal blackouts.</span>
+
+          {/* Visual statement */}
+          <div className="p-3 sm:p-3.5 bg-slate-50 rounded-xl border border-border-clean">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-sans text-ink">
+              <div className="flex items-center gap-2 text-rose-700 font-semibold">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>GNSS unavailable</span>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-ink-mute hidden sm:block" />
+              <ArrowDown className="w-3.5 h-3.5 text-ink-mute sm:hidden self-center" />
+              <div className="flex items-center gap-2 text-[#083335] font-semibold">
+                <BrainCircuit className="w-3.5 h-3.5 shrink-0" />
+                <span>IMU + motion intelligence + constraints</span>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-ink-mute hidden sm:block" />
+              <ArrowDown className="w-3.5 h-3.5 text-ink-mute sm:hidden self-center" />
+              <div className="flex items-center gap-2 text-emerald-700 font-semibold">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                <span>Continued navigation estimate</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Section 5: Why IMU Alone Drifts */}
-        <div className="bg-white rounded-2xl p-5 sm:p-7 border border-border-clean shadow-2xs space-y-4 flex flex-col justify-between">
-          <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 block mb-1">
+        {/* Why IMU Alone Drifts & Why Uncertainty Matters (2 Columns) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          {/* Why IMU-Only Drifts */}
+          <div className="bg-white rounded-2xl border border-border-clean p-4 sm:p-5 shadow-2xs space-y-3">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 font-sans block">
               Sensor Physics
             </span>
-            <h2 className="text-base sm:text-lg font-bold text-ink tracking-tight">
-              Why IMU-Only Dead Reckoning Drifts
+            <h3 className="text-sm sm:text-base font-bold font-display text-ink">
+              WHY IMU-ONLY DRIFTS
+            </h3>
+            <div className="space-y-2.5 pt-1 text-xs text-ink-body font-sans">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-ink">Sensor bias:</strong> Low-cost consumer MEMS sensors accumulate constant and thermal bias offsets.
+                </div>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-ink">Orientation error:</strong> Gyroscope integration drift causes heading error to compound over time.
+                </div>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="text-ink">Integration drift:</strong> Double-integrating noisy acceleration leads to quadratic position error.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Why Uncertainty Matters */}
+          <div className="bg-white rounded-2xl border border-border-clean p-4 sm:p-5 shadow-2xs space-y-3">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] font-sans block">
+              Dynamic Trust
+            </span>
+            <h3 className="text-sm sm:text-base font-bold font-display text-ink">
+              WHY UNCERTAINTY MATTERS
+            </h3>
+            <p className="text-xs text-ink-body font-sans leading-relaxed">
+              AI predictions are not equally reliable under every motion condition. The uncertainty estimate allows the navigation filter to adjust how strongly it trusts the measurement.
+            </p>
+            <div className="p-3 bg-slate-50 rounded-xl border border-border-clean space-y-1.5 text-xs font-sans">
+              <div className="flex items-center justify-between text-emerald-800 font-medium text-[11.5px]">
+                <span>Higher confidence</span>
+                <span className="font-semibold">→ stronger contribution</span>
+              </div>
+              <div className="flex items-center justify-between text-amber-800 font-medium text-[11.5px] pt-1 border-t border-border-clean/50">
+                <span>Lower confidence</span>
+                <span className="font-semibold">→ weaker contribution</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* The Filter Remains in Control */}
+        <div className="bg-white rounded-2xl border border-border-clean p-4 sm:p-6 shadow-2xs space-y-4">
+          <div>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] font-sans block mb-1">
+              State Authority
+            </span>
+            <h2 className="text-base sm:text-lg font-bold font-display text-ink tracking-tight">
+              THE FILTER REMAINS IN CONTROL
             </h2>
-            <ul className="space-y-2 text-xs text-ink-body mt-3">
-              <li className="flex items-start gap-2">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                <span><strong>Sensor Bias & Noise:</strong> Low-cost consumer accelerometers contain constant and time-varying bias offsets.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                <span><strong>Orientation Error:</strong> Gyroscope integration errors cause heading uncertainty to grow over time.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                <span><strong>Double Integration:</strong> Integrating noisy acceleration once causes linear velocity drift, and integrating again causes quadratic position divergence.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                <span><strong>Vibration & Mounting:</strong> Vehicle vibration and arbitrary smartphone placement introduce unmodeled acceleration components.</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Simple Visual Flow */}
-          <div className="p-3 bg-canvas-soft/70 rounded-xl border border-border-clean">
-            <div className="flex items-center justify-between text-[11px] font-mono font-semibold text-ink-body">
-              <span>IMU Samples</span>
-              <ArrowRight className="w-3.5 h-3.5 text-ink-mute" />
-              <span>Integration</span>
-              <ArrowRight className="w-3.5 h-3.5 text-ink-mute" />
-              <span>Velocity Error</span>
-              <ArrowRight className="w-3.5 h-3.5 text-ink-mute" />
-              <span className="text-amber-700">Position Drift</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 5. WHY MOTION INTELLIGENCE IS USED & WHY FILTER REMAINS IN CONTROL (2 Columns) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Section 6: Why Motion Intelligence Is Used */}
-        <div className="bg-white rounded-2xl p-5 sm:p-7 border border-border-clean shadow-2xs space-y-3">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] block mb-1">
-            Machine Learning Assistance
-          </span>
-          <h2 className="text-base sm:text-lg font-bold text-ink tracking-tight">
-            Why Motion Intelligence Is Used
-          </h2>
-          <p className="text-xs sm:text-[13px] text-ink-body leading-relaxed">
-            The neural motion model does not replace classical inertial navigation. Instead, it extracts motion patterns from a short 2.0-second window of smartphone IMU data and provides:
-          </p>
-          <ul className="space-y-2 text-xs text-ink-body pt-1">
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-              <span><strong>Forward Velocity Estimation:</strong> Direct prediction of longitudinal vehicle speed from kinematic vibration patterns.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-              <span><strong>Calibrated Uncertainty:</strong> An associated variance estimate indicating how reliable the prediction is under current dynamics.</span>
-            </li>
-          </ul>
-          <p className="text-xs text-ink-body leading-relaxed pt-1">
-            This provides the navigation filter with a bounded velocity measurement that stops the quadratic error growth of pure double integration during GNSS outages.
-          </p>
-        </div>
-
-        {/* Section 7: Why the Filter Remains in Control */}
-        <div className="bg-white rounded-2xl p-5 sm:p-7 border border-border-clean shadow-2xs space-y-3">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] block mb-1">
-            State Integrity
-          </span>
-          <h2 className="text-base sm:text-lg font-bold text-ink tracking-tight">
-            Why the Filter Remains in Control
-          </h2>
-          <p className="text-xs sm:text-[13px] text-ink-body leading-relaxed">
-            AI provides measurement cues; the Invariant Extended Kalman Filter (InEKF) maintains complete authority over the vehicle navigation state.
-          </p>
-          <p className="text-xs sm:text-[13px] text-ink-body leading-relaxed">
-            The filter fuses multiple independent constraints:
-          </p>
-          <div className="grid grid-cols-2 gap-2 text-[11.5px] font-medium text-ink-body pt-1">
-            <div className="p-2 rounded-lg bg-canvas-soft border border-border-clean">Inertial propagation</div>
-            <div className="p-2 rounded-lg bg-canvas-soft border border-border-clean">AI velocity & uncertainty</div>
-            <div className="p-2 rounded-lg bg-canvas-soft border border-border-clean">Non-Holonomic constraints</div>
-            <div className="p-2 rounded-lg bg-canvas-soft border border-border-clean">Zero-Velocity updates</div>
-            <div className="p-2 rounded-lg bg-canvas-soft border border-border-clean">Heading & orientation fusion</div>
-            <div className="p-2 rounded-lg bg-canvas-soft border border-border-clean">GNSS updates when available</div>
-          </div>
-          <div className="pt-2 border-t border-border-clean/60 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-ink-mute">
-            <span>Filter: <strong className="text-ink">{navMode || 'STANDBY'}</strong></span>
-            <span>NHC: <strong className={clsx(nhcActive ? "text-emerald-700" : "text-ink-mute")}>{nhcActive ? 'Active' : 'Standby'}</strong> • ZUPT: <strong className={clsx(zuptActive ? "text-emerald-700" : "text-ink-mute")}>{zuptActive ? 'Engaged' : 'Standby'}</strong></span>
-          </div>
-        </div>
-      </div>
-
-      {/* 6. WHAT EACH COMPONENT CONTRIBUTES (2-Column Grid) */}
-      <div className="bg-white rounded-2xl p-5 sm:p-7 border border-border-clean shadow-2xs space-y-4">
-        <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] block mb-1">
-            Component Architecture
-          </span>
-          <h2 className="text-base sm:text-lg font-bold text-ink tracking-tight">
-            What Each Component Contributes
-          </h2>
-          <p className="text-xs sm:text-[13px] text-ink-body mt-1">
-            Clear separation of responsibilities across neural, physical, and filtering layers
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-          {/* 1. E5 */}
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-bold text-ink">
-              <span>E5 — Velocity Model</span>
-              <span className="text-[10px] font-mono text-[#083335] bg-[#083335]/5 px-1.5 py-0.5 rounded">Neural</span>
-            </div>
-            <p className="text-xs text-ink-body leading-snug">
-              Estimates forward vehicle motion from a temporal IMU sliding window.
+            <p className="text-xs sm:text-[13px] text-ink-body font-sans leading-relaxed mt-1">
+              AI provides measurements and confidence. The Invariant EKF maintains the navigation state using inertial propagation and physical/contextual constraints.
             </p>
           </div>
 
-          {/* 2. U2 */}
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-bold text-ink">
-              <span>U2 — Uncertainty Model</span>
-              <span className="text-[10px] font-mono text-[#083335] bg-[#083335]/5 px-1.5 py-0.5 rounded">Neural</span>
+          {/* Fusion Summary Structure */}
+          <div className="p-4 bg-slate-50 rounded-xl border border-border-clean">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-sans font-medium text-ink">
+              <span className="px-2.5 py-1 rounded-lg bg-white border border-border-clean shadow-2xs">Inertial propagation</span>
+              <span className="text-ink-mute font-bold">+</span>
+              <span className="px-2.5 py-1 rounded-lg bg-white border border-border-clean shadow-2xs text-[#083335] font-bold">AI velocity & uncertainty</span>
+              <span className="text-ink-mute font-bold">+</span>
+              <span className="px-2.5 py-1 rounded-lg bg-white border border-border-clean shadow-2xs">NHC</span>
+              <span className="text-ink-mute font-bold">+</span>
+              <span className="px-2.5 py-1 rounded-lg bg-white border border-border-clean shadow-2xs">ZUPT</span>
+              <span className="text-ink-mute font-bold">+</span>
+              <span className="px-2.5 py-1 rounded-lg bg-white border border-border-clean shadow-2xs">Heading</span>
+              <span className="text-ink-mute font-bold">+</span>
+              <span className="px-2.5 py-1 rounded-lg bg-white border border-border-clean shadow-2xs">GNSS when available</span>
+              <span className="text-ink-mute font-bold">→</span>
+              <span className="px-3 py-1 rounded-lg bg-emerald-700 text-white font-bold shadow-2xs">Navigation state</span>
             </div>
-            <p className="text-xs text-ink-body leading-snug">
-              Estimates how much the navigation filter should trust the AI velocity measurement.
-            </p>
-          </div>
 
-          {/* 3. InEKF */}
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-bold text-ink">
-              <span>InEKF — State Estimator</span>
-              <span className="text-[10px] font-mono text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded">Filter</span>
-            </div>
-            <p className="text-xs text-ink-body leading-snug">
-              Maintains the navigation state and combines inertial and external measurements geometrically.
-            </p>
-          </div>
-
-          {/* 4. NHC */}
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-bold text-ink">
-              <span>NHC — Motion Constraint</span>
-              <span className="text-[10px] font-mono text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded">Physics</span>
-            </div>
-            <p className="text-xs text-ink-body leading-snug">
-              Uses vehicle kinematic assumptions to suppress impossible lateral and vertical slip velocities.
-            </p>
-          </div>
-
-          {/* 5. ZUPT */}
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-bold text-ink">
-              <span>ZUPT — Zero-Velocity Update</span>
-              <span className="text-[10px] font-mono text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded">Physics</span>
-            </div>
-            <p className="text-xs text-ink-body leading-snug">
-              Corrects accumulated velocity and sensor bias error whenever the vehicle is stationary.
-            </p>
-          </div>
-
-          {/* 6. Heading Fusion */}
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-bold text-ink">
-              <span>Heading Fusion</span>
-              <span className="text-[10px] font-mono text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded">Sensor</span>
-            </div>
-            <p className="text-xs text-ink-body leading-snug">
-              Combines gyro rates and compass orientation while rejecting unreliable magnetic anomalies.
-            </p>
-          </div>
-
-          {/* 7. GNSS */}
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-bold text-ink">
-              <span>GNSS Positioning</span>
-              <span className="text-[10px] font-mono text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded">Satellite</span>
-            </div>
-            <p className="text-xs text-ink-body leading-snug">
-              Provides absolute position whenever a valid satellite solution is available.
-            </p>
-          </div>
-
-          {/* 8. Map Constraint */}
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-bold text-ink">
-              <span>Map Constraint</span>
-              <span className="text-[10px] font-mono text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded">Context</span>
-            </div>
-            <p className="text-xs text-ink-body leading-snug">
-              Provides road bearing and corridor context when a reliable topological road match exists.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* 7. GNSS OUTAGE FLOW & RECOVERY PROCESS */}
-      <div className="bg-white rounded-2xl p-5 sm:p-7 border border-border-clean shadow-2xs space-y-5">
-        <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] block mb-1">
-            System Lifecycle
-          </span>
-          <h2 className="text-base sm:text-lg font-bold text-ink tracking-tight">
-            GNSS Outage Flow
-          </h2>
-          <p className="text-xs sm:text-[13px] text-ink-body mt-1">
-            Step-by-step transition from satellite-aided navigation to dead reckoning and graceful recovery
-          </p>
-        </div>
-
-        {/* Visual Outage Flow Pipeline */}
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-2.5 items-stretch text-center">
-          <div className="p-3 bg-canvas-soft/70 rounded-xl border border-border-clean flex flex-col justify-center">
-            <span className="text-[10px] font-mono text-ink-mute font-bold">01</span>
-            <span className="text-xs font-bold text-ink mt-1">GNSS Available</span>
-            <span className="text-[10px] text-ink-mute mt-0.5">Absolute fixes</span>
-          </div>
-
-          <div className="p-3 bg-canvas-soft/70 rounded-xl border border-border-clean flex flex-col justify-center">
-            <span className="text-[10px] font-mono text-ink-mute font-bold">02</span>
-            <span className="text-xs font-bold text-ink mt-1">Quality Degrades</span>
-            <span className="text-[10px] text-ink-mute mt-0.5">High DOP / urban canyon</span>
-          </div>
-
-          <div className="p-3 bg-canvas-soft/70 rounded-xl border border-border-clean flex flex-col justify-center">
-            <span className="text-[10px] font-mono text-ink-mute font-bold">03</span>
-            <span className="text-xs font-bold text-ink mt-1">GNSS Lost</span>
-            <span className="text-[10px] text-amber-700 mt-0.5">Outage triggered</span>
-          </div>
-
-          <div className="p-3 bg-canvas-soft/70 rounded-xl border border-[#083335]/20 bg-[#083335]/5 flex flex-col justify-center">
-            <span className="text-[10px] font-mono text-[#083335] font-bold">04 • FUSION</span>
-            <span className="text-xs font-bold text-[#083335] mt-1">IMU + AI + Constraints</span>
-            <span className="text-[10px] text-ink-body mt-0.5">NHC + ZUPT + Heading</span>
-          </div>
-
-          <div className="p-3 bg-canvas-soft/70 rounded-xl border border-border-clean flex flex-col justify-center">
-            <span className="text-[10px] font-mono text-ink-mute font-bold">05</span>
-            <span className="text-xs font-bold text-ink mt-1">Dead Reckoning</span>
-            <span className="text-[10px] text-ink-body mt-0.5">Continuous smooth track</span>
-          </div>
-
-          <div className="p-3 bg-canvas-soft/70 rounded-xl border border-border-clean flex flex-col justify-center">
-            <span className="text-[10px] font-mono text-ink-mute font-bold">06</span>
-            <span className="text-xs font-bold text-ink mt-1">Recovery Check</span>
-            <span className="text-[10px] text-ink-mute mt-0.5">Innovation gating</span>
-          </div>
-
-          <div className="p-3 bg-canvas-soft/70 rounded-xl border border-border-clean flex flex-col justify-center">
-            <span className="text-[10px] font-mono text-ink-mute font-bold">07</span>
-            <span className="text-xs font-bold text-ink mt-1">GNSS-Aided</span>
-            <span className="text-[10px] text-emerald-700 mt-0.5">Normal tracking</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 8. WHY UNCERTAINTY MATTERS & PHYSICAL CONSTRAINTS (2 Columns) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Section 8: Why Uncertainty Matters */}
-        <div className="bg-white rounded-2xl p-5 sm:p-7 border border-border-clean shadow-2xs space-y-3">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] block mb-1">
-            Dynamic Weighting
-          </span>
-          <h2 className="text-base sm:text-lg font-bold text-ink tracking-tight">
-            Why the AI Output Includes Uncertainty
-          </h2>
-          <p className="text-xs sm:text-[13px] text-ink-body leading-relaxed">
-            A velocity prediction is not equally reliable under all driving conditions. Road surface roughness, sudden braking, or sharp turns can affect prediction confidence.
-          </p>
-          <p className="text-xs sm:text-[13px] text-ink-body leading-relaxed">
-            The uncertainty estimate ($\sigma$) allows the Kalman filter to dynamically adapt measurement covariance:
-          </p>
-          <div className="grid grid-cols-2 gap-3 pt-1 text-xs">
-            <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200/60 text-emerald-950 space-y-1">
-              <span className="font-bold block">Higher Confidence</span>
-              <span className="text-[11px] text-emerald-800">Smaller uncertainty ($\sigma$) → Stronger weighting in filter correction.</span>
-            </div>
-            <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/60 text-amber-950 space-y-1">
-              <span className="font-bold block">Lower Confidence</span>
-              <span className="text-[11px] text-amber-800">Larger uncertainty ($\sigma$) → Weaker weighting, preventing filter distortion.</span>
+            <div className="mt-3 pt-2.5 border-t border-border-clean/60 flex flex-wrap items-center justify-between gap-2 text-[11px] font-sans text-ink-mute">
+              <span>Filter Mode: <strong className="text-ink">{navMode || 'STANDBY'}</strong></span>
+              <span>NHC: <strong className={clsx(nhcActive ? "text-emerald-700" : "text-ink-mute")}>{nhcActive ? 'Active' : 'Standby'}</strong> • ZUPT: <strong className={clsx(zuptActive ? "text-emerald-700" : "text-ink-mute")}>{zuptActive ? 'Engaged' : 'Standby'}</strong></span>
             </div>
           </div>
         </div>
+      </section>
 
-        {/* Section 9: Physical Constraints Keep the Estimate Stable */}
-        <div className="bg-white rounded-2xl p-5 sm:p-7 border border-border-clean shadow-2xs space-y-3">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] block mb-1">
-            Kinematic Boundaries
-          </span>
-          <h2 className="text-base sm:text-lg font-bold text-ink tracking-tight">
-            Physical Constraints Keep the Estimate Stable
-          </h2>
-          <p className="text-xs sm:text-[13px] text-ink-body leading-relaxed">
-            Vehicles operate under known physical motion boundaries that significantly constrain drift:
-          </p>
-          <div className="space-y-2.5 pt-1 text-xs text-ink-body">
-            <div className="p-3 bg-canvas-soft/60 rounded-xl border border-border-clean">
-              <strong className="text-ink">Non-Holonomic Constraints (NHC):</strong> Land vehicles do not slide sideways or fly vertically under normal conditions ($v_y \approx 0, v_z \approx 0$). Applying this constraint eliminates two full axes of velocity drift.
+      {/* ========================================================================= */}
+      {/* 7. ADVANCED DETAILS (Progressive Disclosure / Collapsed by Default)        */}
+      {/* ========================================================================= */}
+      <section className="space-y-4">
+        <div className="bg-white rounded-2xl border border-border-clean shadow-2xs overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen(!advancedOpen)}
+            aria-expanded={advancedOpen}
+            aria-controls="advanced-technical-details"
+            className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-slate-50/70 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#083335]/5 text-[#083335] flex items-center justify-center shrink-0">
+                <Layers className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-sm sm:text-base font-bold font-display text-ink tracking-tight">
+                  ADVANCED DETAILS
+                </h2>
+                <p className="text-[11.5px] text-ink-mute font-sans mt-0.5">
+                  Deep technical specifications, limitations, and future extensions
+                </p>
+              </div>
             </div>
-            <div className="p-3 bg-canvas-soft/60 rounded-xl border border-border-clean">
-              <strong className="text-ink">Zero-Velocity Update (ZUPT):</strong> When stopped at traffic signals, velocity is identically zero. This allows the filter to completely reset accumulated velocity errors and re-estimate sensor biases.
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-[#083335] font-sans hidden sm:inline">
+                {advancedOpen ? 'Hide' : 'Expand'}
+              </span>
+              <ChevronDown
+                className={clsx(
+                  'w-4 h-4 text-[#083335] transition-transform duration-200',
+                  advancedOpen && 'transform rotate-180'
+                )}
+              />
             </div>
-          </div>
+          </button>
+
+          {advancedOpen && (
+            <div
+              id="advanced-technical-details"
+              className="p-4 sm:p-6 border-t border-border-clean space-y-6 bg-slate-50/40 animate-in fade-in duration-200 font-sans"
+            >
+              {/* ▸ Model details */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#083335] flex items-center gap-1.5">
+                  <span>▸ Model details</span>
+                </h3>
+                <p className="text-xs text-ink-body leading-relaxed">
+                  The motion model employs a 1D temporal convolutional architecture (E5) paired with a heteroscedastic uncertainty estimator (U2). It processes a 2.0-second sliding buffer of 3-axis accelerometer and gyroscope data. Quantized models execute directly on-device via ONNX Runtime WebAssembly with SIMD acceleration.
+                </p>
+              </div>
+
+              {/* ▸ Estimation details */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#083335] flex items-center gap-1.5">
+                  <span>▸ Estimation details</span>
+                </h3>
+                <p className="text-xs text-ink-body leading-relaxed">
+                  The navigation engine runs a Right-Invariant Extended Kalman Filter (InEKF) parameterized on the matrix Lie group <span className="font-semibold text-ink text-[11.5px] bg-white px-1.5 py-0.5 rounded border border-border-clean">SE_2(3)</span>. The state vector encapsulates attitude rotation, velocity, position, and sensor biases. Measurement updates apply innovation Mahalanobis gating to prevent divergence.
+                </p>
+              </div>
+
+              {/* ▸ Sensor details */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#083335] flex items-center gap-1.5">
+                  <span>▸ Sensor details</span>
+                </h3>
+                <p className="text-xs text-ink-body leading-relaxed">
+                  Inertial data is acquired at 50 Hz via the W3C Sensor APIs. Acceleration and angular velocity undergo virtual frame alignment to eliminate mounting orientation discrepancy before entering the feature extractor.
+                </p>
+              </div>
+
+              {/* ▸ Map assistance */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#083335] flex items-center gap-1.5">
+                  <span>▸ Map assistance</span>
+                </h3>
+                <p className="text-xs text-ink-body leading-relaxed">
+                  When digital topological road vectors are available, candidate road segments project road heading vectors into the filter heading fusion pipeline when innovation distance satisfies strict probability gates.
+                </p>
+              </div>
+
+              {/* ▸ Current limitations */}
+              <div className="space-y-2 pt-2 border-t border-border-clean/60">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                  <span>▸ Current limitations</span>
+                </h3>
+                <ul className="space-y-1.5 text-xs text-ink-body list-disc list-inside">
+                  <li>Smartphone IMU quality varies by device and mounting.</li>
+                  <li>Motion-model behavior depends on the represented training data.</li>
+                  <li>Long GNSS outages increase uncertainty.</li>
+                  <li>Magnetic and vibration disturbances can affect sensor quality.</li>
+                  <li>Physical field testing is required for real-world characterization.</li>
+                </ul>
+              </div>
+
+              {/* ▸ Future extensions */}
+              <div className="space-y-2 pt-2 border-t border-border-clean/60">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-800 flex items-center gap-1.5">
+                  <span>▸ Future extensions</span>
+                  <span className="text-[10px] font-sans font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200/60">
+                    Roadmap
+                  </span>
+                </h3>
+                <ul className="space-y-1.5 text-xs text-ink-body list-disc list-inside">
+                  <li><strong>Richer vehicle-specific data:</strong> Multi-axle commercial vehicles and 2-wheeler motion priors.</li>
+                  <li><strong>Stronger map constraints:</strong> Lane-level corridor bounding and topological turn restrictions.</li>
+                  <li><strong>Visual/inertial assistance (VIO):</strong> Monocular camera optical flow integration for visual dead reckoning.</li>
+                  <li><strong>Thermal bias modeling:</strong> MEMS sensor thermal drift curve compensation during prolonged navigation.</li>
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      </section>
 
-      {/* 9. GNSS RECOVERY & MAP ASSISTANCE (2 Columns) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Section 10: Recovering When GNSS Returns */}
-        <div className="bg-white rounded-2xl p-5 sm:p-7 border border-border-clean shadow-2xs space-y-3">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] block mb-1">
-            Post-Outage Transition
-          </span>
-          <h2 className="text-base sm:text-lg font-bold text-ink tracking-tight">
-            Recovering When GNSS Returns
-          </h2>
-          <p className="text-xs sm:text-[13px] text-ink-body leading-relaxed">
-            When emerging from an underpass or tunnel, new satellite fixes must be validated before being accepted:
-          </p>
-          <ol className="space-y-1.5 text-xs text-ink-body list-decimal list-inside pt-1">
-            <li><strong>Fix Detection:</strong> Incoming GNSS fix is checked for valid accuracy and dilution metrics.</li>
-            <li><strong>Innovation Check:</strong> The measurement is evaluated against the current dead reckoning error covariance.</li>
-            <li><strong>Anomaly Rejection:</strong> Implausible multipath jumps are rejected.</li>
-            <li><strong>Filter Update:</strong> Valid fixes update the filter state without an abrupt application-level coordinate snap.</li>
-            <li><strong>Smooth Tracking:</strong> Navigation seamlessly returns to full GNSS-aided operation.</li>
-          </ol>
-        </div>
-
-        {/* Section 11: Map Information Is an Additional Constraint */}
-        <div className="bg-white rounded-2xl p-5 sm:p-7 border border-border-clean shadow-2xs space-y-3">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] block mb-1">
-            Topological Context
-          </span>
-          <h2 className="text-base sm:text-lg font-bold text-ink tracking-tight">
-            Map Information Is an Additional Constraint
-          </h2>
-          <p className="text-xs sm:text-[13px] text-ink-body leading-relaxed">
-            The core navigation engine operates purely on sensor fusion and does not require map data to function.
-          </p>
-          <p className="text-xs sm:text-[13px] text-ink-body leading-relaxed">
-            When a valid digital road network is loaded:
-          </p>
-          <ul className="space-y-1.5 text-xs text-ink-body pt-1">
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#083335] shrink-0 mt-0.5" />
-              <span>Road alignment and bearing provide additional orientation guidance along known corridors.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#083335] shrink-0 mt-0.5" />
-              <span>Map matching acts as a secondary verification aid rather than the sole arbiter of vehicle position.</span>
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      {/* 10. ENGINEERING DECISIONS */}
-      <div className="bg-white rounded-2xl p-5 sm:p-7 border border-border-clean shadow-2xs space-y-4">
-        <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] block mb-1">
-            System Principles
-          </span>
-          <h2 className="text-base sm:text-lg font-bold text-ink tracking-tight">
-            Engineering Decisions
-          </h2>
-          <p className="text-xs sm:text-[13px] text-ink-body mt-1">
-            Core design choices ensuring stability, reliability, and modularity
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
-          {/* Card 1 */}
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1.5">
-            <h3 className="text-xs font-bold text-ink">Physics + AI</h3>
-            <p className="text-xs text-ink-body leading-relaxed">
-              AI augments the navigation filter with velocity cues instead of replacing the state estimator.
-            </p>
-          </div>
-
-          {/* Card 2 */}
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1.5">
-            <h3 className="text-xs font-bold text-ink">Uncertainty-Aware</h3>
-            <p className="text-xs text-ink-body leading-relaxed">
-              Every neural prediction is paired with a dynamic uncertainty bound ($\sigma$) for adaptive weighting.
-            </p>
-          </div>
-
-          {/* Card 3 */}
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1.5">
-            <h3 className="text-xs font-bold text-ink">Constraint-Aware</h3>
-            <p className="text-xs text-ink-body leading-relaxed">
-              Non-Holonomic constraints limit physically implausible lateral and vertical displacement.
-            </p>
-          </div>
-
-          {/* Card 4 */}
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1.5">
-            <h3 className="text-xs font-bold text-ink">Graceful Recovery</h3>
-            <p className="text-xs text-ink-body leading-relaxed">
-              GNSS fixes are validated against filter innovation before incorporation to prevent abrupt jumps.
-            </p>
-          </div>
-
-          {/* Card 5 */}
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1.5">
-            <h3 className="text-xs font-bold text-ink">Modular Pipeline</h3>
-            <p className="text-xs text-ink-body leading-relaxed">
-              Each sensor, neural model, and constraint layer can be individually verified and diagnosed.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* 11. CURRENT LIMITATIONS */}
-      <div className="bg-white rounded-2xl p-5 sm:p-7 border border-border-clean shadow-2xs space-y-4">
-        <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 block mb-1">
-            Transparency
-          </span>
-          <h2 className="text-base sm:text-lg font-bold text-ink tracking-tight">
-            Current Limitations
-          </h2>
-          <p className="text-xs sm:text-[13px] text-ink-body mt-1">
-            Known physical and environmental factors that affect dead reckoning precision
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2 text-xs text-ink-body">
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1">
-            <strong className="text-ink">Smartphone IMU Variability:</strong>
-            <p>MEMS sensor noise and bias stability differ across smartphone hardware manufacturers and mounting positions.</p>
-          </div>
-
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1">
-            <strong className="text-ink">Training Data Coverage:</strong>
-            <p>Model predictions perform best on vehicle dynamics and road profiles represented in training distributions.</p>
-          </div>
-
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1">
-            <strong className="text-ink">Extended Outage Growth:</strong>
-            <p>Position uncertainty grows with the duration of the outage; prolonged GNSS loss requires periodic heading/ZUPT corrections.</p>
-          </div>
-
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1">
-            <strong className="text-ink">Environmental Disturbances:</strong>
-            <p>Severe road vibration, speed bumps, and localized magnetic anomalies in urban structures can degrade sensor quality.</p>
-          </div>
-
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1">
-            <strong className="text-ink">Mounting Shifts:</strong>
-            <p>Sudden changes in device phone orientation during navigation require attitude re-convergence.</p>
-          </div>
-
-          <div className="p-4 bg-canvas-soft/60 rounded-xl border border-border-clean space-y-1">
-            <strong className="text-ink">Physical Field Verification:</strong>
-            <p>Comprehensive physical drive testing across diverse road networks is essential to characterize real-world behavior.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* 12. FUTURE EXTENSIONS */}
-      <div className="bg-white rounded-2xl p-5 sm:p-7 border border-border-clean shadow-2xs space-y-4">
-        <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-ink-mute block mb-1">
-            Planned Research & Engineering
-          </span>
-          <h2 className="text-base sm:text-lg font-bold text-ink tracking-tight">
-            Future Extensions
-          </h2>
-          <p className="text-xs sm:text-[13px] text-ink-body mt-1">
-            Potential future system enhancements currently outside the active production baseline
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 text-xs text-ink-body">
-          <div className="p-4 bg-canvas-soft/40 rounded-xl border border-border-clean/70 space-y-1">
-            <div className="text-[10px] font-mono text-ink-mute uppercase font-semibold">Future</div>
-            <strong className="text-ink">Richer Multi-Vehicle Datasets:</strong>
-            <p>Expanding training corpora across diverse commercial vehicles, 2-wheelers, and varied terrain profiles.</p>
-          </div>
-
-          <div className="p-4 bg-canvas-soft/40 rounded-xl border border-border-clean/70 space-y-1">
-            <div className="text-[10px] font-mono text-ink-mute uppercase font-semibold">Future</div>
-            <strong className="text-ink">Visual-Inertial Assistance (VIO):</strong>
-            <p>Integrating monocular optical flow when camera feeds are available for additional velocity constraints.</p>
-          </div>
-
-          <div className="p-4 bg-canvas-soft/40 rounded-xl border border-border-clean/70 space-y-1">
-            <div className="text-[10px] font-mono text-ink-mute uppercase font-semibold">Future</div>
-            <strong className="text-ink">Stronger Topological Map Matching:</strong>
-            <p>Advanced corridor graph matching incorporating lane-level topology and turn restriction models.</p>
-          </div>
-
-          <div className="p-4 bg-canvas-soft/40 rounded-xl border border-border-clean/70 space-y-1">
-            <div className="text-[10px] font-mono text-ink-mute uppercase font-semibold">Future</div>
-            <strong className="text-ink">Thermal Sensor Compensation:</strong>
-            <p>Modeling temperature-induced bias drift in smartphone MEMS gyroscopes during prolonged navigation sessions.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* 13. LIVE ROLLING VELOCITY COMPARISON (When active navigation samples exist) */}
+      {/* ========================================================================= */}
+      {/* 8. SUPPLEMENTARY LIVE VELOCITY TELEMETRY (When active session exists)      */}
+      {/* ========================================================================= */}
       {samples.length > 2 && (
-        <div className="bg-white rounded-2xl p-5 sm:p-6 border border-border-clean shadow-2xs space-y-4">
+        <section className="bg-white rounded-2xl p-4 sm:p-5 border border-border-clean shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-[#083335]" />
-              <h3 className="text-xs sm:text-sm font-bold text-ink">
+              <h3 className="text-xs sm:text-sm font-bold text-ink font-display">
                 Live AI Velocity vs. Speed Over Time
               </h3>
             </div>
-            <div className="flex items-center gap-3 text-xs font-medium">
-              <span className="flex items-center gap-1.5 text-ink-body">
+            <div className="flex items-center gap-3 text-xs font-medium font-sans">
+              <span className="flex items-center gap-1.5 text-ink-body text-[11px]">
                 <span className="w-2.5 h-2.5 rounded-sm bg-[#083335] inline-block" />
                 AI Velocity
               </span>
-              <span className="flex items-center gap-1.5 text-ink-body">
+              <span className="flex items-center gap-1.5 text-ink-body text-[11px]">
                 <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />
-                Physical Speed
+                Speed
               </span>
             </div>
           </div>
 
-          <div className="h-40 w-full pt-2">
-            <div className="h-full w-full flex items-end gap-1.5 sm:gap-2 px-1 pb-4 border-b border-border-clean/60">
+          <div className="h-32 w-full pt-2">
+            <div className="h-full w-full flex items-end gap-1.5 px-1 pb-3 border-b border-border-clean/60">
               {samples.map((sample, idx) => {
                 const maxVal = Math.max(...samples.map((s) => Math.max(s.aiVelocity, s.speed, 5)));
                 const aiHeight = Math.max(8, (sample.aiVelocity / maxVal) * 100);
@@ -922,21 +843,17 @@ export default function LearningInsights() {
 
                 return (
                   <div key={idx} className="flex-1 flex flex-col items-center justify-end h-full group relative">
-                    <div className="absolute -top-10 bg-ink text-white text-[10px] font-mono px-2 py-1 rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 whitespace-nowrap">
-                      AI: {sample.aiVelocity} m/s • Speed: {sample.speed} m/s
-                    </div>
-
-                    <div className="w-full flex items-end justify-center gap-0.5 sm:gap-1 h-full">
+                    <div className="w-full flex items-end justify-center gap-0.5 h-full">
                       <div
-                        className="w-full max-w-[12px] bg-[#083335] rounded-t-sm transition-all duration-300"
+                        className="w-full max-w-[10px] bg-[#083335] rounded-t-sm transition-all duration-300"
                         style={{ height: `${aiHeight}%` }}
                       />
                       <div
-                        className="w-full max-w-[12px] bg-emerald-500 rounded-t-sm transition-all duration-300"
+                        className="w-full max-w-[10px] bg-emerald-500 rounded-t-sm transition-all duration-300"
                         style={{ height: `${spdHeight}%` }}
                       />
                     </div>
-                    <span className="text-[9px] font-mono text-ink-mute mt-1 truncate max-w-full">
+                    <span className="text-[9px] font-sans tabular-nums text-ink-mute mt-1 truncate max-w-full">
                       {sample.timestamp.slice(3)}
                     </span>
                   </div>
@@ -944,43 +861,45 @@ export default function LearningInsights() {
               })}
             </div>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* 14. ACCUMULATED SESSION LEARNING & HISTORICAL ANALYTICS */}
+      {/* ========================================================================= */}
+      {/* 9. ACCUMULATED INSIGHTS (When historical telemetry exists)                 */}
+      {/* ========================================================================= */}
       {insights && insights.has_data && (
-        <div className="bg-white rounded-2xl p-5 sm:p-6 border border-border-clean shadow-2xs space-y-4">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink-mute">
-            <Clock className="w-4 h-4 text-[#083335]" />
+        <section className="bg-white rounded-2xl p-4 sm:p-5 border border-border-clean shadow-2xs space-y-3">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink-mute font-sans">
+            <Clock className="w-3.5 h-3.5 text-[#083335]" />
             Accumulated Navigation Insights
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3.5 bg-canvas-soft rounded-xl border border-border-clean">
-              <span className="text-[10px] uppercase font-bold text-ink-mute">Total Journeys</span>
-              <div className="text-xl font-bold font-mono text-ink mt-1">{insights.total_sessions}</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+            <div className="p-3 bg-slate-50 rounded-xl border border-border-clean">
+              <span className="text-[10px] uppercase font-bold text-ink-mute">Journeys</span>
+              <div className="text-base sm:text-lg font-bold font-sans tabular-nums text-ink mt-0.5">{insights.total_sessions}</div>
             </div>
 
-            <div className="p-3.5 bg-canvas-soft rounded-xl border border-border-clean">
-              <span className="text-[10px] uppercase font-bold text-ink-mute">Total Distance</span>
-              <div className="text-xl font-bold font-mono text-ink mt-1">
-                {insights.total_distance_km} <span className="text-xs font-normal text-ink-mute">km</span>
+            <div className="p-3 bg-slate-50 rounded-xl border border-border-clean">
+              <span className="text-[10px] uppercase font-bold text-ink-mute">Distance</span>
+              <div className="text-base sm:text-lg font-bold font-sans tabular-nums text-ink mt-0.5">
+                {insights.total_distance_km} <span className="text-xs font-normal text-ink-mute font-sans">km</span>
               </div>
             </div>
 
-            <div className="p-3.5 bg-canvas-soft rounded-xl border border-border-clean">
-              <span className="text-[10px] uppercase font-bold text-ink-mute">Total Duration</span>
-              <div className="text-xl font-bold font-mono text-ink mt-1">
-                {insights.total_duration_minutes} <span className="text-xs font-normal text-ink-mute">min</span>
+            <div className="p-3 bg-slate-50 rounded-xl border border-border-clean">
+              <span className="text-[10px] uppercase font-bold text-ink-mute">Duration</span>
+              <div className="text-base sm:text-lg font-bold font-sans tabular-nums text-ink mt-0.5">
+                {insights.total_duration_minutes} <span className="text-xs font-normal text-ink-mute font-sans">min</span>
               </div>
             </div>
 
-            <div className="p-3.5 bg-canvas-soft rounded-xl border border-border-clean">
-              <span className="text-[10px] uppercase font-bold text-ink-mute">Processed Points</span>
-              <div className="text-xl font-bold font-mono text-ink mt-1">{insights.points_processed}</div>
+            <div className="p-3 bg-slate-50 rounded-xl border border-border-clean">
+              <span className="text-[10px] uppercase font-bold text-ink-mute">Points</span>
+              <div className="text-base sm:text-lg font-bold font-sans tabular-nums text-ink mt-0.5">{insights.points_processed}</div>
             </div>
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

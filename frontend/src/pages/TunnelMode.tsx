@@ -556,7 +556,7 @@ export default function TunnelMode() {
               {/* Speed */}
               <div className="flex items-center gap-1 shrink-0">
                 <Gauge className="w-3.5 h-3.5 text-ink-mute shrink-0" />
-                <span className="font-bold tabular-nums font-mono text-sm">{isLive ? speedKmh : 0}</span>
+                <span className="font-bold tabular-nums font-sans text-sm">{isLive ? speedKmh : 0}</span>
                 <span className="text-[11px] text-ink-mute">km/h</span>
               </div>
 
@@ -569,7 +569,7 @@ export default function TunnelMode() {
                       className="w-3.5 h-3.5 text-ink-mute shrink-0 transition-transform duration-300"
                       style={{ transform: `rotate(${headingDeg}deg)` }}
                     />
-                    <span className="font-bold tabular-nums font-mono text-xs">{headingDeg}°</span>
+                    <span className="font-bold tabular-nums font-sans text-xs">{headingDeg}°</span>
                     {cardinal && <span className="text-[11px] text-ink-mute">{cardinal}</span>}
                   </div>
                 </>
@@ -582,7 +582,7 @@ export default function TunnelMode() {
                   <div className="flex items-center gap-1 shrink-0">
                     <Activity className="w-3.5 h-3.5 text-ink-mute shrink-0" />
                     <span className="text-ink-mute">Conf:</span>
-                    <span className="font-bold tabular-nums font-mono">{(confidence * 100).toFixed(0)}%</span>
+                    <span className="font-bold tabular-nums font-sans">{(confidence * 100).toFixed(0)}%</span>
                   </div>
                 </>
               )}
@@ -593,7 +593,7 @@ export default function TunnelMode() {
                   <div className="h-4 w-px bg-border-clean shrink-0" />
                   <div className="flex items-center gap-1 shrink-0">
                     <span className="text-ink-mute">Error:</span>
-                    <span className="font-bold tabular-nums font-mono">±{accuracy.toFixed(1)}m</span>
+                    <span className="font-bold tabular-nums font-sans">±{accuracy.toFixed(1)}m</span>
                   </div>
                 </>
               )}

@@ -6,10 +6,10 @@ import {
   BusFront,
   Navigation,
   Navigation2,
+  Route,
   Search,
   ListFilter,
   ArrowLeft,
-  ArrowDown,
   ChevronDown,
   AlertCircle,
   RotateCw,
@@ -20,7 +20,10 @@ import {
   Clock3,
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useNavigationStore } from '../stores/useNavigationStore';
+import { useRouteStore, type TravelMode } from '../stores/useRouteStore';
+import { routeService } from '../services/navigation/routeService';
 import {
   historyService,
   type SessionSummary,
@@ -29,7 +32,7 @@ import {
 import { tripMetadataService, type TripMetadata } from '../services/navigation/tripMetadataService';
 import { savedRouteService, type SavedPlaceItem } from '../services/navigation/savedRouteService';
 import { geocodingService } from '../services/location/geocodingService';
-import { resolveTripViewModel, type ResolvedTripViewModel } from '../services/navigation/tripViewModelResolver';
+import { resolveTripViewModel, isMeaningfulTrip, type ResolvedTripViewModel } from '../services/navigation/tripViewModelResolver';
 import { TRIP_FIXTURES, getFixtureMetadataMap } from '../services/navigation/tripFixtures';
 import { TripRouteMap } from '../components/map/TripRouteMap';
 import {
@@ -94,11 +97,15 @@ function formatVehicleName(vehicleType?: string): string {
 }
 
 export default function History() {
+  const navigate = useNavigate();
+  const setDestination = useNavigationStore((s) => s.setDestination);
+  const travelMode = useRouteStore((s) => s.travelMode);
+  const setTravelMode = useRouteStore((s) => s.setTravelMode);
+
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<SessionDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Client-persisted trip metadata, saved routes, and geocoded place names
@@ -147,6 +154,32 @@ export default function History() {
     URL.revokeObjectURL(url);
   };
 
+  const handleNavigateAgain = () => {
+    if (!selectedViewModel) return;
+    const destCoords: [number, number] = [
+      selectedViewModel.endLon ?? 72.6369,
+      selectedViewModel.endLat ?? 23.2156,
+    ];
+    if (selectedViewModel.vehicleType) {
+      const rawMode = selectedViewModel.vehicleType.toLowerCase();
+      let mode: TravelMode = 'driving';
+      if (rawMode.includes('motorcycle') || rawMode.includes('moto') || rawMode.includes('scooter') || rawMode.includes('two_wheeler')) {
+        mode = 'motorcycle';
+      } else if (rawMode.includes('bicycle') || rawMode.includes('bike') || rawMode.includes('cycl')) {
+        mode = 'cycling';
+      } else if (rawMode.includes('walk') || rawMode.includes('pedestrian')) {
+        mode = 'walking';
+      }
+      setTravelMode(mode);
+    }
+    setDestination({
+      name: selectedViewModel.destinationName,
+      coordinates: destCoords,
+    });
+    routeService.calculateRoutes(destCoords, travelMode);
+    navigate('/app');
+  };
+
   // Sync subscriptions for local metadata and saved routes
   useEffect(() => {
     const unsubMeta = tripMetadataService.subscribe((updated) => {
@@ -184,9 +217,6 @@ export default function History() {
         );
 
         setSessions(combined);
-        if (combined.length > 0) {
-          setSelectedSessionId((prev) => prev || combined[0].session_id);
-        }
         setLoading(false);
 
         // Collect all distinct coordinates to reverse geocode in background
@@ -210,9 +240,6 @@ export default function History() {
         console.error('History API error, falling back to local routes:', err);
         const fixtureSummaries = TRIP_FIXTURES.map((f) => f.summary);
         setSessions(fixtureSummaries);
-        if (fixtureSummaries.length > 0) {
-          setSelectedSessionId((prev) => prev || fixtureSummaries[0].session_id);
-        }
         setLoading(false);
       });
   }, []);
@@ -246,34 +273,19 @@ export default function History() {
         })),
         navigation_modes_used: ['InEKF'],
       });
-      setDetailLoading(false);
       return;
     }
 
-    setDetailLoading(true);
     historyService
       .getSessionDetail(selectedSessionId)
       .then((detail) => {
         setSelectedDetail(detail);
-        setDetailLoading(false);
       })
       .catch((err) => {
         console.warn('Non-fatal error loading session detail:', err);
         setSelectedDetail(null);
-        setDetailLoading(false);
       });
   }, [selectedSessionId]);
-
-  // Extract distinct vehicle modes from loaded data
-  const availableModes = useMemo(() => {
-    const modes = new Set<string>();
-    for (const s of sessions) {
-      if (s.vehicle_type) {
-        modes.add(s.vehicle_type);
-      }
-    }
-    return Array.from(modes);
-  }, [sessions]);
 
   // Map of resolved view models per session
   const tripViewModels = useMemo(() => {
@@ -282,15 +294,60 @@ export default function History() {
       const meta = tripMetadataMap[trip.session_id];
       const isSelected = trip.session_id === selectedSessionId;
       const detail = isSelected ? selectedDetail : null;
-      const vm = resolveTripViewModel(trip, meta, detail, savedPlaces, geoNamesMap);
+      const isFixture = TRIP_FIXTURES.some((f) => f.summary.session_id === trip.session_id);
+      const vm = resolveTripViewModel(
+        trip,
+        meta,
+        detail,
+        savedPlaces,
+        geoNamesMap,
+        isFixture ? 'fixture' : 'recorded'
+      );
       map.set(trip.session_id, vm);
     }
     return map;
   }, [sessions, tripMetadataMap, selectedSessionId, selectedDetail, savedPlaces, geoNamesMap]);
 
-  // Filtered sessions
-  const filteredSessions = useMemo(() => {
+  // Presentation-layer filtering: Exclude invalid/unusable records (e.g. "Location unavailable -> Location unavailable")
+  const meaningfulSessions = useMemo(() => {
     return sessions.filter((trip) => {
+      const vm = tripViewModels.get(trip.session_id);
+      if (!vm) return true;
+      return isMeaningfulTrip(vm);
+    });
+  }, [sessions, tripViewModels]);
+
+  // Real recorded trip count (strictly excluding fixtures)
+  const recordedCount = useMemo(() => {
+    return meaningfulSessions.filter((trip) => {
+      const vm = tripViewModels.get(trip.session_id);
+      return vm ? vm.kind === 'recorded' : !TRIP_FIXTURES.some((f) => f.summary.session_id === trip.session_id);
+    }).length;
+  }, [meaningfulSessions, tripViewModels]);
+
+  // Keep a selected valid trip ID active
+  useEffect(() => {
+    if (meaningfulSessions.length > 0) {
+      if (!selectedSessionId || !meaningfulSessions.some((s) => s.session_id === selectedSessionId)) {
+        setSelectedSessionId(meaningfulSessions[0].session_id);
+      }
+    }
+  }, [meaningfulSessions, selectedSessionId]);
+
+  // Extract distinct vehicle modes from meaningful data
+  const availableModes = useMemo(() => {
+    const modes = new Set<string>();
+    for (const s of meaningfulSessions) {
+      if (s.vehicle_type) {
+        modes.add(s.vehicle_type);
+      }
+    }
+    return Array.from(modes);
+  }, [meaningfulSessions]);
+
+  // Filtered sessions (Search & Filter applied on meaningful sessions)
+  const filteredSessions = useMemo(() => {
+    return meaningfulSessions.filter((trip) => {
       const vm = tripViewModels.get(trip.session_id);
       if (!vm) return true;
 
@@ -330,7 +387,7 @@ export default function History() {
 
       return true;
     });
-  }, [sessions, tripViewModels, searchQuery, selectedMode, selectedDateFilter]);
+  }, [meaningfulSessions, tripViewModels, searchQuery, selectedMode, selectedDateFilter]);
 
   // Group filtered sessions by date
   const groupedTrips: GroupedTrips[] = useMemo(() => {
@@ -363,8 +420,8 @@ export default function History() {
 
   // Selected trip object and its view model
   const selectedTrip = useMemo(() => {
-    return sessions.find((s) => s.session_id === selectedSessionId) || null;
-  }, [sessions, selectedSessionId]);
+    return meaningfulSessions.find((s) => s.session_id === selectedSessionId) || null;
+  }, [meaningfulSessions, selectedSessionId]);
 
   const selectedViewModel = useMemo(() => {
     if (!selectedTrip) return null;
@@ -380,25 +437,25 @@ export default function History() {
     );
   }, [selectedTrip, tripViewModels, tripMetadataMap, selectedDetail, savedPlaces, geoNamesMap]);
 
-  // Summary Metrics (combined aggregate numbers from all trip records)
-  const totalCount = sessions.length;
+  // Summary Metrics (aggregate numbers from meaningful trip records)
+  const totalCount = meaningfulSessions.length;
   const totalDistanceMeters = useMemo(() => {
     let sum = 0;
-    for (const trip of sessions) {
+    for (const trip of meaningfulSessions) {
       const vm = tripViewModels.get(trip.session_id);
       sum += vm ? vm.distanceMeters : trip.distance_meters || 0;
     }
     return sum;
-  }, [sessions, tripViewModels]);
+  }, [meaningfulSessions, tripViewModels]);
 
   const totalDurationSeconds = useMemo(() => {
     let sum = 0;
-    for (const trip of sessions) {
+    for (const trip of meaningfulSessions) {
       const vm = tripViewModels.get(trip.session_id);
       sum += vm ? vm.durationSeconds : trip.duration_seconds || 0;
     }
     return sum;
-  }, [sessions, tripViewModels]);
+  }, [meaningfulSessions, tripViewModels]);
 
   const totalKmStr = (totalDistanceMeters / 1000).toFixed(1);
   const totalMinStr = Math.round(totalDurationSeconds / 60);
@@ -412,21 +469,28 @@ export default function History() {
 
   return (
     <div className="max-w-[1240px] w-full mx-auto space-y-6 pb-20 md:pb-10 text-ink">
-      {/* 1. Page Header & Summary */}
-      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-border-clean pb-5">
+      {/* 1. Page Header & Summary (hidden on mobile when viewing trip detail) */}
+      <div
+        className={clsx(
+          'flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-border-clean pb-3 sm:pb-5',
+          showMobileDetail ? 'hidden md:flex' : 'flex'
+        )}
+      >
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-ink">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#083335] font-heading">
             Trips
           </h1>
-          <p className="text-sm text-[#5E5E5E] font-normal mt-1">
+          <p className="text-xs sm:text-sm text-[#5E5E5E] font-body mt-0.5 sm:mt-1">
             Your recorded navigation trips and route history
           </p>
         </div>
 
         {/* Total Summary beside header */}
-        <div className="text-[13px] sm:text-[14px] text-[#5E5E5E] font-medium self-start sm:self-auto select-none pt-1">
+        <div className="text-[12px] sm:text-[14px] text-[#5E5E5E] font-medium self-start sm:self-auto select-none pt-0.5 sm:pt-1 font-body">
           {loading ? (
             <span>Loading trips...</span>
+          ) : recordedCount > 0 ? (
+            <span>{recordedCount} recorded {recordedCount === 1 ? 'trip' : 'trips'} · {totalKmStr} km · {totalMinStr} min</span>
           ) : totalCount > 0 ? (
             <span>{totalCount} {totalCount === 1 ? 'trip' : 'trips'} · {totalKmStr} km · {totalMinStr} min</span>
           ) : (
@@ -435,9 +499,14 @@ export default function History() {
         </div>
       </div>
 
-      {/* 2. Search + Filter Bar */}
-      {!loading && !error && sessions.length > 0 && (
-        <div className="flex items-center gap-3">
+      {/* 2. Search + Filter Bar (hidden on mobile when viewing trip detail) */}
+      {!loading && !error && meaningfulSessions.length > 0 && (
+        <div
+          className={clsx(
+            'items-center gap-3',
+            showMobileDetail ? 'hidden md:flex' : 'flex'
+          )}
+        >
           {/* Search Input */}
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-mute pointer-events-none" />
@@ -608,13 +677,13 @@ export default function History() {
       )}
 
       {/* 5. Empty State */}
-      {!loading && !error && sessions.length === 0 && (
+      {!loading && !error && meaningfulSessions.length === 0 && (
         <div className="bg-white rounded-2xl p-10 sm:p-14 text-center border border-border-clean space-y-4 shadow-2xs">
           <div className="w-12 h-12 bg-canvas-soft rounded-2xl flex items-center justify-center mx-auto text-ink-mute">
             <Navigation className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="font-semibold text-ink text-base sm:text-lg">No trips recorded yet</h3>
+            <h3 className="font-semibold text-ink text-base sm:text-lg">No trips with route details yet</h3>
             <p className="text-xs sm:text-sm text-ink-body max-w-sm mx-auto mt-1 leading-relaxed">
               Start a navigation trip from the map and it will automatically appear here with full route details.
             </p>
@@ -632,7 +701,7 @@ export default function History() {
       )}
 
       {/* 6. No Search Results */}
-      {!loading && !error && sessions.length > 0 && filteredSessions.length === 0 && (
+      {!loading && !error && meaningfulSessions.length > 0 && filteredSessions.length === 0 && (
         <div className="bg-white rounded-2xl p-8 text-center border border-border-clean space-y-2 text-ink-mute shadow-2xs">
           <Search className="w-6 h-6 mx-auto text-ink-mute" />
           <p className="text-xs font-medium text-ink">No matching trips found</p>
@@ -738,133 +807,104 @@ export default function History() {
           {/* RIGHT COLUMN: Trip Details Panel (approx 55-58%) */}
           <div
             className={clsx(
-              'md:col-span-7 bg-white rounded-2xl p-5 sm:p-6 border border-[#E5E5E5] shadow-2xs space-y-4',
+              'md:col-span-7 bg-white rounded-2xl p-5 sm:p-6 border border-border-clean shadow-2xs space-y-4 relative',
               showMobileDetail ? 'block' : 'hidden md:block'
             )}
           >
-            {/* Mobile Back Button */}
-            <div className="md:hidden flex items-center justify-between pb-3 border-b border-[#E5E5E5]">
+            {/* Top Navigation Bar: Back & Trip details */}
+            <div className="flex items-center justify-between h-10 sm:h-12 pb-3 border-b border-border-clean/70 select-none">
               <button
+                type="button"
                 onClick={() => setShowMobileDetail(false)}
                 aria-label="Back to trips list"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink px-3 py-1.5 rounded-full bg-[#FAFAFA] border border-[#E5E5E5] cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink hover:text-[#083335] active:scale-95 transition-all cursor-pointer font-body py-1 md:hidden"
               >
-                <ArrowLeft className="w-3.5 h-3.5" />
+                <ArrowLeft className="w-4 h-4 text-ink" />
                 <span>Back</span>
               </button>
-              <span className="text-xs font-medium text-[#5E5E5E]">Trip details</span>
+              <span className="text-xs font-medium text-[#5E5E5E] font-body">Trip details</span>
+              <div className="w-8 md:hidden" /> {/* Balance spacer for true mobile centering */}
             </div>
 
             {selectedTrip && selectedViewModel ? (
               <div className="space-y-4">
-                {/* 1. Header with Title & Status */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-xl sm:text-[22px] font-bold text-ink tracking-tight leading-snug truncate">
-                      {selectedViewModel.sourceName} → {selectedViewModel.destinationName}
+                {/* 1. Main Route Identity (Vertical Source ↓ Destination) */}
+                <div className="space-y-1 select-none pt-0.5">
+                  {/* Source */}
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-50 mt-1.5 shrink-0" />
+                    <h2 className="text-[18px] sm:text-[20px] font-bold text-ink font-heading leading-snug break-words">
+                      {selectedViewModel.sourceName}
                     </h2>
-                    <p className="text-xs text-[#5E5E5E] mt-0.5 flex items-center gap-1.5">
-                      <Clock3 className="w-3 h-3 text-[#8E8E8E]" />
-                      <span>{formatTripDateTime(selectedTrip.start_time).fullDate}</span>
-                    </p>
                   </div>
 
-                  <span className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full mt-0.5">
+                  {/* Vertical Connector */}
+                  <div className="pl-[4px] py-0.5">
+                    <div className="w-[2px] h-3.5 bg-[#D1DADA] rounded-full" />
+                  </div>
+
+                  {/* Destination */}
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#083335] ring-4 ring-[#083335]/15 mt-1.5 shrink-0" />
+                    <h2 className="text-[18px] sm:text-[20px] font-bold text-ink font-heading leading-snug break-words">
+                      {selectedViewModel.destinationName}
+                    </h2>
+                  </div>
+                </div>
+
+                {/* 2. Status & Date/Time metadata row (8px below route title) */}
+                <div className="pt-1 flex items-center flex-wrap gap-2.5 text-xs text-[#5E5E5E] font-body select-none">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                     Completed
                   </span>
-                </div>
-
-                {/* 2. Structured Source ↓ Destination Routing Block */}
-                <div className="bg-[#F9F9F9] border border-[#E5E5E5] rounded-xl p-3.5 space-y-2.5 select-none">
-                  {/* Source item */}
-                  <div className="flex items-start gap-2.5">
-                    <div className="w-5 h-5 rounded-full bg-emerald-600 border border-white text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 shadow-2xs">
-                      A
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[10px] font-bold text-[#8E8E8E] uppercase tracking-wider block">
-                        Source
-                      </span>
-                      <p className="text-sm font-semibold text-ink truncate">
-                        {selectedViewModel.sourceName}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Flow connector down arrow */}
-                  <div className="pl-2 flex items-center gap-2 text-ink-mute">
-                    <div className="w-0.5 h-3 bg-slate-300 rounded-full ml-[7px]" />
-                    <ArrowDown className="w-3 h-3 text-[#8E8E8E] -ml-[14px]" />
-                  </div>
-
-                  {/* Destination item */}
-                  <div className="flex items-start gap-2.5">
-                    <div className="w-5 h-5 rounded-full bg-[#083335] border border-white text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 shadow-2xs">
-                      B
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[10px] font-bold text-[#8E8E8E] uppercase tracking-wider block">
-                        Destination
-                      </span>
-                      <p className="text-sm font-semibold text-ink truncate">
-                        {selectedViewModel.destinationName}
-                      </p>
-                    </div>
+                  <span className="text-[#A0A0A0]">·</span>
+                  <div className="flex items-center gap-1 text-[#5E5E5E]">
+                    <Clock3 className="w-3.5 h-3.5 text-[#8E8E8E] shrink-0" />
+                    <span>{formatTripDateTime(selectedTrip.start_time).fullDate}</span>
                   </div>
                 </div>
 
-                {/* 3. Trip Key Metrics Breakdown */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-                  <div className="p-2.5 rounded-xl border border-border-clean bg-white space-y-0.5">
-                    <span className="text-[11px] font-medium text-[#5E5E5E] block">Distance</span>
-                    <span className="text-sm font-bold text-ink block">
-                      {formatDistance(selectedViewModel.distanceMeters)}
-                    </span>
-                  </div>
-
-                  <div className="p-2.5 rounded-xl border border-border-clean bg-white space-y-0.5">
-                    <span className="text-[11px] font-medium text-[#5E5E5E] block">Duration</span>
-                    <span className="text-sm font-bold text-ink block">
-                      {formatDuration(selectedViewModel.durationSeconds)}
-                    </span>
-                  </div>
-
-                  <div className="p-2.5 rounded-xl border border-border-clean bg-white space-y-0.5">
-                    <span className="text-[11px] font-medium text-[#5E5E5E] block">Travel mode</span>
-                    <div className="flex items-center gap-1.5 text-sm font-bold text-ink">
+                {/* 3. Clean Route Summary & Road Information */}
+                <div className="pt-2 space-y-1.5 select-none border-t border-border-clean/60">
+                  {/* Horizontal metadata row: Distance · Duration · Travel mode */}
+                  <div className="flex items-center flex-wrap gap-x-3.5 gap-y-1 text-sm font-medium text-ink font-body">
+                    <div className="flex items-center gap-1.5">
+                      <Route className="w-4 h-4 text-[#083335]" />
+                      <span className="font-bold text-ink font-heading">
+                        {formatDistance(selectedViewModel.distanceMeters)}
+                      </span>
+                    </div>
+                    <span className="text-[#C0C0C0]">·</span>
+                    <div className="flex items-center gap-1.5">
+                      <Clock3 className="w-4 h-4 text-[#083335]" />
+                      <span className="font-bold text-ink font-heading">
+                        {formatDuration(selectedViewModel.durationSeconds)}
+                      </span>
+                    </div>
+                    <span className="text-[#C0C0C0]">·</span>
+                    <div className="flex items-center gap-1.5">
                       {(() => {
                         const Icon = getVehicleIcon(selectedViewModel.vehicleType);
-                        return <Icon className="w-3.5 h-3.5 text-[#5E5E5E]" />;
+                        return <Icon className="w-4 h-4 text-[#083335]" />;
                       })()}
-                      <span>{formatVehicleName(selectedViewModel.vehicleType)}</span>
+                      <span className="font-medium text-ink">{formatVehicleName(selectedViewModel.vehicleType)}</span>
                     </div>
                   </div>
 
-                  <div className="p-2.5 rounded-xl border border-border-clean bg-white space-y-0.5">
-                    <span className="text-[11px] font-medium text-[#5E5E5E] block">Route</span>
-                    <span
-                      className="text-xs font-semibold text-ink truncate block"
-                      title={selectedViewModel.roadSummary || selectedViewModel.destinationName}
-                    >
-                      {selectedViewModel.roadSummary || selectedViewModel.destinationName}
-                    </span>
-                  </div>
+                  {/* Road information below summary */}
+                  {selectedViewModel.roadSummary && (
+                    <div className="text-xs sm:text-[13px] text-[#5E5E5E] font-body flex items-start gap-1 pt-0.5">
+                      <span className="text-[#8E8E8E] shrink-0 font-medium">Via</span>
+                      <span className="text-ink font-medium leading-relaxed break-words">
+                        {selectedViewModel.roadSummary}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                {/* 4. Actual Recorded Route Map */}
-                <div className="space-y-2 pt-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-medium text-[#5E5E5E]">
-                      Recorded Route Map
-                    </span>
-                    {detailLoading && (
-                      <span className="text-[11px] text-[#5E5E5E]">
-                        Loading route telemetry...
-                      </span>
-                    )}
-                  </div>
-
+                {/* 4. Large Route Map */}
+                <div className="pt-2 space-y-1.5">
                   <TripRouteMap
                     points={selectedDetail?.points}
                     geometry={selectedViewModel.geometry}
@@ -872,18 +912,32 @@ export default function History() {
                     startLon={selectedViewModel.startLon}
                     endLat={selectedViewModel.endLat}
                     endLon={selectedViewModel.endLon}
-                    className="w-full h-60 sm:h-64"
+                    className="w-full h-64 sm:h-72 rounded-2xl overflow-hidden shadow-2xs border border-border-clean/70"
                   />
                 </div>
 
-                {/* 5. Trip Data & Telemetry Export */}
-                <div className="pt-2 border-t border-[#E5E5E5] space-y-3">
+                {/* 5. Lightweight Navigate Again Action */}
+                <div className="pt-2 flex items-center justify-start">
+                  <button
+                    type="button"
+                    onClick={handleNavigateAgain}
+                    className="h-11 px-4 rounded-xl border border-[#083335]/20 hover:bg-[#083335]/[0.06] active:bg-[#083335]/[0.10] text-[#083335] font-semibold text-xs sm:text-sm font-body flex items-center gap-2 transition-colors cursor-pointer select-none"
+                  >
+                    <Navigation2 className="w-4 h-4 rotate-45 stroke-[2.4] text-[#083335]" />
+                    <span>Navigate again</span>
+                  </button>
+                </div>
+
+                {/* 6. Session Telemetry & Export Strip */}
+                <div className="pt-3 border-t border-border-clean/80 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[12px] font-semibold text-[#5E5E5E] uppercase tracking-wider">
-                      Trip Data & Export
+                    <span className="text-[11px] font-semibold text-[#8E8E8E] uppercase tracking-wider font-body">
+                      Session Record
                     </span>
-                    <span className="text-[11px] text-[#5E5E5E] font-medium">
-                      {selectedDetail?.points && selectedDetail.points.length > 0
+                    <span className="text-[11px] text-[#5E5E5E] font-medium font-body">
+                      {selectedViewModel.kind === 'fixture'
+                        ? `${selectedViewModel.geometry?.length || 0} route coordinates`
+                        : selectedDetail?.points && selectedDetail.points.length > 0
                         ? `${selectedDetail.points.length} samples logged`
                         : selectedViewModel.geometry
                         ? `${selectedViewModel.geometry.length} route coordinates`
@@ -891,9 +945,9 @@ export default function History() {
                     </span>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-xl text-xs">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2.5 bg-[#F9F9F9] border border-border-clean rounded-xl text-xs">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-[#5E5E5E] shrink-0 font-medium">Session ID:</span>
+                      <span className="text-[#5E5E5E] shrink-0 font-medium font-body">ID:</span>
                       <span className="font-mono font-medium text-ink truncate text-[11px]">
                         {selectedTrip.session_id}
                       </span>
@@ -903,7 +957,7 @@ export default function History() {
                       <button
                         type="button"
                         onClick={() => handleCopyId(selectedTrip.session_id)}
-                        className="px-2.5 py-1.5 rounded-lg bg-white border border-[#E5E5E5] hover:bg-canvas-soft text-ink font-medium text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-lg bg-white border border-border-clean hover:bg-canvas-soft text-ink font-medium text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer font-body"
                         title="Copy Session ID"
                       >
                         {copiedId ? (
@@ -919,15 +973,24 @@ export default function History() {
                         )}
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={handleExportJson}
-                        className="px-3 py-1.5 rounded-lg bg-[#083335] hover:bg-[#052426] text-white font-medium text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                        title="Download session trajectory JSON"
-                      >
-                        <Download className="w-3 h-3" />
-                        <span>Export JSON</span>
-                      </button>
+                      {selectedViewModel.kind === 'recorded' ? (
+                        <button
+                          type="button"
+                          onClick={handleExportJson}
+                          className="px-3 py-1.5 rounded-lg bg-[#083335] hover:bg-[#052426] text-white font-medium text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs font-body"
+                          title="Download session trajectory JSON"
+                        >
+                          <Download className="w-3 h-3" />
+                          <span>Export JSON</span>
+                        </button>
+                      ) : (
+                        <span
+                          className="px-2.5 py-1.5 rounded-lg bg-[#EAEAEA] border border-[#D5D5D5] text-[#707070] font-medium text-[11px] select-none font-body"
+                          title="Route fixture preview (not an exportable recording)"
+                        >
+                          Preview Route
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -935,8 +998,8 @@ export default function History() {
             ) : (
               <div className="py-16 text-center text-[#5E5E5E] space-y-2">
                 <Navigation2 className="w-8 h-8 mx-auto text-ink-mute" />
-                <p className="text-xs font-medium text-ink">Select a trip</p>
-                <p className="text-[11px] text-[#5E5E5E]">Choose a trip from the list to view its route and details.</p>
+                <p className="text-xs font-medium text-ink font-heading">Select a trip</p>
+                <p className="text-[11px] text-[#5E5E5E] font-body">Choose a trip from the list to view its route and details.</p>
               </div>
             )}
           </div>

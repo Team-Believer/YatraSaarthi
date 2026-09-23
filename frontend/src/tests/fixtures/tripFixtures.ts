@@ -11,7 +11,8 @@
 
 import type { SessionSummary } from '../../services/api/historyService';
 import type { TripMetadata } from '../../services/navigation/tripMetadataService';
-import { resolveTripViewModel } from '../../services/navigation/tripViewModelResolver';
+import { resolveTripViewModel, isMeaningfulTrip } from '../../services/navigation/tripViewModelResolver';
+import { TRIP_FIXTURES } from '../../services/navigation/tripFixtures';
 
 // Scenario A: Full route metadata
 export const FIXTURE_A_SESSION: SessionSummary = {
@@ -179,22 +180,27 @@ export function runFixtureValidation(): { passed: number; failed: number; errors
   assert(resA.sourceName === 'Ahmedabad', 'Test A source matches Ahmedabad');
   assert(resA.destinationName === 'Gandhinagar', 'Test A destination matches Gandhinagar');
   assert(resA.distanceMeters === 30800, 'Test A distance matches 30800');
+  assert(resA.kind === 'recorded', 'Test A kind is recorded');
+  assert(isMeaningfulTrip(resA) === true, 'Test A is a meaningful trip');
 
   // Test B
   const resB = resolveTripViewModel(FIXTURE_B_SESSION, null, null, undefined, geoNames);
   assert(resB.sourceName === 'Ahmedabad', 'Test B source matches Ahmedabad');
   assert(resB.destinationName === 'Airport', 'Test B destination matches Airport');
+  assert(isMeaningfulTrip(resB) === true, 'Test B is a meaningful trip');
 
   // Test C
   const resC = resolveTripViewModel(FIXTURE_C_SESSION, FIXTURE_C_METADATA, null, undefined, geoNames);
   assert(resC.sourceName === 'Ahmedabad', 'Test C source matches Ahmedabad');
   assert(resC.destinationName === 'Airport', 'Test C destination matches Airport');
   assert(resC.geometry?.length === 3, 'Test C geometry points match');
+  assert(isMeaningfulTrip(resC) === true, 'Test C is a meaningful trip');
 
-  // Test D
+  // Test D (Invalid trip with no route info -> honest fallback + filtered out)
   const resD = resolveTripViewModel(FIXTURE_D_SESSION, null, null, undefined, geoNames);
   assert(resD.sourceName === 'Location unavailable', 'Test D source is honest fallback');
   assert(resD.destinationName === 'Location unavailable', 'Test D destination is honest fallback');
+  assert(isMeaningfulTrip(resD) === false, 'Test D invalid session is filtered out by isMeaningfulTrip');
 
   // Test E (Separation between E1 and E2)
   const resE1 = resolveTripViewModel(FIXTURE_E1_SESSION, FIXTURE_E1_METADATA, null, undefined, geoNames);
@@ -202,6 +208,29 @@ export function runFixtureValidation(): { passed: number; failed: number; errors
   assert(resE1.destinationName === 'Gandhinagar', 'Test E1 destination matches Gandhinagar');
   assert(resE2.destinationName === 'Vadodara', 'Test E2 destination matches Vadodara');
   assert(resE1.sessionId !== resE2.sessionId, 'Test E sessions remain strictly separate');
+
+  // Test F: Validate all 6 Vastral/Ahmedabad route fixtures
+  assert(TRIP_FIXTURES.length === 6, 'All 6 Vastral/Ahmedabad route fixtures are configured');
+  const fixtureIds = TRIP_FIXTURES.map(f => f.summary.session_id);
+  assert(fixtureIds.includes('trip-vastral-maninagar'), 'Vastral -> Maninagar exists');
+  assert(fixtureIds.includes('trip-vastral-railway-station'), 'Vastral -> Railway Station exists');
+  assert(fixtureIds.includes('trip-vastral-airport'), 'Vastral -> Airport exists');
+  assert(fixtureIds.includes('trip-vastral-gandhinagar'), 'Vastral -> Gandhinagar exists');
+  assert(fixtureIds.includes('trip-vastral-akshardham'), 'Vastral -> Akshardham exists');
+  assert(fixtureIds.includes('trip-ahmedabad-gandhinagar'), 'Ahmedabad -> Gandhinagar exists');
+
+  // Check unique geometry for each fixture
+  const geometries = TRIP_FIXTURES.map(f => JSON.stringify(f.metadata.geometry));
+  const uniqueGeometries = new Set(geometries);
+  assert(uniqueGeometries.size === 6, 'Each route fixture has its own unique route geometry');
+
+  for (const f of TRIP_FIXTURES) {
+    const vm = resolveTripViewModel(f.summary, f.metadata, null, undefined, undefined, 'fixture');
+    assert(vm.kind === 'fixture', `Fixture ${f.summary.session_id} kind is fixture`);
+    assert(isMeaningfulTrip(vm) === true, `Fixture ${f.summary.session_id} is meaningful`);
+    assert(vm.sourceName !== 'Location unavailable', `Fixture ${f.summary.session_id} has valid source`);
+    assert(vm.destinationName !== 'Location unavailable', `Fixture ${f.summary.session_id} has valid destination`);
+  }
 
   return results;
 }

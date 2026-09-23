@@ -144,7 +144,7 @@ export const NavStatusDrawer: React.FC<NavStatusDrawerProps> = ({
   } else if (hasTelemetry && typeof state.position_confidence === 'number' && state.position_confidence > 0) {
     const pct = Math.round(state.position_confidence * 100);
     confidenceDisplay = `${pct}%`;
-    confidenceClass = 'text-ink font-bold font-mono text-2xl';
+    confidenceClass = 'text-ink font-bold font-sans tabular-nums text-2xl';
     confidenceSubtext = pct >= 80 ? 'High position fidelity' : pct >= 50 ? 'Moderate estimation' : 'Inertial estimation';
   } else {
     confidenceDisplay = 'Estimating...';
@@ -166,7 +166,7 @@ export const NavStatusDrawer: React.FC<NavStatusDrawerProps> = ({
     accuracyClass = 'text-ink font-semibold text-xl';
   } else if (hasTelemetry && typeof state.horizontal_accuracy === 'number' && state.horizontal_accuracy > 0) {
     accuracyDisplay = `±${state.horizontal_accuracy.toFixed(1)} m`;
-    accuracyClass = 'text-ink font-bold font-mono text-2xl';
+    accuracyClass = 'text-ink font-bold font-sans tabular-nums text-2xl';
     accuracySubtext = 'Horizontal error bounds';
   } else {
     accuracyDisplay = 'Validating...';
@@ -323,11 +323,11 @@ export const NavStatusDrawer: React.FC<NavStatusDrawerProps> = ({
               </div>
               <div className="flex items-center gap-2">
                 {outageDuration > 0 && isDrActive && (
-                  <span className="font-mono text-xs font-semibold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
+                  <span className="font-sans tabular-nums text-xs font-semibold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
                     {formatOutage(outageDuration)}
                   </span>
                 )}
-                <span className={clsx('text-[10px] font-semibold px-2.5 py-0.5 rounded-full tracking-wider border', statusBadgeClass)}>
+                <span className={clsx('text-[10px] font-semibold px-2.5 py-0.5 rounded-full tracking-wider border font-sans', statusBadgeClass)}>
                   {statusBadge}
                 </span>
               </div>
@@ -346,7 +346,7 @@ export const NavStatusDrawer: React.FC<NavStatusDrawerProps> = ({
               <div className={clsx('mt-1 leading-none', confidenceClass)}>
                 {confidenceDisplay}
               </div>
-              <span className="text-[11px] text-ink-mute mt-1 truncate">
+              <span className="text-[11px] text-ink-mute mt-1 truncate font-sans">
                 {confidenceSubtext}
               </span>
             </div>
@@ -360,7 +360,7 @@ export const NavStatusDrawer: React.FC<NavStatusDrawerProps> = ({
               <div className={clsx('mt-1 leading-none', accuracyClass)}>
                 {accuracyDisplay}
               </div>
-              <span className="text-[11px] text-ink-mute mt-1 truncate">
+              <span className="text-[11px] text-ink-mute mt-1 truncate font-sans">
                 {accuracySubtext}
               </span>
             </div>
@@ -368,13 +368,13 @@ export const NavStatusDrawer: React.FC<NavStatusDrawerProps> = ({
 
           {/* Telemetry Breakdown Rows */}
           <div className="pt-2">
-            <div className="text-[11px] font-bold text-ink-mute uppercase tracking-wider px-0.5 mb-2">
+            <div className="text-[11px] font-bold text-ink-mute uppercase tracking-wider px-0.5 mb-2 font-sans">
               System telemetry
             </div>
 
             <div className="border-t border-border-clean divide-y divide-border-clean">
               {telemetryRows.map((row) => (
-                <div key={row.label} className="py-3 px-0.5 flex items-center justify-between text-xs">
+                <div key={row.label} className="py-3 px-0.5 flex items-center justify-between text-xs font-sans">
                   <span className="text-ink-body font-normal">{row.label}</span>
                   <span className={clsx('text-xs truncate max-w-[160px]', row.className)} title={row.text}>
                     {row.text}
@@ -385,7 +385,7 @@ export const NavStatusDrawer: React.FC<NavStatusDrawerProps> = ({
 
             {/* Fused Coordinates (Only when real coordinates exist) */}
             {hasTelemetry && fusedPosition && (
-              <div className="pt-3 px-0.5 flex items-center justify-between text-[11px] font-mono text-ink-mute border-t border-border-clean">
+              <div className="pt-3 px-0.5 flex items-center justify-between text-[11px] font-sans tabular-nums text-ink-mute border-t border-border-clean">
                 <span>Pos: {fusedPosition.latitude.toFixed(5)}, {fusedPosition.longitude.toFixed(5)}</span>
                 <span>Speed: {(fusedPosition.speed * 3.6).toFixed(1)} km/h</span>
               </div>

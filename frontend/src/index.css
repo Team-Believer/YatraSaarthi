@@ -4,6 +4,7 @@
 :root {
   --font-heading: 'Poppins', sans-serif;
   --font-body: 'Manrope', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
   --color-primary: #083335;
   --color-primary-hover: #052426;
   --color-primary-active: #031718;
@@ -18,6 +19,8 @@
   body {
     font-family: var(--font-body);
     @apply bg-white text-ink font-body antialiased overflow-hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
   }
