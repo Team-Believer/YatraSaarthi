@@ -60,7 +60,7 @@ export default function AppLayout() {
       {navDrawerOpen && (
         <div
           onClick={handleCloseNavDrawer}
-          className="fixed inset-0 bg-[#083335]/20 backdrop-blur-2xs z-50 md:hidden animate-in fade-in duration-200"
+          className="fixed inset-0 bg-[#083335]/16 backdrop-blur-[1px] z-50 md:hidden animate-in fade-in duration-200"
         />
       )}
 

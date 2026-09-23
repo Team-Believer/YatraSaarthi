@@ -48,7 +48,7 @@ const MAIN_NAV_ITEMS: NavItemConfig[] = [
     icon: Bookmark,
   },
   {
-    name: 'Nav Intelligence',
+    name: 'Navigation Intelligence',
     tooltip: 'Navigation intelligence',
     path: '/app/learning',
     icon: BrainCircuit,
@@ -95,12 +95,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
     return location.pathname === itemPath || location.pathname.startsWith(`${itemPath}/`);
   };
 
-  // MOBILE OFF-CANVAS DRAWER MODE (When opened via hamburger button on phones)
+  // MOBILE OFF-CANVAS NAVIGATION DRAWER
   if (isDrawer) {
     return (
-      <aside className="w-[84vw] sm:w-[86vw] max-w-[320px] bg-white border-r border-border-clean flex flex-col h-full select-none shrink-0 shadow-nav-floating z-50 overflow-hidden">
-        {/* Drawer Header (Compact 58-62px) */}
-        <div className="h-15 px-4 flex items-center justify-between border-b border-border-clean shrink-0 bg-white">
+      <aside
+        aria-label="Navigation Drawer"
+        className="w-[82vw] max-w-[340px] bg-white border-r border-[#F0F2F2] flex flex-col h-full select-none shrink-0 shadow-nav-floating z-50 overflow-hidden font-body"
+      >
+        {/* 1. Compact Brand Header (< 64px) */}
+        <div className="h-15 px-3.5 flex items-center justify-between border-b border-[#F0F2F2] shrink-0 bg-white">
           <Link
             to="/app"
             onClick={onClose}
@@ -116,18 +119,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
               type="button"
               onClick={onClose}
               aria-label="Close navigation menu"
-              className="w-10 h-10 rounded-full flex items-center justify-center text-slate-500 hover:text-[#083335] hover:bg-canvas-soft transition-colors cursor-pointer shrink-0"
+              title="Close navigation menu"
+              className="w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-[#083335] hover:bg-[#F0F4F4] active:bg-[#E2EBEB] transition-colors cursor-pointer shrink-0"
             >
-              <X className="w-4.5 h-4.5" />
+              <X className="w-5 h-5 stroke-[2]" />
             </button>
           )}
         </div>
 
-        {/* Navigation Items (Clean rows, no chevrons, no redundant subtitles) */}
-        <nav className="flex-1 py-3.5 px-3 space-y-4 overflow-y-auto hide-scrollbar font-body">
-          {/* Main Nav */}
+        {/* 2. Navigation Content Area */}
+        <nav className="flex-1 py-3 px-3 space-y-3 overflow-y-auto hide-scrollbar">
+          {/* NAVIGATION Group */}
           <div className="space-y-1">
-            <div className="px-3 pb-1 text-[10.5px] font-bold uppercase tracking-wider text-[#8CA5A6] select-none font-heading">
+            <div className="px-3.5 pb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8CA5A6] select-none font-heading">
               Navigation
             </div>
             {MAIN_NAV_ITEMS.map((item) => {
@@ -142,10 +146,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                   aria-label={item.name}
                   aria-current={isActive ? 'page' : undefined}
                   className={clsx(
-                    'group flex items-center px-3.5 h-11 sm:h-12 rounded-xl text-[14px] transition-all duration-150 ease-out cursor-pointer select-none',
+                    'group flex items-center px-3 h-11.5 sm:h-12 rounded-xl text-[14px] transition-all duration-150 ease-out cursor-pointer select-none',
                     isActive
                       ? 'bg-[#083335] text-white font-medium shadow-2xs'
-                      : 'text-slate-800 hover:bg-slate-100 font-normal hover:text-[#083335]'
+                      : 'text-slate-800 hover:bg-[#F0F4F4] font-normal hover:text-[#083335]'
                   )}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -156,16 +160,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                       )}
                       strokeWidth={2}
                     />
-                    <span className="truncate leading-tight font-medium">{item.name}</span>
+                    <span className="truncate leading-tight font-medium font-body">{item.name}</span>
                   </div>
                 </Link>
               );
             })}
           </div>
 
-          {/* System Nav */}
-          <div className="space-y-1">
-            <div className="px-3 pb-1 text-[10.5px] font-bold uppercase tracking-wider text-[#8CA5A6] select-none font-heading">
+          {/* SYSTEM Group */}
+          <div className="space-y-1 pt-2">
+            <div className="px-3.5 pb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8CA5A6] select-none font-heading">
               System
             </div>
             {BOTTOM_NAV_ITEMS.map((item) => {
@@ -180,10 +184,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                   aria-label={item.name}
                   aria-current={isActive ? 'page' : undefined}
                   className={clsx(
-                    'group flex items-center px-3.5 h-11 sm:h-12 rounded-xl text-[14px] transition-all duration-150 ease-out cursor-pointer select-none',
+                    'group flex items-center px-3 h-11.5 sm:h-12 rounded-xl text-[14px] transition-all duration-150 ease-out cursor-pointer select-none',
                     isActive
                       ? 'bg-[#083335] text-white font-medium shadow-2xs'
-                      : 'text-slate-800 hover:bg-slate-100 font-normal hover:text-[#083335]'
+                      : 'text-slate-800 hover:bg-[#F0F4F4] font-normal hover:text-[#083335]'
                   )}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -194,7 +198,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                       )}
                       strokeWidth={2}
                     />
-                    <span className="truncate leading-tight font-medium">{item.name}</span>
+                    <span className="truncate leading-tight font-medium font-body">{item.name}</span>
                   </div>
                 </Link>
               );
@@ -202,36 +206,38 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
           </div>
         </nav>
 
-        {/* Compact Navigation Engine Status Strip (52-58px) */}
-        <div className="p-3 m-3 rounded-2xl bg-[#F0F4F4] border border-[#E2EBEB] shrink-0 font-body select-none">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0">
+        {/* 3. Compact Navigation Engine Status Surface (52-58px, respects safe area) */}
+        <div className="p-3 shrink-0 pb-[calc(12px+env(safe-area-inset-bottom))] bg-white">
+          <div className="p-2.5 rounded-xl bg-[#F0F4F4] border border-[#E2EBEB] font-body select-none">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  className={clsx(
+                    'w-2 h-2 rounded-full shrink-0',
+                    isLive ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-600'
+                  )}
+                />
+                <span className="text-xs font-semibold text-[#083335] truncate font-heading">
+                  {isLive ? 'Navigation active' : 'Navigation ready'}
+                </span>
+              </div>
               <span
                 className={clsx(
-                  'w-2 h-2 rounded-full shrink-0',
-                  isLive ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-600'
+                  'text-[9.5px] font-bold px-2 py-0.5 rounded-full border leading-tight shrink-0',
+                  isLive
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    : 'bg-white text-[#083335] border-border-clean shadow-2xs'
                 )}
-              />
-              <span className="text-xs font-semibold text-[#083335] truncate font-heading">
-                {isLive ? 'Navigation active' : 'Navigation ready'}
+              >
+                {isLive ? 'LIVE' : 'READY'}
               </span>
             </div>
-            <span
-              className={clsx(
-                'text-[9.5px] font-bold px-2 py-0.5 rounded-full border leading-tight shrink-0',
-                isLive
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                  : 'bg-white text-[#083335] border-border-clean shadow-2xs'
-              )}
-            >
-              {isLive ? 'LIVE' : 'READY'}
-            </span>
+            <p className="text-[10.5px] leading-tight text-[#4A6364] mt-0.5 pl-4 truncate">
+              {isLive
+                ? 'InEKF dead reckoning tracking'
+                : 'InEKF ready'}
+            </p>
           </div>
-          <p className="text-[10.5px] leading-tight text-[#4A6364] mt-1 pl-4 truncate">
-            {isLive
-              ? 'InEKF dead reckoning tracking'
-              : 'InEKF invariant filter standby'}
-          </p>
         </div>
       </aside>
     );

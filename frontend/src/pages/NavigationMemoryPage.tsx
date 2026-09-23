@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Bookmark,
   BookmarkCheck,
   BookmarkPlus,
   Route,
@@ -8,7 +7,6 @@ import {
   Plus,
   Search,
   MapPin,
-  MapPinned,
   Trash2,
   X,
   Home,
@@ -118,32 +116,34 @@ export default function NavigationMemoryPage() {
     return unsubscribe;
   }, []);
 
-  // Counts for segmented tabs
+  // Filtered lists
+  const matchingRoutes = useMemo(() => {
+    return savedItems.filter((item) => {
+      if (item.type !== 'route') return false;
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        item.name.toLowerCase().includes(q) ||
+        (item.address && item.address.toLowerCase().includes(q)) ||
+        (item.summary && item.summary.toLowerCase().includes(q))
+      );
+    });
+  }, [savedItems, searchQuery]);
+
+  const matchingPlaces = useMemo(() => {
+    return savedItems.filter((item) => {
+      if (item.type !== 'place') return false;
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        item.name.toLowerCase().includes(q) ||
+        (item.address && item.address.toLowerCase().includes(q))
+      );
+    });
+  }, [savedItems, searchQuery]);
+
   const routeCount = useMemo(() => savedItems.filter((i) => i.type === 'route').length, [savedItems]);
   const placeCount = useMemo(() => savedItems.filter((i) => i.type === 'place').length, [savedItems]);
-
-  // Filtered items
-  const filteredItems = useMemo(() => {
-    return savedItems.filter((item) => {
-      // 1. Type filter
-      if (typeFilter !== 'all' && item.type !== typeFilter) {
-        return false;
-      }
-
-      // 2. Search query filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const nameMatch = item.name.toLowerCase().includes(q);
-        const addressMatch = item.address ? item.address.toLowerCase().includes(q) : false;
-        const summaryMatch = item.summary ? item.summary.toLowerCase().includes(q) : false;
-        if (!nameMatch && !addressMatch && !summaryMatch) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [savedItems, typeFilter, searchQuery]);
 
   const selectedItem = useMemo(() => {
     return savedItems.find((s) => s.id === selectedId) || null;
@@ -224,301 +224,295 @@ export default function NavigationMemoryPage() {
     setConfirmDeleteId(null);
   };
 
+  const totalFilteredCount =
+    typeFilter === 'all'
+      ? matchingRoutes.length + matchingPlaces.length
+      : typeFilter === 'route'
+      ? matchingRoutes.length
+      : matchingPlaces.length;
+
   return (
-    <div className="max-w-[1240px] w-full mx-auto space-y-4 sm:space-y-5 pb-20 md:pb-10 text-ink animate-in fade-in duration-200">
-      {/* 1. Mobile & Desktop Page Header */}
-      <div className="flex items-center justify-between gap-3 border-b border-border-clean pb-4">
+    <div className="max-w-[1240px] w-full mx-auto space-y-3 pb-20 md:pb-10 text-ink animate-in fade-in duration-200">
+      {/* 1. Compact Navigation Product Header */}
+      <div className="flex items-center justify-between gap-3 pt-0.5 pb-1">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#083335] flex items-center gap-2 font-heading">
-            <Bookmark className="w-6 h-6 sm:w-7 sm:h-7 text-[#083335] fill-[#083335]/10 stroke-[2.2]" />
-            <span>Saved routes</span>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#083335] font-heading">
+            Saved
           </h1>
-          <p className="text-xs sm:text-[13px] text-[#5E5E5E] font-normal mt-1 font-body">
-            Your saved places & routes
+          <p className="text-xs text-[#5E5E5E] font-body mt-0.5">
+            Places and routes you use often
           </p>
         </div>
 
-        {/* Compact Save a Place secondary action */}
+        {/* Small '+' icon button (Add saved place) */}
         <button
           type="button"
           onClick={() => setIsAddModalOpen(true)}
-          aria-label="Save a place"
-          className="inline-flex items-center gap-1.5 h-10 sm:h-11 px-3.5 sm:px-4 rounded-xl bg-[#083335] text-white text-xs sm:text-sm font-semibold hover:bg-[#052426] active:bg-[#031718] transition-colors shadow-2xs shrink-0 cursor-pointer select-none"
+          aria-label="Add saved place"
+          title="Add saved place"
+          className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#F0F4F4] hover:bg-[#E2EBEB] active:bg-[#D5E2E2] text-[#083335] transition-colors cursor-pointer select-none active:scale-95 shrink-0"
         >
-          <Plus className="w-4 h-4" />
-          <span>Save a place</span>
+          <Plus className="w-5 h-5 stroke-[2.4]" />
         </button>
       </div>
 
-      {/* 2. Controls Section: Search Bar & Segmented Control */}
-      {savedItems.length > 0 && (
-        <div className="space-y-3">
-          {/* Search Input - 48px height, 14-16px radius, subtle border & soft shadow */}
-          <div className="relative w-full">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-[#8CA5A6] pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search routes or places..."
-              aria-label="Search routes or places"
-              className="w-full h-12 pl-10 pr-10 bg-white border border-border-clean rounded-2xl text-xs sm:text-sm text-ink placeholder:text-[#8CA5A6] focus:outline-none focus:border-[#083335]/40 focus:ring-2 focus:ring-[#083335]/15 transition-all shadow-2xs font-body"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                aria-label="Clear search"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8CA5A6] hover:text-ink p-1 rounded-full cursor-pointer transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
+      {/* 2. Clean Navigation Search Field */}
+      <div className="relative w-full">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-[#8CA5A6] pointer-events-none" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search saved places or routes"
+          aria-label="Search saved places or routes"
+          className="w-full h-11 sm:h-12 pl-10 pr-10 bg-white border border-[#E5E7EB] rounded-xl text-xs sm:text-sm text-ink placeholder:text-[#8CA5A6] focus:outline-none focus:border-[#083335] focus:ring-1 focus:ring-[#083335]/20 transition-all font-body"
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery('')}
+            aria-label="Clear search"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8CA5A6] hover:text-ink p-1 rounded-full cursor-pointer transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
 
-          {/* Segmented Filter Control: All 4 | Routes 1 | Places 3 */}
-          <div className="flex items-center p-1 bg-[#F5F5F5] rounded-xl border border-border-clean w-fit select-none">
-            <button
-              type="button"
-              onClick={() => setTypeFilter('all')}
-              className={clsx(
-                'px-3.5 sm:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none',
-                typeFilter === 'all'
-                  ? 'bg-[#083335] text-white shadow-2xs'
-                  : 'text-[#5E5E5E] hover:text-[#083335] hover:bg-[#EAEAEA]'
-              )}
-            >
-              All {savedItems.length}
-            </button>
-            <button
-              type="button"
-              onClick={() => setTypeFilter('route')}
-              className={clsx(
-                'px-3.5 sm:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none flex items-center gap-1.5',
-                typeFilter === 'route'
-                  ? 'bg-[#083335] text-white shadow-2xs'
-                  : 'text-[#5E5E5E] hover:text-[#083335] hover:bg-[#EAEAEA]'
-              )}
-            >
-              <Route className="w-3.5 h-3.5" />
-              <span>Routes {routeCount}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setTypeFilter('place')}
-              className={clsx(
-                'px-3.5 sm:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none flex items-center gap-1.5',
-                typeFilter === 'place'
-                  ? 'bg-[#083335] text-white shadow-2xs'
-                  : 'text-[#5E5E5E] hover:text-[#083335] hover:bg-[#EAEAEA]'
-              )}
-            >
-              <MapPinned className="w-3.5 h-3.5" />
-              <span>Places {placeCount}</span>
-            </button>
-          </div>
+      {/* 3. Subtle Text-First Segmented Control */}
+      {savedItems.length > 0 && (
+        <div className="flex items-center gap-1.5 pt-0.5 pb-1 select-none">
+          <button
+            type="button"
+            onClick={() => setTypeFilter('all')}
+            className={clsx(
+              'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none flex items-center gap-1.5',
+              typeFilter === 'all'
+                ? 'bg-[#083335] text-white shadow-2xs'
+                : 'text-[#5E5E5E] hover:text-[#083335] hover:bg-[#F0F2F2]'
+            )}
+          >
+            <span>Everything</span>
+            <span className={clsx('text-[11px]', typeFilter === 'all' ? 'text-white/80' : 'text-[#8CA5A6]')}>
+              {savedItems.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTypeFilter('route')}
+            className={clsx(
+              'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none flex items-center gap-1.5',
+              typeFilter === 'route'
+                ? 'bg-[#083335] text-white shadow-2xs'
+                : 'text-[#5E5E5E] hover:text-[#083335] hover:bg-[#F0F2F2]'
+            )}
+          >
+            <span>Routes</span>
+            <span className={clsx('text-[11px]', typeFilter === 'route' ? 'text-white/80' : 'text-[#8CA5A6]')}>
+              {routeCount}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTypeFilter('place')}
+            className={clsx(
+              'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none flex items-center gap-1.5',
+              typeFilter === 'place'
+                ? 'bg-[#083335] text-white shadow-2xs'
+                : 'text-[#5E5E5E] hover:text-[#083335] hover:bg-[#F0F2F2]'
+            )}
+          >
+            <span>Places</span>
+            <span className={clsx('text-[11px]', typeFilter === 'place' ? 'text-white/80' : 'text-[#8CA5A6]')}>
+              {placeCount}
+            </span>
+          </button>
         </div>
       )}
 
-      {/* 3. Empty States */}
+      {/* 4. Empty States */}
       {savedItems.length === 0 ? (
-        <div className="bg-white rounded-2xl p-8 sm:p-12 text-center border border-border-clean space-y-4 shadow-2xs">
-          <div className="w-12 h-12 bg-canvas-soft rounded-2xl flex items-center justify-center mx-auto text-[#083335]">
-            <BookmarkPlus className="w-6 h-6" />
+        <div className="bg-white rounded-2xl p-8 text-center border border-[#E5E7EB] space-y-3">
+          <div className="w-11 h-11 bg-canvas-soft rounded-2xl flex items-center justify-center mx-auto text-[#083335]">
+            <BookmarkPlus className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-heading font-semibold text-ink text-base sm:text-lg">No saved routes yet</h3>
-            <p className="text-xs sm:text-sm text-[#5E5E5E] max-w-sm mx-auto mt-1 leading-relaxed font-body">
-              Save frequently used places and routes for quicker navigation.
+            <h3 className="font-heading font-semibold text-ink text-base">No saved places yet</h3>
+            <p className="text-xs text-[#5E5E5E] max-w-xs mx-auto mt-0.5 leading-relaxed font-body">
+              Add places and routes for faster navigation.
             </p>
           </div>
           <div>
             <button
               type="button"
               onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-[#083335] text-white text-xs font-semibold hover:bg-[#052426] transition-colors shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-[#083335] text-white text-xs font-semibold hover:bg-[#052426] transition-colors shadow-2xs cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Save a place</span>
+              <span>Add place</span>
             </button>
           </div>
         </div>
-      ) : filteredItems.length === 0 ? (
-        <div className="bg-white rounded-2xl p-8 text-center border border-border-clean space-y-2 text-ink-mute shadow-2xs">
-          <Search className="w-6 h-6 mx-auto text-ink-mute" />
-          <p className="text-xs font-medium text-ink">No matching routes or places</p>
-          <p className="text-[11px] text-[#5E5E5E]">Try adjusting your search query or filter.</p>
+      ) : totalFilteredCount === 0 ? (
+        <div className="bg-white rounded-2xl p-8 text-center border border-[#E5E7EB] space-y-1.5 text-ink-mute">
+          <Search className="w-5 h-5 mx-auto text-ink-mute" />
+          <p className="text-xs font-medium text-ink font-heading">No matching routes or places</p>
+          <p className="text-[11px] text-[#5E5E5E] font-body">Try adjusting your search query.</p>
           <button
             type="button"
             onClick={() => {
               setSearchQuery('');
               setTypeFilter('all');
             }}
-            className="text-xs text-[#083335] font-semibold hover:underline pt-2 cursor-pointer"
+            className="text-xs text-[#083335] font-semibold hover:underline pt-1 cursor-pointer"
           >
-            Clear filters
+            Clear search
           </button>
         </div>
       ) : (
-        /* 4. Responsive Layout: Mobile List + Desktop Two-Column */
+        /* 5. Content Sections: Native List Hierarchy */
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
-          {/* Items List (Routes & Places with separated styling) */}
-          <div className="md:col-span-5 space-y-2.5">
-            {filteredItems.map((item) => {
-              const isSelected = selectedId === item.id;
-              const Icon = getPlaceIcon(item);
-              const distStr = formatDistance(item.distance_meters);
-              const durStr = formatDuration(item.duration_seconds);
+          <div className="md:col-span-5 space-y-4">
+            {/* 5A. FREQUENT ROUTES SECTION */}
+            {(typeFilter === 'all' || typeFilter === 'route') && matchingRoutes.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-bold text-[#8CA5A6] uppercase tracking-wider block px-1">
+                  Frequent Routes
+                </span>
 
-              // 4A. ROUTE CARD
-              if (item.type === 'route') {
-                return (
-                  <div
-                    key={item.id}
-                    role="button"
-                    tabIndex={0}
-                    aria-selected={isSelected}
-                    aria-label={`Select route ${item.name}`}
-                    onClick={() => handleSelectItem(item.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleSelectItem(item.id);
-                      }
-                    }}
-                    className={clsx(
-                      'p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer select-none flex items-center justify-between gap-3 shadow-2xs',
-                      isSelected
-                        ? 'bg-[#083335]/[0.05] border-[#083335]/30'
-                        : 'bg-white border-border-clean hover:border-[#083335]/25 hover:bg-[#F9FAFA]'
-                    )}
-                  >
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
-                      {/* Icon */}
+                <div className="bg-white rounded-xl border border-[#E5E7EB] divide-y divide-[#F0F2F2] overflow-hidden">
+                  {matchingRoutes.map((item) => {
+                    const isSelected = selectedId === item.id;
+                    const distStr = formatDistance(item.distance_meters);
+                    const durStr = formatDuration(item.duration_seconds);
+
+                    return (
                       <div
+                        key={item.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-selected={isSelected}
+                        aria-label={`Select route ${item.name}`}
+                        onClick={() => handleSelectItem(item.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleSelectItem(item.id);
+                          }
+                        }}
                         className={clsx(
-                          'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors mt-0.5',
+                          'p-3 sm:p-3.5 transition-colors cursor-pointer select-none flex items-center justify-between gap-3 min-h-[68px]',
                           isSelected
-                            ? 'bg-[#083335] text-white'
-                            : 'bg-canvas-soft text-[#083335] border border-border-clean'
+                            ? 'bg-[#083335]/[0.05] border-l-2 border-l-[#083335]'
+                            : 'hover:bg-[#F9FBFA]'
                         )}
                       >
-                        <Route className="w-5 h-5" />
-                      </div>
-
-                      {/* Content */}
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="font-heading font-semibold text-sm sm:text-base text-ink truncate">
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <div className="font-heading font-bold text-sm sm:text-base text-[#083335] truncate leading-tight">
                             {item.name}
-                          </span>
-                          <span className="shrink-0 text-[10px] font-medium px-1.5 py-0.2 rounded-md bg-[#EAEAEA] text-[#5E5E5E]">
-                            • Route
-                          </span>
+                          </div>
+                          <div className="text-xs text-[#5E5E5E] truncate font-body">
+                            {item.address || `Ahmedabad → ${item.name}`}
+                            {item.summary ? ` · ${item.summary}` : ''}
+                          </div>
+                          {distStr && (
+                            <div className="text-xs font-semibold text-[#083335] flex items-center gap-1.5 pt-0.5 font-heading">
+                              <span>{distStr}</span>
+                              <span className="text-slate-300">·</span>
+                              <span className="text-[#5E5E5E] font-normal font-body">{durStr}</span>
+                            </div>
+                          )}
                         </div>
 
-                        {/* Origin -> Destination or summary */}
-                        <div className="text-xs text-[#5E5E5E] truncate font-body">
-                          {item.address || (item.summary ? `Via ${item.summary}` : 'Saved route')}
-                        </div>
-
-                        {item.summary && item.address && item.address.includes('→') && (
-                          <div className="text-[11px] text-[#8CA5A6] truncate font-body">
-                            Via {item.summary}
-                          </div>
-                        )}
-
-                        {/* Distance & Duration */}
-                        {distStr && (
-                          <div className="text-xs font-semibold text-[#083335] flex items-center gap-1.5 pt-0.5 font-heading">
-                            <span>{distStr}</span>
-                            <span className="text-slate-300">·</span>
-                            <span className="text-[#5E5E5E] font-normal font-body">{durStr}</span>
-                          </div>
-                        )}
+                        {/* Dedicated 44px centered touch target */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleNavigate(item, e)}
+                          title={`Navigate to ${item.name}`}
+                          aria-label={`Navigate to ${item.name}`}
+                          className="w-11 h-11 rounded-xl flex items-center justify-center text-[#083335] hover:bg-[#E6EDED] active:scale-95 transition-all shrink-0 cursor-pointer"
+                        >
+                          <Navigation2 className="w-5 h-5 text-[#083335] fill-[#083335] rotate-45" />
+                        </button>
                       </div>
-                    </div>
-
-                    {/* Small Quick Navigate Icon Button (No large text button on card) */}
-                    <button
-                      type="button"
-                      onClick={(e) => handleNavigate(item, e)}
-                      title={`Navigate to ${item.name}`}
-                      aria-label={`Navigate to ${item.name}`}
-                      className="w-9 h-9 rounded-xl flex items-center justify-center text-[#8CA5A6] hover:text-[#083335] hover:bg-[#EAF0F0] active:scale-95 transition-all shrink-0 cursor-pointer"
-                    >
-                      <Navigation2 className="w-4 h-4 text-[#083335] fill-[#083335] rotate-45" />
-                    </button>
-                  </div>
-                );
-              }
-
-              // 4B. PLACE CARD
-              return (
-                <div
-                  key={item.id}
-                  role="button"
-                  tabIndex={0}
-                  aria-selected={isSelected}
-                  aria-label={`Select place ${item.name}`}
-                  onClick={() => handleSelectItem(item.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleSelectItem(item.id);
-                    }
-                  }}
-                  className={clsx(
-                    'p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer select-none flex items-center justify-between gap-3 shadow-2xs',
-                    isSelected
-                      ? 'bg-[#083335]/[0.05] border-[#083335]/30'
-                      : 'bg-white border-border-clean hover:border-[#083335]/25 hover:bg-[#F9FAFA]'
-                  )}
-                >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    {/* Icon */}
-                    <div
-                      className={clsx(
-                        'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors',
-                        isSelected
-                          ? 'bg-[#083335] text-white'
-                          : 'bg-canvas-soft text-[#083335] border border-border-clean'
-                      )}
-                    >
-                      <Icon className="w-5 h-5" />
-                    </div>
-
-                    {/* Content */}
-                    <div className="min-w-0 flex-1 space-y-0.5">
-                      <div className="font-heading font-semibold text-sm sm:text-base text-ink truncate">
-                        {item.name}
-                      </div>
-                      <div className="text-xs text-[#5E5E5E] truncate font-body">
-                        {item.address || 'Saved place'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Small Quick Navigate Icon Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => handleNavigate(item, e)}
-                    title={`Navigate to ${item.name}`}
-                    aria-label={`Navigate to ${item.name}`}
-                    className="w-9 h-9 rounded-xl flex items-center justify-center text-[#8CA5A6] hover:text-[#083335] hover:bg-[#EAF0F0] active:scale-95 transition-all shrink-0 cursor-pointer"
-                  >
-                    <Navigation2 className="w-4 h-4 text-[#083335] fill-[#083335] rotate-45" />
-                  </button>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+            )}
+
+            {/* 5B. SAVED PLACES SECTION */}
+            {(typeFilter === 'all' || typeFilter === 'place') && matchingPlaces.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-bold text-[#8CA5A6] uppercase tracking-wider block px-1">
+                  Saved Places
+                </span>
+
+                <div className="bg-white rounded-xl border border-[#E5E7EB] divide-y divide-[#F0F2F2] overflow-hidden">
+                  {matchingPlaces.map((item) => {
+                    const Icon = getPlaceIcon(item);
+                    const isSelected = selectedId === item.id;
+
+                    return (
+                      <div
+                        key={item.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-selected={isSelected}
+                        aria-label={`Select place ${item.name}`}
+                        onClick={() => handleSelectItem(item.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleSelectItem(item.id);
+                          }
+                        }}
+                        className={clsx(
+                          'px-3.5 py-3 flex items-center justify-between gap-3 transition-colors cursor-pointer select-none min-h-[60px]',
+                          isSelected
+                            ? 'bg-[#083335]/[0.05] border-l-2 border-l-[#083335]'
+                            : 'hover:bg-[#F9FBFA]'
+                        )}
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          {/* Clean line icon directly on row (No gray square container) */}
+                          <div className="w-6 h-6 flex items-center justify-center text-[#083335] shrink-0">
+                            <Icon className="w-5 h-5 stroke-[2]" />
+                          </div>
+
+                          <div className="min-w-0 flex-1 space-y-0.5">
+                            <div className="font-heading font-semibold text-sm text-[#083335] truncate">
+                              {item.name}
+                            </div>
+                            <div className="text-xs text-[#5E5E5E] truncate font-body">
+                              {item.address || 'Saved place'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Dedicated 44px Navigation Touch Target */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleNavigate(item, e)}
+                          title={`Navigate to ${item.name}`}
+                          aria-label={`Navigate to ${item.name}`}
+                          className="w-11 h-11 rounded-xl flex items-center justify-center text-[#083335] hover:bg-[#E6EDED] active:scale-95 transition-all shrink-0 cursor-pointer"
+                        >
+                          <Navigation2 className="w-5 h-5 text-[#083335] fill-[#083335] rotate-45" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right Column: Desktop Detail Panel (Hidden on Mobile) */}
-          <div className="hidden md:block md:col-span-7 bg-white rounded-2xl p-5 sm:p-6 border border-border-clean shadow-2xs space-y-4">
+          <div className="hidden md:block md:col-span-7 bg-white rounded-2xl p-5 sm:p-6 border border-[#E5E7EB] shadow-xs space-y-4">
             {selectedItem ? (
               <div className="space-y-4">
-                {/* Header with Title, Type Badge & Top-Right Actions */}
+                {/* Header */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -535,7 +529,6 @@ export default function NavigationMemoryPage() {
                     </p>
                   </div>
 
-                  {/* Top-Right Action Controls */}
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span
                       title="Saved in spatial memory"
@@ -544,7 +537,6 @@ export default function NavigationMemoryPage() {
                       <BookmarkCheck className="w-4 h-4" />
                     </span>
 
-                    {/* Delete with inline confirmation */}
                     {confirmDeleteId === selectedItem.id ? (
                       <div className="inline-flex items-center gap-1 bg-rose-50 border border-rose-200 rounded-lg p-1 animate-in fade-in duration-150">
                         <button
@@ -577,9 +569,8 @@ export default function NavigationMemoryPage() {
                   </div>
                 </div>
 
-                {/* Structured Key Metrics Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-3.5 bg-[#F9F9F9] border border-border-clean rounded-xl text-xs select-none">
-                  {/* Metric: Distance or Coordinates */}
+                {/* Structured Metrics Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-3.5 bg-[#F9F9F9] border border-[#E5E7EB] rounded-xl text-xs select-none">
                   {selectedItem.distance_meters && selectedItem.distance_meters > 0 ? (
                     <div>
                       <span className="text-[10px] font-bold text-[#8E8E8E] uppercase tracking-wider block">
@@ -601,7 +592,6 @@ export default function NavigationMemoryPage() {
                     </div>
                   )}
 
-                  {/* Metric: Duration */}
                   {selectedItem.duration_seconds && selectedItem.duration_seconds > 0 ? (
                     <div>
                       <span className="text-[10px] font-bold text-[#8E8E8E] uppercase tracking-wider block">
@@ -623,7 +613,6 @@ export default function NavigationMemoryPage() {
                     </div>
                   )}
 
-                  {/* Metric: Travel Mode */}
                   <div>
                     <span className="text-[10px] font-bold text-[#8E8E8E] uppercase tracking-wider block">
                       Travel Mode
@@ -651,14 +640,14 @@ export default function NavigationMemoryPage() {
                   </div>
 
                   {selectedItem.geometry && selectedItem.geometry.length >= 2 ? (
-                    <div className="rounded-xl overflow-hidden border border-border-clean shadow-2xs">
+                    <div className="rounded-xl overflow-hidden border border-[#E5E7EB] shadow-2xs">
                       <TripRouteMap
                         geometry={selectedItem.geometry}
                         className="w-full h-64 sm:h-72 md:h-80"
                       />
                     </div>
                   ) : (
-                    <div className="bg-[#FAFAFA] border border-border-clean rounded-xl flex flex-col items-center justify-center p-6 text-center select-none h-44 sm:h-52 space-y-2">
+                    <div className="bg-[#FAFAFA] border border-[#E5E7EB] rounded-xl flex flex-col items-center justify-center p-6 text-center select-none h-44 sm:h-52 space-y-2">
                       <div className="w-10 h-10 rounded-full bg-[#EAEAEA] flex items-center justify-center text-ink">
                         <MapPin className="w-5 h-5 text-[#5E5E5E]" />
                       </div>
@@ -672,8 +661,8 @@ export default function NavigationMemoryPage() {
                   )}
                 </div>
 
-                {/* Primary Action CTA: Navigate */}
-                <div className="pt-4 mt-2 border-t border-border-clean flex items-center justify-end">
+                {/* Primary Action CTA */}
+                <div className="pt-4 mt-2 border-t border-[#E5E7EB] flex items-center justify-end">
                   <button
                     type="button"
                     onClick={() => handleNavigate(selectedItem)}
@@ -698,21 +687,17 @@ export default function NavigationMemoryPage() {
         </div>
       )}
 
-      {/* 5. Mobile Tap Bottom Sheet Modal */}
+      {/* 6. Mobile Route Detail Bottom Sheet Modal */}
       {isMobileSheetOpen && selectedItem && (
         <div className="fixed inset-0 z-50 md:hidden animate-in fade-in duration-200">
-          {/* Backdrop */}
           <div
             onClick={() => setIsMobileSheetOpen(false)}
             className="absolute inset-0 bg-[#083335]/30 backdrop-blur-2xs"
           />
 
-          {/* Sheet Container */}
-          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[24px] border-t border-border-clean shadow-nav-floating max-h-[78dvh] flex flex-col animate-in slide-in-from-bottom duration-250">
-            {/* Drag Handle */}
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[24px] border-t border-[#E5E7EB] shadow-nav-floating max-h-[82dvh] flex flex-col animate-in slide-in-from-bottom duration-250">
             <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mt-3 mb-1 shrink-0" />
 
-            {/* Scrollable Sheet Content */}
             <div className="p-4 sm:p-5 overflow-y-auto space-y-3.5 flex-1">
               {/* Header */}
               <div className="flex items-start justify-between gap-3">
@@ -730,7 +715,6 @@ export default function NavigationMemoryPage() {
                   </p>
                 </div>
 
-                {/* Top-Right Action Controls */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span
                     title="Saved in spatial memory"
@@ -739,7 +723,6 @@ export default function NavigationMemoryPage() {
                     <BookmarkCheck className="w-4 h-4" />
                   </span>
 
-                  {/* Delete with inline confirmation */}
                   {confirmDeleteId === selectedItem.id ? (
                     <div className="inline-flex items-center gap-1 bg-rose-50 border border-rose-200 rounded-lg p-1 animate-in fade-in duration-150">
                       <button
@@ -784,8 +767,28 @@ export default function NavigationMemoryPage() {
                 </div>
               </div>
 
+              {/* Map Preview */}
+              {selectedItem.geometry && selectedItem.geometry.length >= 2 ? (
+                <div className="rounded-xl overflow-hidden border border-[#E5E7EB] shadow-2xs">
+                  <TripRouteMap
+                    geometry={selectedItem.geometry}
+                    className="w-full h-48 sm:h-56"
+                  />
+                </div>
+              ) : (
+                <div className="bg-[#FAFAFA] border border-[#E5E7EB] rounded-xl flex flex-col items-center justify-center p-4 text-center select-none h-32 space-y-1">
+                  <div className="w-8 h-8 rounded-full bg-[#EAEAEA] flex items-center justify-center text-ink">
+                    <MapPin className="w-4 h-4 text-[#5E5E5E]" />
+                  </div>
+                  <p className="text-xs font-semibold text-ink font-heading">{selectedItem.name}</p>
+                  <p className="text-[11px] text-[#5E5E5E] max-w-xs font-body">
+                    {selectedItem.address || 'Direct coordinates saved.'}
+                  </p>
+                </div>
+              )}
+
               {/* Metrics Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-3 bg-[#F9F9F9] border border-border-clean rounded-xl text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-3 bg-[#F9F9F9] border border-[#E5E7EB] rounded-xl text-xs">
                 {selectedItem.distance_meters && selectedItem.distance_meters > 0 ? (
                   <div>
                     <span className="text-[10px] font-bold text-[#8E8E8E] uppercase tracking-wider block">
@@ -840,30 +843,10 @@ export default function NavigationMemoryPage() {
                   </span>
                 </div>
               </div>
-
-              {/* Map Preview */}
-              {selectedItem.geometry && selectedItem.geometry.length >= 2 ? (
-                <div className="rounded-xl overflow-hidden border border-border-clean shadow-2xs">
-                  <TripRouteMap
-                    geometry={selectedItem.geometry}
-                    className="w-full h-44 sm:h-48"
-                  />
-                </div>
-              ) : (
-                <div className="bg-[#FAFAFA] border border-border-clean rounded-xl flex flex-col items-center justify-center p-4 text-center select-none h-32 space-y-1">
-                  <div className="w-8 h-8 rounded-full bg-[#EAEAEA] flex items-center justify-center text-ink">
-                    <MapPin className="w-4 h-4 text-[#5E5E5E]" />
-                  </div>
-                  <p className="text-xs font-semibold text-ink font-heading">{selectedItem.name}</p>
-                  <p className="text-[11px] text-[#5E5E5E] max-w-xs font-body">
-                    {selectedItem.address || 'Direct coordinates saved.'}
-                  </p>
-                </div>
-              )}
             </div>
 
             {/* Bottom Sheet Sticky Navigation CTA */}
-            <div className="p-4 pt-2 border-t border-border-clean bg-white pb-[calc(1rem+env(safe-area-inset-bottom))]">
+            <div className="p-4 pt-2 border-t border-[#E5E7EB] bg-white pb-[calc(1rem+env(safe-area-inset-bottom))]">
               <button
                 type="button"
                 onClick={() => handleNavigate(selectedItem)}
@@ -878,15 +861,12 @@ export default function NavigationMemoryPage() {
         </div>
       )}
 
-      {/* 6. Add Place Modal */}
+      {/* 7. Add Place Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 bg-[#083335]/30 backdrop-blur-2xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white border border-border-clean rounded-2xl p-5 sm:p-6 w-full max-w-md shadow-nav-floating space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border-clean pb-3">
-              <div className="flex items-center gap-2">
-                <MapPinned className="w-4.5 h-4.5 text-[#083335]" />
-                <h3 className="text-base font-bold font-heading text-ink">Save a place</h3>
-              </div>
+          <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 sm:p-6 w-full max-w-md shadow-nav-floating space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-3">
+              <h3 className="text-base font-bold font-heading text-ink">Add saved place</h3>
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
@@ -896,7 +876,7 @@ export default function NavigationMemoryPage() {
               </button>
             </div>
 
-            {/* Quick Preset Buttons */}
+            {/* Quick Presets */}
             <div>
               <span className="text-[11px] font-semibold text-[#8E8E8E] uppercase tracking-wider block mb-1.5">
                 Quick Presets
@@ -907,7 +887,7 @@ export default function NavigationMemoryPage() {
                   onClick={() => handleApplyPreset('Home', 'Ahmedabad, Gujarat')}
                   className="px-2.5 py-1 rounded-lg bg-[#F5F5F5] hover:bg-[#EAEAEA] text-xs font-medium text-ink flex items-center gap-1 cursor-pointer transition-colors"
                 >
-                  <Home className="w-3 h-3 text-[#5E5E5E]" />
+                  <Home className="w-3.5 h-3.5 text-[#083335]" />
                   <span>Home</span>
                 </button>
                 <button
@@ -915,7 +895,7 @@ export default function NavigationMemoryPage() {
                   onClick={() => handleApplyPreset('Office', 'Gandhinagar, Gujarat')}
                   className="px-2.5 py-1 rounded-lg bg-[#F5F5F5] hover:bg-[#EAEAEA] text-xs font-medium text-ink flex items-center gap-1 cursor-pointer transition-colors"
                 >
-                  <Building2 className="w-3 h-3 text-[#5E5E5E]" />
+                  <Building2 className="w-3.5 h-3.5 text-[#083335]" />
                   <span>Office</span>
                 </button>
                 <button
@@ -923,7 +903,7 @@ export default function NavigationMemoryPage() {
                   onClick={() => handleApplyPreset('Airport', 'Sardar Vallabhbhai Patel International Airport')}
                   className="px-2.5 py-1 rounded-lg bg-[#F5F5F5] hover:bg-[#EAEAEA] text-xs font-medium text-ink flex items-center gap-1 cursor-pointer transition-colors"
                 >
-                  <Plane className="w-3 h-3 text-[#5E5E5E]" />
+                  <Plane className="w-3.5 h-3.5 text-[#083335]" />
                   <span>Airport</span>
                 </button>
               </div>
@@ -940,7 +920,7 @@ export default function NavigationMemoryPage() {
                   placeholder="e.g. Gym, Library, Client Office"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-border-clean rounded-xl text-xs sm:text-sm text-ink placeholder:text-ink-mute focus:outline-none focus:border-[#083335]/40 focus:ring-1 focus:ring-[#083335]/20 font-body"
+                  className="w-full px-3 py-2 bg-white border border-[#E5E7EB] rounded-xl text-xs sm:text-sm text-ink placeholder:text-ink-mute focus:outline-none focus:border-[#083335] focus:ring-1 focus:ring-[#083335]/20 font-body"
                 />
               </div>
 
@@ -953,7 +933,7 @@ export default function NavigationMemoryPage() {
                   placeholder="e.g. Ahmedabad, Gujarat"
                   value={newAddress}
                   onChange={(e) => setNewAddress(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-border-clean rounded-xl text-xs sm:text-sm text-ink placeholder:text-ink-mute focus:outline-none focus:border-[#083335]/40 focus:ring-1 focus:ring-[#083335]/20 font-body"
+                  className="w-full px-3 py-2 bg-white border border-[#E5E7EB] rounded-xl text-xs sm:text-sm text-ink placeholder:text-ink-mute focus:outline-none focus:border-[#083335] focus:ring-1 focus:ring-[#083335]/20 font-body"
                 />
               </div>
 
@@ -966,7 +946,7 @@ export default function NavigationMemoryPage() {
                     type="text"
                     value={newLon}
                     onChange={(e) => setNewLon(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-border-clean rounded-xl text-xs font-mono text-ink focus:outline-none focus:border-[#083335]/40"
+                    className="w-full px-3 py-2 bg-white border border-[#E5E7EB] rounded-xl text-xs font-mono text-ink focus:outline-none focus:border-[#083335]"
                   />
                 </div>
                 <div>
@@ -977,12 +957,11 @@ export default function NavigationMemoryPage() {
                     type="text"
                     value={newLat}
                     onChange={(e) => setNewLat(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-border-clean rounded-xl text-xs font-mono text-ink focus:outline-none focus:border-[#083335]/40"
+                    className="w-full px-3 py-2 bg-white border border-[#E5E7EB] rounded-xl text-xs font-mono text-ink focus:outline-none focus:border-[#083335]"
                   />
                 </div>
               </div>
 
-              {/* Quick Fill Location */}
               {userLat !== null && userLon !== null && (
                 <button
                   type="button"
@@ -998,7 +977,7 @@ export default function NavigationMemoryPage() {
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-3.5 py-1.5 rounded-xl border border-border-clean text-xs font-medium text-ink hover:bg-[#F3F3F3] cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl border border-[#E5E7EB] text-xs font-medium text-ink hover:bg-[#F3F3F3] cursor-pointer"
                 >
                   Cancel
                 </button>
