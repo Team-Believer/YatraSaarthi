@@ -6,3 +6,5 @@ export { RouteLayer } from './RouteLayer';
 export { DestinationSearch } from './DestinationSearch';
 export { MapLayers } from './MapLayers';
 export { MapControls } from './MapControls';
+export { TripRouteMap } from './TripRouteMap';
+

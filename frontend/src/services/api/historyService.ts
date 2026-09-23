@@ -13,6 +13,23 @@ export interface SessionSummary {
   end_lon: number | null;
 }
 
+export interface TrajectoryPoint {
+  timestamp: string | null;
+  latitude: number;
+  longitude: number;
+  altitude?: number | null;
+  speed?: number | null;
+  heading?: number | null;
+  accuracy?: number | null;
+  confidence?: number | null;
+  mode?: string | null;
+}
+
+export interface SessionDetail extends SessionSummary {
+  points: TrajectoryPoint[];
+  navigation_modes_used: string[];
+}
+
 export interface TelemetryInsights {
   total_sessions: number;
   total_distance_km: number;
@@ -30,6 +47,10 @@ export const historyService = {
       // Fallback try legacy endpoint
       return await apiClient.get<SessionSummary[]>(`/api/v1/history?limit=${limit}`);
     }
+  },
+
+  getSessionDetail: async (sessionId: string): Promise<SessionDetail> => {
+    return await apiClient.get<SessionDetail>(`/api/v1/history/sessions/${sessionId}`);
   },
 
   getInsights: async (): Promise<TelemetryInsights> => {
