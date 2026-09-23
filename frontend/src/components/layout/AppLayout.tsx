@@ -112,52 +112,56 @@ export default function AppLayout() {
       <div className="w-full h-full relative flex flex-col overflow-hidden">
         {/* Mobile Header Bar - Floating Overlay on Map Pages; Sticky on Content Pages */}
         {isMapPage ? (
-          /* FLOATING TOP HEADER OVERLAY FOR MAP (Clean 2-zone layout: Hamburger + Centered Logo) */
-          <div className="absolute top-0 left-0 right-0 z-30 pt-[calc(env(safe-area-inset-top)+6px)] px-3 pointer-events-none md:hidden">
-            <div className="pointer-events-auto flex items-center justify-between h-[52px] pl-2 pr-4 bg-white/95 backdrop-blur-md rounded-2xl border border-border-clean shadow-nav-floating max-w-lg mx-auto">
+          /* FLOATING TOP HEADER OVERLAY FOR MAP (Clean floating bar: Menu + Centered Logo) */
+          <div className="absolute top-0 left-0 right-0 z-30 pt-[calc(env(safe-area-inset-top)+8px)] px-2.5 sm:px-3 pointer-events-none md:hidden">
+            <div className="pointer-events-auto relative flex items-center justify-between h-[54px] px-2.5 bg-white/96 backdrop-blur-md rounded-2xl border border-border-clean shadow-nav-floating max-w-lg mx-auto">
               {/* Left: Hamburger (Main Navigation Drawer ONLY) */}
               <button
                 type="button"
                 onClick={handleOpenNavDrawer}
                 aria-label="Open navigation menu"
-                title="Open menu"
-                className="w-10 h-10 flex items-center justify-center rounded-xl text-[#083335] hover:bg-canvas-soft active:bg-surface-pressed transition-colors cursor-pointer shrink-0"
+                title="Open navigation menu"
+                className="w-11 h-11 flex items-center justify-center rounded-xl text-[#083335] hover:bg-canvas-soft active:bg-surface-pressed transition-colors cursor-pointer shrink-0 z-10"
               >
                 <Menu className="w-5 h-5" />
               </button>
 
-              {/* Center: Real YatraSaarthi Logo */}
-              <Link
-                to="/app"
-                className="flex items-center justify-center flex-1 pr-6 min-w-0"
-                aria-label="YatraSaarthi Home"
-              >
-                <YatraSaarthiLogo variant="header" height={30} showText={true} />
-              </Link>
+              {/* Center: Real YatraSaarthi Logo strictly centered across the bar */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <Link
+                  to="/app"
+                  className="pointer-events-auto flex items-center justify-center select-none py-1"
+                  aria-label="YatraSaarthi Home"
+                >
+                  <YatraSaarthiLogo variant="header" height={26} showText={true} />
+                </Link>
+              </div>
             </div>
           </div>
         ) : (
           /* STANDARD STICKY TOP HEADER FOR CONTENT PAGES */
-          <div className="md:hidden flex items-center justify-between px-3 pt-[env(safe-area-inset-top)] h-[calc(54px+env(safe-area-inset-top))] bg-white border-b border-border-clean shrink-0 z-30 shadow-2xs">
+          <div className="md:hidden relative flex items-center justify-between px-2.5 pt-[env(safe-area-inset-top)] h-[calc(54px+env(safe-area-inset-top))] bg-white border-b border-border-clean shrink-0 z-30 shadow-2xs">
             {/* Left: Hamburger */}
             <button
               type="button"
               onClick={handleOpenNavDrawer}
               aria-label="Open navigation menu"
-              title="Open menu"
-              className="w-10 h-10 flex items-center justify-center rounded-xl text-[#083335] hover:bg-canvas-soft active:bg-surface-pressed transition-colors cursor-pointer shrink-0"
+              title="Open navigation menu"
+              className="w-11 h-11 flex items-center justify-center rounded-xl text-[#083335] hover:bg-canvas-soft active:bg-surface-pressed transition-colors cursor-pointer shrink-0 z-10"
             >
               <Menu className="w-5 h-5" />
             </button>
 
-            {/* Center: Real YatraSaarthi Logo */}
-            <Link
-              to="/app"
-              className="flex items-center justify-center flex-1 pr-6 min-w-0"
-              aria-label="YatraSaarthi Home"
-            >
-              <YatraSaarthiLogo variant="header" height={28} showText={true} />
-            </Link>
+            {/* Center: Real YatraSaarthi Logo strictly centered */}
+            <div className="absolute inset-0 flex items-center justify-center pt-[env(safe-area-inset-top)] pointer-events-none">
+              <Link
+                to="/app"
+                className="pointer-events-auto flex items-center justify-center select-none py-1"
+                aria-label="YatraSaarthi Home"
+              >
+                <YatraSaarthiLogo variant="header" height={26} showText={true} />
+              </Link>
+            </div>
           </div>
         )}
 

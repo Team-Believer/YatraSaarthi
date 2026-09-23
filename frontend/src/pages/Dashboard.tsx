@@ -233,7 +233,7 @@ export default function Dashboard() {
         )}
 
         {/* PRIMARY TOP-CENTER DESTINATION SEARCH / ACTIVE MANEUVER GUIDANCE */}
-        <div className="absolute top-[calc(env(safe-area-inset-top)+64px)] left-3 right-3 sm:top-6 sm:left-1/2 sm:-translate-x-1/2 sm:w-[520px] sm:max-w-[560px] z-20 pointer-events-auto flex justify-center">
+        <div className="absolute top-[calc(env(safe-area-inset-top)+68px)] left-3 right-3 sm:top-6 sm:left-1/2 sm:-translate-x-1/2 sm:w-[520px] sm:max-w-[560px] z-20 pointer-events-auto flex justify-center">
           {!isLive ? (
             <DestinationSearch />
           ) : (

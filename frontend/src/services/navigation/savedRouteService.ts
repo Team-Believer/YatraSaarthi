@@ -28,6 +28,27 @@ const SAVED_ROUTES_EVENT = 'yatrasaarthi_saved_routes_updated';
 
 export const DEFAULT_SAVED_PLACES: SavedPlaceItem[] = [
   {
+    id: 'saved-route-mahesana',
+    name: 'Mahesana',
+    address: 'Ahmedabad → Mahesana',
+    summary: 'NH48, SH41',
+    type: 'route',
+    coordinates: [72.3998, 23.5880],
+    originCoordinates: [72.5714, 23.0225],
+    distance_meters: 86000,
+    duration_seconds: 8280, // 2h 18m
+    travelMode: 'driving',
+    geometry: [
+      [72.5714, 23.0225],
+      [72.5850, 23.1120],
+      [72.5720, 23.2340],
+      [72.5120, 23.3850],
+      [72.4410, 23.4920],
+      [72.3998, 23.5880],
+    ],
+    createdAt: new Date(Date.now() - 86400000 * 7).toISOString(),
+  },
+  {
     id: 'saved-home',
     name: 'Home',
     address: 'Ahmedabad, Gujarat',

@@ -133,13 +133,13 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
   return (
     <div
       className={clsx(
-        'w-full max-w-[860px] mx-auto bg-white rounded-2xl select-none transition-all duration-200 border border-border-clean shadow-nav-floating overflow-hidden',
+        'w-full max-w-[860px] mx-auto bg-white/97 backdrop-blur-md rounded-[18px] select-none transition-all duration-200 border border-border-clean shadow-nav-floating overflow-hidden',
         className
       )}
     >
-      {/* Single Main Driver HUD Row (64-72px high) */}
-      <div className="px-3.5 py-2.5 sm:px-4 sm:py-3">
-        <div className="flex items-center justify-between gap-3 sm:gap-4">
+      {/* Driving Control Dock Row (64-72px high) */}
+      <div className="px-3 py-2.5 sm:px-4 sm:py-3 min-h-[64px] flex items-center">
+        <div className="flex items-center justify-between gap-2.5 sm:gap-4 w-full">
           {/* Left Block: Speed */}
           <div className="flex items-center gap-2 min-w-0 shrink-0">
             <SpeedDisplay compact={true} />
@@ -150,13 +150,13 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
           </div>
 
           {/* Center Block: Destination / Location / GNSS Status */}
-          <div className="min-w-0 flex-1 flex flex-col justify-center">
+          <div className="min-w-0 flex-1 flex flex-col justify-center px-1">
             {isLive ? (
               <div className="flex flex-col gap-0.5 min-w-0">
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-1.5 min-w-0">
                   {getGnssStatusBadge()}
                   {destination && (
-                    <span className="font-heading font-semibold text-xs sm:text-sm text-ink truncate">
+                    <span className="font-heading font-semibold text-xs sm:text-sm text-[#083335] truncate">
                       {destination.name}
                     </span>
                   )}
@@ -165,17 +165,17 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
             ) : destination ? (
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className="text-[#083335] shrink-0">{getModeIcon()}</span>
-                <span className="font-heading font-semibold text-ink truncate text-xs sm:text-sm">
+                <span className="font-heading font-semibold text-[#083335] truncate text-xs sm:text-sm">
                   {destination.name}
                 </span>
               </div>
             ) : (
               <div
                 aria-label="Current location"
-                className="flex items-center gap-1.5 min-w-0 text-slate-700"
+                className="flex items-center gap-1.5 min-w-0 text-slate-800"
               >
                 <MapPin className="w-3.5 h-3.5 text-[#083335] shrink-0" />
-                <span className="font-body font-medium text-xs sm:text-sm truncate text-ink">
+                <span className="font-body font-medium text-xs sm:text-[13px] truncate text-slate-800">
                   {placeName || (currentLat !== null ? 'Finding location...' : 'Locating...')}
                 </span>
               </div>
@@ -198,7 +198,7 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
                 disabled={isEnding}
                 aria-label="End navigation"
                 className={clsx(
-                  'h-11 px-4 sm:px-5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer select-none active:scale-[0.97] border font-body shrink-0',
+                  'h-11 px-3.5 sm:px-4.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer select-none active:scale-[0.97] border font-body shrink-0',
                   confirmEnd
                     ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-600 shadow-xs'
                     : 'bg-white hover:bg-canvas-soft text-ink border-border-clean shadow-2xs'
@@ -222,7 +222,7 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
                 onClick={handleStartSession}
                 disabled={sessionStatus === 'STARTING'}
                 aria-label="Start navigation"
-                className="h-11 px-4 sm:px-5 bg-[#083335] hover:bg-[#052426] active:bg-[#031718] text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shadow-nav-floating transition-colors cursor-pointer select-none active:scale-[0.97] font-body shrink-0"
+                className="h-11 px-3.5 sm:px-4.5 bg-[#083335] hover:bg-[#052426] active:bg-[#031718] text-white rounded-xl text-xs sm:text-[13px] font-semibold flex items-center gap-1.5 shadow-nav-floating transition-colors cursor-pointer select-none active:scale-[0.97] font-body shrink-0"
               >
                 <Navigation2 className="w-4 h-4 fill-white text-white rotate-45 shrink-0" />
                 <span className="whitespace-nowrap">
