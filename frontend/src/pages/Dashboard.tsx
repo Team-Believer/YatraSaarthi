@@ -141,7 +141,7 @@ export default function Dashboard() {
     <div className="h-full w-full relative flex flex-col overflow-hidden bg-canvas-soft select-none">
       {/* Journey Completed Banner */}
       {journeySummary && (
-        <div className="absolute top-20 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-auto z-50 bg-white text-ink px-4.5 py-3 rounded-2xl shadow-nav-floating flex items-center gap-3 animate-in fade-in border border-border-clean">
+        <div className="absolute top-[calc(env(safe-area-inset-top)+68px)] left-3 right-3 md:left-1/2 md:-translate-x-1/2 md:w-auto z-50 bg-white text-ink px-4.5 py-3 rounded-2xl shadow-nav-floating flex items-center gap-3 animate-in fade-in border border-border-clean">
           <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
           <div className="text-xs">
             <span className="font-semibold text-ink">Journey summary</span> •{' '}
@@ -233,7 +233,7 @@ export default function Dashboard() {
         )}
 
         {/* PRIMARY TOP-CENTER DESTINATION SEARCH / ACTIVE MANEUVER GUIDANCE */}
-        <div className="absolute top-4 sm:top-6 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-6rem)] sm:w-[520px] max-w-[560px] pointer-events-auto flex justify-center">
+        <div className="absolute top-[calc(env(safe-area-inset-top)+64px)] left-3 right-3 sm:top-6 sm:left-1/2 sm:-translate-x-1/2 sm:w-[520px] sm:max-w-[560px] z-20 pointer-events-auto flex justify-center">
           {!isLive ? (
             <DestinationSearch />
           ) : (
@@ -241,18 +241,16 @@ export default function Dashboard() {
           )}
         </div>
 
-
-
-        {/* ROUTE PREVIEW PLANNING PANEL (Lower-Left / Bottom Sheet) */}
+        {/* ROUTE PREVIEW PLANNING PANEL (Lower-Left / Bottom Sheet - sits strictly above bottom nav) */}
         {!isLive && destination && routeCoordinates && (
-          <div className="absolute bottom-20 sm:bottom-6 left-4 sm:left-24 z-20 pointer-events-auto w-[calc(100%-2rem)] sm:w-[420px] max-w-[420px] pb-[env(safe-area-inset-bottom)]">
+          <div className="absolute bottom-[calc(68px+env(safe-area-inset-bottom)+10px)] left-3 right-3 sm:left-6 sm:bottom-20 z-30 pointer-events-auto w-auto sm:w-[440px] max-w-[440px]">
             <RoutePreviewCard onStart={() => setFollowVehicle(true)} />
           </div>
         )}
 
-        {/* FLOATING BOTTOM HUD COCKPIT (Active Navigation / Standby) */}
+        {/* FLOATING BOTTOM HUD COCKPIT (Active Navigation / Standby - sits strictly above bottom nav) */}
         {(isLive || !destination || !routeCoordinates) && (
-          <div className="absolute bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] sm:w-[calc(100%-2rem)] max-w-3xl z-20 pointer-events-auto">
+          <div className="absolute bottom-[calc(68px+env(safe-area-inset-bottom)+10px)] md:bottom-5 left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 w-auto sm:w-[calc(100%-2rem)] max-w-3xl z-30 pointer-events-auto">
             <TripHudCard onRecenter={handleRecenter} />
           </div>
         )}

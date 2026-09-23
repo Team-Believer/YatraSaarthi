@@ -10,8 +10,6 @@ import {
   Settings,
   UserRound,
   X,
-  ChevronRight,
-  ShieldCheck,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useNavigationStore } from '../../stores/useNavigationStore';
@@ -100,35 +98,36 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
   // MOBILE OFF-CANVAS DRAWER MODE (When opened via hamburger button on phones)
   if (isDrawer) {
     return (
-      <aside className="w-[88vw] max-w-[320px] bg-white border-r border-border-clean flex flex-col h-full select-none shrink-0 shadow-nav-floating z-50 overflow-hidden">
-        {/* Drawer Header */}
-        <div className="h-20 px-5 flex items-center justify-between border-b border-border-clean shrink-0 bg-white">
+      <aside className="w-[84vw] sm:w-[86vw] max-w-[320px] bg-white border-r border-border-clean flex flex-col h-full select-none shrink-0 shadow-nav-floating z-50 overflow-hidden">
+        {/* Drawer Header (Compact 58-62px) */}
+        <div className="h-15 px-4 flex items-center justify-between border-b border-border-clean shrink-0 bg-white">
           <Link
             to="/app"
             onClick={onClose}
-            className="flex items-center group transition-opacity hover:opacity-90 focus:outline-none py-1 min-w-0"
+            className="flex items-center group py-0.5 min-w-0"
             title="YatraSaarthi"
+            aria-label="YatraSaarthi Home"
           >
-            <YatraSaarthiLogo variant="compact" height={48} />
+            <YatraSaarthiLogo variant="header" height={28} showText={true} />
           </Link>
 
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close navigation drawer"
-              className="p-2 rounded-full text-ink-body hover:text-ink hover:bg-canvas-soft transition-colors cursor-pointer shrink-0 ml-1"
+              aria-label="Close navigation menu"
+              className="w-10 h-10 rounded-full flex items-center justify-center text-slate-500 hover:text-[#083335] hover:bg-canvas-soft transition-colors cursor-pointer shrink-0"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4.5 h-4.5" />
             </button>
           )}
         </div>
 
-        {/* Navigation Items */}
-        <nav className="flex-1 py-4 px-3.5 space-y-6 overflow-y-auto hide-scrollbar">
+        {/* Navigation Items (Clean rows, no chevrons, no redundant subtitles) */}
+        <nav className="flex-1 py-3.5 px-3 space-y-4 overflow-y-auto hide-scrollbar font-body">
           {/* Main Nav */}
           <div className="space-y-1">
-            <div className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-mute select-none">
+            <div className="px-3 pb-1 text-[10.5px] font-bold uppercase tracking-wider text-[#8CA5A6] select-none font-heading">
               Navigation
             </div>
             {MAIN_NAV_ITEMS.map((item) => {
@@ -143,39 +142,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                   aria-label={item.name}
                   aria-current={isActive ? 'page' : undefined}
                   className={clsx(
-                    'group flex items-center justify-between px-3.5 h-12 rounded-2xl text-[14px] transition-all duration-150 ease-out cursor-pointer',
+                    'group flex items-center px-3.5 h-11 sm:h-12 rounded-xl text-[14px] transition-all duration-150 ease-out cursor-pointer select-none',
                     isActive
                       ? 'bg-[#083335] text-white font-medium shadow-2xs'
-                      : 'text-ink hover:bg-slate-100 font-normal'
+                      : 'text-slate-800 hover:bg-slate-100 font-normal hover:text-[#083335]'
                   )}
                 >
-                  <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="flex items-center gap-3 min-w-0">
                     <Icon
                       className={clsx(
-                        'w-5 h-5 shrink-0 transition-colors',
-                        isActive ? 'text-white' : 'text-[#4A6364] group-hover:text-ink'
+                        'w-4.5 h-4.5 shrink-0 transition-colors',
+                        isActive ? 'text-white' : 'text-[#4A6364] group-hover:text-[#083335]'
                       )}
                       strokeWidth={2}
                     />
-                    <div className="flex flex-col min-w-0">
-                      <span className="truncate leading-tight">{item.name}</span>
-                      <span
-                        className={clsx(
-                          'text-[11px] truncate leading-tight mt-0.5',
-                          isActive ? 'text-white/80' : 'text-[#8CA5A6]'
-                        )}
-                      >
-                        {item.tooltip}
-                      </span>
-                    </div>
+                    <span className="truncate leading-tight font-medium">{item.name}</span>
                   </div>
-
-                  <ChevronRight
-                    className={clsx(
-                      'w-4 h-4 shrink-0 transition-colors',
-                      isActive ? 'text-white/80' : 'text-slate-300 group-hover:text-slate-500'
-                    )}
-                  />
                 </Link>
               );
             })}
@@ -183,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
 
           {/* System Nav */}
           <div className="space-y-1">
-            <div className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-mute select-none">
+            <div className="px-3 pb-1 text-[10.5px] font-bold uppercase tracking-wider text-[#8CA5A6] select-none font-heading">
               System
             </div>
             {BOTTOM_NAV_ITEMS.map((item) => {
@@ -198,69 +180,57 @@ export const Sidebar: React.FC<SidebarProps> = ({ onClose, isDrawer = false }) =
                   aria-label={item.name}
                   aria-current={isActive ? 'page' : undefined}
                   className={clsx(
-                    'group flex items-center justify-between px-3.5 h-12 rounded-2xl text-[14px] transition-all duration-150 ease-out cursor-pointer',
+                    'group flex items-center px-3.5 h-11 sm:h-12 rounded-xl text-[14px] transition-all duration-150 ease-out cursor-pointer select-none',
                     isActive
                       ? 'bg-[#083335] text-white font-medium shadow-2xs'
-                      : 'text-ink hover:bg-slate-100 font-normal'
+                      : 'text-slate-800 hover:bg-slate-100 font-normal hover:text-[#083335]'
                   )}
                 >
-                  <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="flex items-center gap-3 min-w-0">
                     <Icon
                       className={clsx(
-                        'w-5 h-5 shrink-0 transition-colors',
-                        isActive ? 'text-white' : 'text-[#4A6364] group-hover:text-ink'
+                        'w-4.5 h-4.5 shrink-0 transition-colors',
+                        isActive ? 'text-white' : 'text-[#4A6364] group-hover:text-[#083335]'
                       )}
                       strokeWidth={2}
                     />
-                    <div className="flex flex-col min-w-0">
-                      <span className="truncate leading-tight">{item.name}</span>
-                      <span
-                        className={clsx(
-                          'text-[11px] truncate leading-tight mt-0.5',
-                          isActive ? 'text-white/80' : 'text-[#8CA5A6]'
-                        )}
-                      >
-                        {item.tooltip}
-                      </span>
-                    </div>
+                    <span className="truncate leading-tight font-medium">{item.name}</span>
                   </div>
-
-                  <ChevronRight
-                    className={clsx(
-                      'w-4 h-4 shrink-0 transition-colors',
-                      isActive ? 'text-white/80' : 'text-slate-300 group-hover:text-slate-500'
-                    )}
-                  />
                 </Link>
               );
             })}
           </div>
         </nav>
 
-        {/* Engine Status Footer */}
-        <div className="p-3.5 m-3.5 rounded-2xl bg-[#F0F4F4] border border-[#E5E5E5]">
+        {/* Compact Navigation Engine Status Strip (52-58px) */}
+        <div className="p-3 m-3 rounded-2xl bg-[#F0F4F4] border border-[#E2EBEB] shrink-0 font-body select-none">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#083335] shrink-0" />
-              <span className="text-xs font-semibold text-[#083335] truncate">
-                Navigation Engine
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className={clsx(
+                  'w-2 h-2 rounded-full shrink-0',
+                  isLive ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-600'
+                )}
+              />
+              <span className="text-xs font-semibold text-[#083335] truncate font-heading">
+                {isLive ? 'Navigation active' : 'Navigation ready'}
               </span>
             </div>
             <span
               className={clsx(
-                'text-[10px] font-bold px-2 py-0.5 rounded-full border leading-tight shrink-0 shadow-2xs',
+                'text-[9.5px] font-bold px-2 py-0.5 rounded-full border leading-tight shrink-0',
                 isLive
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-white text-[#083335] border-border-clean'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  : 'bg-white text-[#083335] border-border-clean shadow-2xs'
               )}
             >
               {isLive ? 'LIVE' : 'READY'}
             </span>
           </div>
-          <p className="text-[11px] leading-tight text-[#4A6364] mt-1.5">
+          <p className="text-[10.5px] leading-tight text-[#4A6364] mt-1 pl-4 truncate">
             {isLive
-              ? 'Dead reckoning active for GNSS-denied guidance.'
-              : 'InEKF ready for vehicle navigation.'}
+              ? 'InEKF dead reckoning tracking'
+              : 'InEKF invariant filter standby'}
           </p>
         </div>
       </aside>

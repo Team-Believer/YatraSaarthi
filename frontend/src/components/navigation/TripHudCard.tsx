@@ -9,11 +9,10 @@ import { SpeedDisplay } from './SpeedDisplay';
 import { HeadingDisplay } from './HeadingDisplay';
 import { TripMetrics } from './TripMetrics';
 import {
-  Play,
+  Navigation2,
   Square,
   MapPin,
   AlertCircle,
-  LocateFixed,
   CarFront,
   Bike,
   Footprints,
@@ -26,7 +25,6 @@ interface TripHudCardProps {
 }
 
 export const TripHudCard: React.FC<TripHudCardProps> = ({
-  onRecenter,
   className = '',
 }) => {
   const [confirmEnd, setConfirmEnd] = useState(false);
@@ -90,66 +88,109 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
     }
   };
 
+  const navState = useNavigationStore((s) => s.state);
+  const gnssAvailable = navState.gnss_available;
+  const gnssQuality = navState.gnss_quality;
+  const outageDuration = navState.gnss_outage_duration;
+  const navMode = navState.navigation_mode;
+
+  const getGnssStatusBadge = () => {
+    if (!gnssAvailable || navMode === 'DR_ONLY' || navMode === 'INERTIAL_ONLY') {
+      const formattedDuration = outageDuration > 0
+        ? `00:${String(Math.floor(outageDuration)).padStart(2, '0')}`
+        : '';
+      return (
+        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-semibold font-body shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+          <span>Dead reckoning {formattedDuration && `· ${formattedDuration}`}</span>
+        </div>
+      );
+    }
+    if (gnssQuality === 'DEGRADED') {
+      return (
+        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-semibold font-body shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+          <span>GNSS degraded</span>
+        </div>
+      );
+    }
+    if (gnssQuality === 'RECOVERING') {
+      return (
+        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-800 text-[11px] font-semibold font-body shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 shrink-0" />
+          <span>GNSS recovering</span>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold font-body shrink-0">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+        <span>GNSS signal</span>
+      </div>
+    );
+  };
+
   return (
     <div
       className={clsx(
-        'w-full max-w-[860px] mx-auto bg-white rounded-2xl select-none transition-all duration-200 border border-[#E5E5E5] shadow-nav-floating overflow-hidden',
+        'w-full max-w-[860px] mx-auto bg-white rounded-2xl select-none transition-all duration-200 border border-border-clean shadow-nav-floating overflow-hidden',
         className
       )}
     >
-      {/* Single Main Driver HUD Row */}
-      <div className="p-3.5 md:p-4">
-        <div className="flex items-center justify-between gap-3 md:gap-4">
-          {/* Left Block: Speed & Direction */}
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+      {/* Single Main Driver HUD Row (64-72px high) */}
+      <div className="px-3.5 py-2.5 sm:px-4 sm:py-3">
+        <div className="flex items-center justify-between gap-3 sm:gap-4">
+          {/* Left Block: Speed */}
+          <div className="flex items-center gap-2 min-w-0 shrink-0">
             <SpeedDisplay compact={true} />
-            <div className="h-6 w-px bg-[#E5E5E5] shrink-0" />
-            <HeadingDisplay compact={true} />
+            <div className="h-6 w-px bg-border-clean shrink-0 hidden sm:block" />
+            <div className="hidden sm:block">
+              <HeadingDisplay compact={true} />
+            </div>
           </div>
 
-          {/* Center Block: Destination OR Single Current Location Name */}
-          {destination ? (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#F3F3F3] border border-[#E5E5E5] rounded-full text-xs max-w-[150px] sm:max-w-[180px] md:max-w-[220px] truncate">
-              {getModeIcon()}
-              <span className="font-medium text-ink truncate text-xs sm:text-[13px]">
-                {destination.name}
-              </span>
-            </div>
-          ) : (
-            <div
-              aria-label="Current location"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F3F3F3] border border-[#E5E5E5] rounded-full text-xs max-w-[150px] sm:max-w-[180px] md:max-w-[220px] truncate"
-            >
-              <MapPin className="w-3.5 h-3.5 text-ink shrink-0" />
-              <span className="font-medium text-ink truncate text-xs sm:text-[13px]">
-                {placeName || (currentLat !== null ? 'Finding location...' : 'Locating...')}
-              </span>
-            </div>
-          )}
+          {/* Center Block: Destination / Location / GNSS Status */}
+          <div className="min-w-0 flex-1 flex flex-col justify-center">
+            {isLive ? (
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  {getGnssStatusBadge()}
+                  {destination && (
+                    <span className="font-heading font-semibold text-xs sm:text-sm text-ink truncate">
+                      {destination.name}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : destination ? (
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-[#083335] shrink-0">{getModeIcon()}</span>
+                <span className="font-heading font-semibold text-ink truncate text-xs sm:text-sm">
+                  {destination.name}
+                </span>
+              </div>
+            ) : (
+              <div
+                aria-label="Current location"
+                className="flex items-center gap-1.5 min-w-0 text-slate-700"
+              >
+                <MapPin className="w-3.5 h-3.5 text-[#083335] shrink-0" />
+                <span className="font-body font-medium text-xs sm:text-sm truncate text-ink">
+                  {placeName || (currentLat !== null ? 'Finding location...' : 'Locating...')}
+                </span>
+              </div>
+            )}
+          </div>
 
-          {/* Center Block: Live Trip Progress (When live navigation active) */}
+          {/* Center Block: Live Trip Progress (When live navigation active on desktop/tablet) */}
           {isLive && (
             <div className="hidden md:block">
               <TripMetrics compact={true} />
             </div>
           )}
 
-          {/* Right Action & Control Group (No expand button) */}
+          {/* Right Action: [ ↗ Start navigation ] or [ End drive ] */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Recenter Button */}
-            {onRecenter && (
-              <button
-                type="button"
-                onClick={onRecenter}
-                aria-label="Recenter map"
-                title="Recenter map"
-                className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-white hover:bg-canvas-soft border border-border-clean text-ink shadow-2xs flex items-center justify-center transition-colors cursor-pointer select-none active:scale-[0.96]"
-              >
-                <LocateFixed className="w-4.5 h-4.5 text-ink" />
-              </button>
-            )}
-
-            {/* Primary Navigation Button */}
             {isLive ? (
               <button
                 type="button"
@@ -157,9 +198,9 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
                 disabled={isEnding}
                 aria-label="End navigation"
                 className={clsx(
-                  'h-10 md:h-11 px-4 md:px-5 rounded-full text-xs md:text-sm font-medium flex items-center gap-2 transition-all cursor-pointer select-none active:scale-[0.97] border',
+                  'h-11 px-4 sm:px-5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer select-none active:scale-[0.97] border font-body shrink-0',
                   confirmEnd
-                    ? 'bg-red-600 hover:bg-red-700 text-white border-red-600 shadow-xs'
+                    ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-600 shadow-xs'
                     : 'bg-white hover:bg-canvas-soft text-ink border-border-clean shadow-2xs'
                 )}
               >
@@ -181,10 +222,12 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
                 onClick={handleStartSession}
                 disabled={sessionStatus === 'STARTING'}
                 aria-label="Start navigation"
-                className="h-10 md:h-11 px-4 md:px-5 bg-[#083335] hover:bg-[#052426] active:bg-[#031718] text-white rounded-full text-xs md:text-sm font-medium flex items-center gap-2 shadow-2xs transition-colors cursor-pointer select-none active:scale-[0.97]"
+                className="h-11 px-4 sm:px-5 bg-[#083335] hover:bg-[#052426] active:bg-[#031718] text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shadow-nav-floating transition-colors cursor-pointer select-none active:scale-[0.97] font-body shrink-0"
               >
-                <Play className="w-3.5 h-3.5 fill-white" />
-                <span>{sessionStatus === 'STARTING' ? 'Starting...' : 'Start navigation'}</span>
+                <Navigation2 className="w-4 h-4 fill-white text-white rotate-45 shrink-0" />
+                <span className="whitespace-nowrap">
+                  {sessionStatus === 'STARTING' ? 'Starting...' : 'Start navigation'}
+                </span>
               </button>
             )}
           </div>

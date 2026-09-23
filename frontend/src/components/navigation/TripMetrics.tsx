@@ -77,10 +77,10 @@ export const TripMetrics: React.FC<TripMetricsProps> = ({
 
   if (compact) {
     return (
-      <div className={clsx('flex items-center gap-2 text-xs font-mono text-slate-700 select-none', className)}>
-        <span className="font-bold">{formattedDistance}</span>
-        <span className="text-slate-300">•</span>
-        <span className="text-slate-500">{formatTime(elapsedSeconds)}</span>
+      <div className={clsx('flex items-center gap-2 text-xs font-body font-medium text-ink select-none', className)}>
+        <span className="font-semibold text-ink">{formattedDistance}</span>
+        <span className="text-ink-mute">•</span>
+        <span className="text-ink-body">{formatTime(elapsedSeconds)}</span>
       </div>
     );
   }
@@ -88,33 +88,33 @@ export const TripMetrics: React.FC<TripMetricsProps> = ({
   return (
     <div
       className={clsx(
-        'flex items-center gap-3 sm:gap-5 px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-200/70 select-none',
+        'flex items-center gap-3 sm:gap-5 px-3 py-1.5 bg-canvas-soft rounded-xl border border-border-clean select-none font-body',
         className
       )}
     >
       {/* Distance */}
       <div className="flex items-center gap-2">
-        <Milestone className="w-4 h-4 text-slate-400 shrink-0" />
+        <Milestone className="w-4 h-4 text-ink-mute shrink-0" />
         <div>
-          <div className="text-[10px] uppercase font-bold text-slate-400 leading-none">
+          <div className="text-[10px] uppercase font-bold text-ink-mute leading-none">
             Distance
           </div>
-          <div className="text-xs sm:text-sm font-bold text-slate-900 font-mono mt-0.5">
+          <div className="text-xs sm:text-sm font-semibold text-ink mt-0.5">
             {formattedDistance}
           </div>
         </div>
       </div>
 
-      <div className="h-6 w-px bg-slate-200 shrink-0" />
+      <div className="h-6 w-px bg-border-clean shrink-0" />
 
       {/* Elapsed */}
       <div className="flex items-center gap-2">
-        <Clock className="w-4 h-4 text-slate-400 shrink-0" />
+        <Clock className="w-4 h-4 text-ink-mute shrink-0" />
         <div>
-          <div className="text-[10px] uppercase font-bold text-slate-400 leading-none">
+          <div className="text-[10px] uppercase font-bold text-ink-mute leading-none">
             Elapsed
           </div>
-          <div className="text-xs sm:text-sm font-bold text-slate-900 font-mono mt-0.5">
+          <div className="text-xs sm:text-sm font-semibold text-ink mt-0.5">
             {formatTime(elapsedSeconds)}
           </div>
         </div>

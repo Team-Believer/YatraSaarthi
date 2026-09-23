@@ -283,7 +283,7 @@ export default function TunnelMode() {
       </div>
 
       {/* 2. TOP FLOATING NAVIGATION HEADER */}
-      <div className="absolute top-4 sm:top-6 left-4 sm:left-6 right-4 sm:right-6 z-30 pointer-events-none">
+      <div className="absolute top-[calc(env(safe-area-inset-top)+12px)] left-3 right-3 sm:left-6 sm:right-6 z-30 pointer-events-none">
         <div className="flex items-center justify-between gap-3 max-w-5xl mx-auto">
           {/* Left: Back Link & Title */}
           <div className="flex items-center gap-3 pointer-events-auto bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-border-clean shadow-nav-floating">
@@ -296,7 +296,7 @@ export default function TunnelMode() {
               <ArrowLeft className="w-4 h-4" />
             </Link>
             <div className="min-w-0 pr-1">
-              <h1 className="text-xs sm:text-sm font-bold text-ink leading-tight truncate">
+              <h1 className="text-xs sm:text-sm font-bold text-ink leading-tight truncate font-heading">
                 GNSS outage test
               </h1>
               <p className="text-[11px] text-ink-mute hidden sm:block leading-none mt-0.5">
@@ -328,7 +328,7 @@ export default function TunnelMode() {
                 )}
               />
 
-              <span className="text-ink font-semibold whitespace-nowrap">
+              <span className="text-ink font-semibold whitespace-nowrap font-body">
                 {!isLive
                   ? 'Standby'
                   : isDRActive
@@ -352,8 +352,8 @@ export default function TunnelMode() {
       </div>
 
       {/* 3. TOP-LEFT COMPACT MAP LEGEND */}
-      <div className="absolute top-20 sm:top-22 left-4 sm:left-6 z-20 pointer-events-none">
-        <div className="pointer-events-auto bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-border-clean shadow-2xs flex items-center gap-2.5 text-[11px] font-medium text-ink">
+      <div className="absolute top-[calc(env(safe-area-inset-top)+68px)] left-3 sm:left-6 z-20 pointer-events-none">
+        <div className="pointer-events-auto bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-border-clean shadow-2xs flex items-center gap-2.5 text-[11px] font-medium text-ink font-body">
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-blue-600 ring-2 ring-blue-100" />
             <span>Fused</span>
@@ -367,12 +367,12 @@ export default function TunnelMode() {
       </div>
 
       {/* 4. FLOATING BOTTOM TEST HUD & COLLAPSIBLE SYSTEM SHEET */}
-      <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 right-4 sm:right-6 z-30 pointer-events-none">
+      <div className="absolute bottom-[calc(68px+env(safe-area-inset-bottom)+10px)] md:bottom-5 left-3 right-3 sm:left-6 sm:right-6 z-30 pointer-events-none">
         <div className="max-w-3xl mx-auto space-y-2.5 pointer-events-auto">
           
           {/* Expandable Technical System Sheet (Collapsed by default) */}
           {showTechnicalPanel && (
-            <div className="bg-white rounded-2xl border border-border-clean shadow-nav-floating p-4 sm:p-5 space-y-4 animate-in slide-in-from-bottom-3 duration-200 max-h-[75vh] overflow-y-auto">
+            <div className="bg-white rounded-2xl border border-border-clean shadow-nav-floating p-4 sm:p-5 space-y-4 animate-in slide-in-from-bottom-3 duration-200 max-h-[70dvh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-border-clean pb-2.5">
                 <div>
                   <h3 className="text-xs sm:text-sm font-bold text-ink flex items-center gap-2">

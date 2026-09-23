@@ -2,6 +2,8 @@
 @config "../tailwind.config.js";
 
 :root {
+  --font-heading: 'Poppins', sans-serif;
+  --font-body: 'Manrope', sans-serif;
   --color-primary: #083335;
   --color-primary-hover: #052426;
   --color-primary-active: #031718;
@@ -14,9 +16,18 @@
 
 @layer base {
   body {
-    @apply bg-white text-ink font-sans antialiased overflow-hidden;
+    font-family: var(--font-body);
+    @apply bg-white text-ink font-body antialiased overflow-hidden;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+
+  button, input, optgroup, select, textarea {
+    font-family: var(--font-body);
   }
 
   /* Smooth scrolling for all containers */
@@ -49,17 +60,17 @@
     @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-white text-ink border border-border-clean shadow-nav-pill transition-all duration-150;
   }
 
-  /* Core Pill Button System - Evergreen #083335 */
+  /* Core Pill Button System - Evergreen #083335 (Manrope 600) */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-primary hover:bg-primary-hover active:bg-primary-active text-white text-sm font-medium transition-all duration-150 cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97];
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-primary hover:bg-primary-hover active:bg-primary-active text-white text-sm font-semibold transition-all duration-150 cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97];
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-white hover:bg-canvas-softer active:bg-surface-pressed text-ink text-sm font-medium border border-border-clean transition-all duration-150 cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97];
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-white hover:bg-canvas-softer active:bg-surface-pressed text-ink text-sm font-semibold border border-border-clean transition-all duration-150 cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97];
   }
 
   .btn-subtle {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-canvas-soft hover:bg-surface-pressed text-ink text-xs sm:text-sm font-medium transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97];
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-canvas-soft hover:bg-surface-pressed text-ink text-xs sm:text-sm font-semibold transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97];
   }
 
   .btn-icon-pill {
