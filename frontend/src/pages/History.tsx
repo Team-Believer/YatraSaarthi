@@ -6,17 +6,12 @@ import {
   BusFront,
   Navigation,
   Search,
-  Filter,
+  ListFilter,
   ArrowLeft,
-  Copy,
-  Check,
   ChevronDown,
-  ChevronUp,
   AlertCircle,
-  Clock,
   RotateCw,
-  Gauge,
-  Compass,
+  X,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Link } from 'react-router-dom';
@@ -27,7 +22,6 @@ import {
 } from '../services/api/historyService';
 import { TripRouteMap } from '../components/map/TripRouteMap';
 
-// Date bucket categorization
 type DateBucket = 'Today' | 'Yesterday' | 'This week' | 'Earlier';
 
 interface GroupedTrips {
@@ -35,7 +29,6 @@ interface GroupedTrips {
   trips: SessionSummary[];
 }
 
-// Helpers for human-readable dates and titles
 function getDateBucket(dateStr: string): DateBucket {
   const tripDate = new Date(dateStr);
   if (isNaN(tripDate.getTime())) return 'Earlier';
@@ -100,12 +93,13 @@ function formatDuration(seconds: number): string {
   return remMins > 0 ? `${hours}h ${remMins}m` : `${hours}h`;
 }
 
+// Vehicle Icon Resolver with robust pattern matching for Bicycle, Motorcycle, Walking, etc.
 function getVehicleIcon(vehicleType?: string) {
-  const mode = (vehicleType || '').toLowerCase();
-  if (mode.includes('bike') || mode.includes('motorcycle') || mode.includes('two_wheeler')) {
+  const mode = (vehicleType || '').toLowerCase().trim();
+  if (mode.includes('bicyc') || mode.includes('bike') || mode.includes('cycl') || mode.includes('motorcycle') || mode.includes('moto') || mode.includes('two_wheeler')) {
     return Bike;
   }
-  if (mode.includes('walk') || mode.includes('pedestrian')) {
+  if (mode.includes('walk') || mode.includes('pedestrian') || mode.includes('foot')) {
     return Footprints;
   }
   if (mode.includes('bus') || mode.includes('transit')) {
@@ -116,12 +110,13 @@ function getVehicleIcon(vehicleType?: string) {
 
 function formatVehicleName(vehicleType?: string): string {
   if (!vehicleType) return 'Car';
-  const lower = vehicleType.toLowerCase();
-  if (lower === 'car' || lower === 'automobile') return 'Car';
-  if (lower === 'motorcycle' || lower === 'bike' || lower === 'two_wheeler') return 'Motorcycle';
-  if (lower === 'bicycle') return 'Bicycle';
-  if (lower === 'walking' || lower === 'walk') return 'Walking';
-  if (lower === 'bus') return 'Bus';
+  const lower = vehicleType.toLowerCase().trim();
+  if (lower === 'bicycle' || lower.includes('cycl')) return 'Bicycle';
+  if (lower === 'motorcycle' || lower === 'moto' || lower === 'scooter' || lower === 'two_wheeler') return 'Motorcycle';
+  if (lower === 'bike') return 'Bicycle';
+  if (lower === 'walking' || lower === 'walk' || lower === 'pedestrian') return 'Walking';
+  if (lower === 'bus' || lower === 'transit') return 'Bus';
+  if (lower === 'car' || lower === 'automobile' || lower === 'driving') return 'Car';
   return vehicleType.charAt(0).toUpperCase() + vehicleType.slice(1).toLowerCase();
 }
 
@@ -141,8 +136,6 @@ export default function History() {
 
   // UI state
   const [showMobileDetail, setShowMobileDetail] = useState(false);
-  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
-  const [copiedSessionId, setCopiedSessionId] = useState(false);
 
   // Fetch initial session list
   const loadSessions = useCallback(() => {
@@ -204,7 +197,7 @@ export default function History() {
   // Filtered sessions
   const filteredSessions = useMemo(() => {
     return sessions.filter((trip) => {
-      // 1. Search Query filter (matches formatted title, vehicle, date)
+      // 1. Search Query filter (matches formatted title, vehicle, date, id)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
         const title = getHumanReadableTitle(trip).toLowerCase();
@@ -278,55 +271,41 @@ export default function History() {
   const totalKmStr = (totalDistanceMeters / 1000).toFixed(1);
   const totalMinStr = Math.round(totalDurationSeconds / 60);
 
-  // Copy session ID handler
-  const handleCopySessionId = (id: string) => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(id).then(() => {
-        setCopiedSessionId(true);
-        setTimeout(() => setCopiedSessionId(false), 2000);
-      });
-    }
-  };
-
   const handleSelectTrip = (id: string) => {
     setSelectedSessionId(id);
     setShowMobileDetail(true);
   };
 
+  const hasActiveFilter = selectedMode !== 'all' || selectedDateFilter !== 'all';
+
   return (
-    <div className="max-w-6xl mx-auto space-y-5 animate-in fade-in duration-200 pb-20 md:pb-8 text-slate-900">
-      {/* 1. Page Header (White Mobility Design) */}
-      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-border-clean pb-4">
+    <div className="max-w-6xl mx-auto space-y-6 pb-20 md:pb-10 text-slate-900">
+      {/* 1. Page Header & Quiet Summary */}
+      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-border-clean pb-5">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-ink">
+          <h1 className="text-3xl font-bold tracking-tight text-ink">
             Trips
           </h1>
-          <p className="text-xs sm:text-sm text-ink-body font-normal mt-0.5">
+          <p className="text-sm text-[#5E5E5E] font-normal mt-1">
             Your recent navigation trips
           </p>
         </div>
 
-        {/* 2. Compact Summary Line */}
-        <div className="text-xs font-medium text-ink-mute self-start sm:self-auto select-none">
+        {/* Quiet Summary beside header */}
+        <div className="text-[13px] sm:text-[14px] text-[#5E5E5E] font-medium self-start sm:self-auto select-none pt-1">
           {loading ? (
-            <span className="text-ink-mute">Loading trips...</span>
+            <span>Loading trips...</span>
           ) : totalCount > 0 ? (
-            <span className="inline-flex items-center gap-1.5 bg-canvas-soft px-3 py-1 rounded-full border border-border-clean text-ink text-xs font-medium">
-              <span>{totalCount} {totalCount === 1 ? 'trip' : 'trips'}</span>
-              <span>·</span>
-              <span>{totalKmStr} km</span>
-              <span>·</span>
-              <span>{totalMinStr} min</span>
-            </span>
+            <span>{totalCount} {totalCount === 1 ? 'trip' : 'trips'} · {totalKmStr} km · {totalMinStr} min</span>
           ) : (
             <span>0 trips</span>
           )}
         </div>
       </div>
 
-      {/* 3. Search & Filter Bar */}
+      {/* 2. Search + Filter Bar */}
       {!loading && !error && sessions.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+        <div className="flex items-center gap-3">
           {/* Search Input */}
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-mute pointer-events-none" />
@@ -334,122 +313,122 @@ export default function History() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search trips by date or vehicle..."
+              placeholder="Search trips"
               aria-label="Search trips"
-              className="w-full pl-10 pr-4 py-2 bg-white border border-border-clean rounded-full text-xs sm:text-sm text-ink placeholder:text-ink-mute focus:outline-none focus:border-ink/40 transition-colors shadow-2xs"
+              className="w-full pl-10 pr-9 py-2 bg-white border border-border-clean rounded-full text-sm text-ink placeholder:text-ink-mute focus:outline-none focus:border-ink/40 transition-colors shadow-2xs"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ink-mute hover:text-ink px-1.5 py-0.5 rounded"
+                aria-label="Clear search"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-mute hover:text-ink p-1 rounded-full"
               >
-                Clear
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
-          {/* Filter Trigger / Controls */}
-          <div className="relative flex items-center gap-2">
+          {/* Filter Popover Button */}
+          <div className="relative">
             <button
               onClick={() => setShowFilterMenu(!showFilterMenu)}
               aria-label="Filter trips"
               className={clsx(
-                'h-9 px-3.5 rounded-full border text-xs font-medium flex items-center gap-2 transition-all cursor-pointer shadow-2xs',
-                selectedMode !== 'all' || selectedDateFilter !== 'all'
+                'h-9 px-3.5 rounded-full border text-xs font-medium flex items-center gap-2 transition-all cursor-pointer shadow-2xs select-none',
+                hasActiveFilter
                   ? 'bg-ink text-white border-ink'
                   : 'bg-white text-ink border-border-clean hover:bg-canvas-soft'
               )}
             >
-              <Filter className="w-3.5 h-3.5" />
+              <ListFilter className="w-3.5 h-3.5" />
               <span>Filter</span>
-              {(selectedMode !== 'all' || selectedDateFilter !== 'all') && (
-                <span className="w-2 h-2 rounded-full bg-emerald-400 ml-0.5" />
+              <ChevronDown className="w-3 h-3 text-ink-mute" />
+              {hasActiveFilter && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
               )}
             </button>
 
-            {/* Mode Pills (Visible on larger screens if modes exist) */}
-            {availableModes.length > 1 && (
-              <div className="hidden lg:flex items-center gap-1.5">
-                <button
-                  onClick={() => setSelectedMode('all')}
-                  className={clsx(
-                    'px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer border',
-                    selectedMode === 'all'
-                      ? 'bg-ink text-white border-ink'
-                      : 'bg-white text-ink-body border-border-clean hover:text-ink'
-                  )}
-                >
-                  All
-                </button>
-                {availableModes.map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setSelectedMode(mode)}
-                    className={clsx(
-                      'px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer border flex items-center gap-1.5',
-                      selectedMode === mode
-                        ? 'bg-ink text-white border-ink'
-                        : 'bg-white text-ink-body border-border-clean hover:text-ink'
-                    )}
-                  >
-                    <span>{formatVehicleName(mode)}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Filter Dropdown Menu */}
+            {/* Filter Popover Dialog */}
             {showFilterMenu && (
-              <div className="absolute right-0 top-11 z-30 w-64 p-3 bg-white border border-border-clean rounded-2xl shadow-nav-floating space-y-3 animate-in fade-in zoom-in-95 duration-150">
-                <div>
-                  <label className="text-[11px] font-bold text-ink-mute uppercase tracking-wider block mb-1.5">
-                    Date Range
-                  </label>
-                  <select
-                    value={selectedDateFilter}
-                    onChange={(e) => setSelectedDateFilter(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs bg-canvas-soft border border-border-clean rounded-xl text-ink focus:outline-none"
-                  >
-                    <option value="all">All dates</option>
-                    <option value="today">Today</option>
-                    <option value="week">This week</option>
-                    <option value="earlier">Earlier</option>
-                  </select>
+              <div className="absolute right-0 top-11 z-30 w-64 p-4 bg-white border border-border-clean rounded-2xl shadow-nav-floating space-y-4 animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between border-b border-border-clean pb-2">
+                  <span className="text-xs font-bold text-ink">Filter trips</span>
+                  {hasActiveFilter && (
+                    <button
+                      onClick={() => {
+                        setSelectedMode('all');
+                        setSelectedDateFilter('all');
+                      }}
+                      className="text-[11px] text-ink-mute hover:text-ink font-medium"
+                    >
+                      Reset
+                    </button>
+                  )}
                 </div>
 
+                {/* Travel Mode Options */}
                 {availableModes.length > 0 && (
-                  <div>
-                    <label className="text-[11px] font-bold text-ink-mute uppercase tracking-wider block mb-1.5">
-                      Travel Mode
-                    </label>
-                    <select
-                      value={selectedMode}
-                      onChange={(e) => setSelectedMode(e.target.value)}
-                      className="w-full px-2.5 py-1.5 text-xs bg-canvas-soft border border-border-clean rounded-xl text-ink focus:outline-none"
-                    >
-                      <option value="all">All modes</option>
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-bold text-ink-mute uppercase tracking-wider block">
+                      Travel mode
+                    </span>
+                    <div className="space-y-1.5 text-xs">
+                      <label className="flex items-center gap-2 cursor-pointer text-ink py-0.5">
+                        <input
+                          type="radio"
+                          name="travelMode"
+                          checked={selectedMode === 'all'}
+                          onChange={() => setSelectedMode('all')}
+                          className="accent-black"
+                        />
+                        <span>All</span>
+                      </label>
                       {availableModes.map((mode) => (
-                        <option key={mode} value={mode}>
-                          {formatVehicleName(mode)}
-                        </option>
+                        <label key={mode} className="flex items-center gap-2 cursor-pointer text-ink py-0.5">
+                          <input
+                            type="radio"
+                            name="travelMode"
+                            checked={selectedMode === mode}
+                            onChange={() => setSelectedMode(mode)}
+                            className="accent-black"
+                          />
+                          <span>{formatVehicleName(mode)}</span>
+                        </label>
                       ))}
-                    </select>
+                    </div>
                   </div>
                 )}
 
-                <div className="flex items-center justify-between pt-1 border-t border-border-clean text-[11px]">
-                  <button
-                    onClick={() => {
-                      setSelectedMode('all');
-                      setSelectedDateFilter('all');
-                    }}
-                    className="text-ink-mute hover:text-ink font-medium"
-                  >
-                    Reset filters
-                  </button>
+                {/* Date Filter Options */}
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold text-ink-mute uppercase tracking-wider block">
+                    Date
+                  </span>
+                  <div className="space-y-1.5 text-xs">
+                    {[
+                      { id: 'all', label: 'All' },
+                      { id: 'today', label: 'Today' },
+                      { id: 'week', label: 'This week' },
+                      { id: 'earlier', label: 'Earlier' },
+                    ].map((opt) => (
+                      <label key={opt.id} className="flex items-center gap-2 cursor-pointer text-ink py-0.5">
+                        <input
+                          type="radio"
+                          name="dateRange"
+                          checked={selectedDateFilter === opt.id}
+                          onChange={() => setSelectedDateFilter(opt.id)}
+                          className="accent-black"
+                        />
+                        <span>{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-border-clean flex justify-end">
                   <button
                     onClick={() => setShowFilterMenu(false)}
-                    className="px-2.5 py-1 rounded-lg bg-ink text-white font-medium"
+                    className="px-3.5 py-1.5 rounded-full bg-ink text-white text-xs font-medium hover:bg-slate-800 transition-colors"
                   >
                     Done
                   </button>
@@ -460,25 +439,25 @@ export default function History() {
         </div>
       )}
 
-      {/* 4. Loading State */}
+      {/* 3. Loading Skeleton */}
       {loading && (
-        <div className="space-y-3 py-4">
+        <div className="space-y-3 py-2">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="p-4 bg-white rounded-2xl border border-border-clean animate-pulse flex items-center justify-between"
+              className="p-4 bg-white rounded-2xl border border-border-clean animate-pulse flex items-center justify-between h-20"
             >
               <div className="space-y-2">
-                <div className="w-44 h-4 bg-slate-200 rounded" />
-                <div className="w-32 h-3 bg-slate-100 rounded" />
+                <div className="w-40 h-4 bg-slate-200 rounded" />
+                <div className="w-24 h-3 bg-slate-100 rounded" />
               </div>
-              <div className="w-16 h-6 bg-slate-100 rounded-full" />
+              <div className="w-14 h-5 bg-slate-100 rounded-full" />
             </div>
           ))}
         </div>
       )}
 
-      {/* 5. Error State */}
+      {/* 4. Error State */}
       {error && !loading && (
         <div className="p-6 bg-white border border-border-clean rounded-2xl text-center space-y-3 shadow-2xs">
           <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
@@ -496,7 +475,7 @@ export default function History() {
         </div>
       )}
 
-      {/* 6. Empty State */}
+      {/* 5. Empty State */}
       {!loading && !error && sessions.length === 0 && (
         <div className="bg-white rounded-2xl p-10 sm:p-14 text-center border border-border-clean space-y-4 shadow-2xs">
           <div className="w-12 h-12 bg-canvas-soft rounded-2xl flex items-center justify-center mx-auto text-ink-mute">
@@ -520,7 +499,7 @@ export default function History() {
         </div>
       )}
 
-      {/* 7. No Search Results State */}
+      {/* 6. No Search Results */}
       {!loading && !error && sessions.length > 0 && filteredSessions.length === 0 && (
         <div className="bg-white rounded-2xl p-8 text-center border border-border-clean space-y-2 text-ink-mute shadow-2xs">
           <Search className="w-6 h-6 mx-auto text-ink-mute" />
@@ -539,10 +518,10 @@ export default function History() {
         </div>
       )}
 
-      {/* 8. Main Two-Column Layout (Desktop: List + Detail, Mobile: Toggled views) */}
+      {/* 7. Main Two-Column Structure (Page-level scrolling) */}
       {!loading && !error && filteredSessions.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
-          {/* LEFT COLUMN: Grouped Trip List */}
+          {/* LEFT COLUMN: Trip List (approx 40-42%) */}
           <div
             className={clsx(
               'md:col-span-5 space-y-5',
@@ -551,18 +530,17 @@ export default function History() {
           >
             {groupedTrips.map((group) => (
               <div key={group.bucket} className="space-y-2">
-                {/* Date Group Header */}
-                <div className="text-[12px] font-semibold text-ink-mute tracking-tight px-1 select-none">
+                {/* Subtle Date Group Header */}
+                <div className="text-[13px] font-semibold text-[#5E5E5E] tracking-tight px-1 select-none">
                   {group.bucket}
                 </div>
 
-                {/* Trip Cards */}
+                {/* Compact Trip Cards (72-96px height) */}
                 <div className="space-y-2">
                   {group.trips.map((trip) => {
                     const isSelected = selectedSessionId === trip.session_id;
                     const VehicleIcon = getVehicleIcon(trip.vehicle_type);
                     const vehicleLabel = formatVehicleName(trip.vehicle_type);
-                    const { relativeDate, timeStr } = formatTripDateTime(trip.start_time);
                     const title = getHumanReadableTitle(trip);
 
                     return (
@@ -571,7 +549,7 @@ export default function History() {
                         role="button"
                         tabIndex={0}
                         aria-selected={isSelected}
-                        aria-label={`Trip on ${relativeDate} at ${timeStr}`}
+                        aria-label={title}
                         onClick={() => handleSelectTrip(trip.session_id)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
@@ -580,40 +558,29 @@ export default function History() {
                           }
                         }}
                         className={clsx(
-                          'p-3.5 sm:p-4 rounded-2xl border transition-all cursor-pointer select-none text-left flex items-center justify-between gap-3 min-h-[64px]',
+                          'p-3.5 rounded-2xl border transition-all cursor-pointer select-none text-left flex items-center justify-between gap-3 min-h-[72px] max-h-[96px]',
                           isSelected
-                            ? 'bg-canvas-soft border-slate-400 text-ink shadow-2xs'
+                            ? 'bg-[#F3F3F3] border-slate-300 text-ink shadow-2xs'
                             : 'bg-white border-border-clean hover:border-slate-300 text-ink hover:bg-canvas-softer'
                         )}
                       >
                         <div className="min-w-0 flex-1 space-y-1">
-                          {/* Primary Title */}
-                          <div className="font-semibold text-xs sm:text-sm text-ink truncate leading-snug">
+                          {/* Primary Title (includes date/time once) */}
+                          <div className="font-semibold text-sm text-ink truncate leading-tight">
                             {title}
                           </div>
 
                           {/* Secondary: Distance · Duration */}
-                          <div className="text-[11px] sm:text-xs font-medium text-ink-body flex items-center gap-1.5">
+                          <div className="text-xs font-medium text-[#5E5E5E] flex items-center gap-1.5">
                             <span>{formatDistance(trip.distance_meters)}</span>
                             <span>·</span>
                             <span>{formatDuration(trip.duration_seconds)}</span>
                           </div>
-
-                          {/* Metadata: Date/time · Travel mode */}
-                          <div className="text-[11px] text-ink-mute flex items-center gap-1.5 pt-0.5">
-                            <span>{relativeDate}</span>
-                            {timeStr && (
-                              <>
-                                <span>·</span>
-                                <span>{timeStr}</span>
-                              </>
-                            )}
-                          </div>
                         </div>
 
-                        {/* Travel Mode Badge with Icon */}
-                        <div className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-canvas-soft border border-border-clean text-ink text-[11px] font-medium shadow-2xs">
-                          <VehicleIcon className="w-3.5 h-3.5 text-ink-body" />
+                        {/* Travel Mode with Accurate Icon */}
+                        <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-border-clean text-ink text-xs font-medium shadow-2xs">
+                          <VehicleIcon className="w-3.5 h-3.5 text-[#5E5E5E]" />
                           <span>{vehicleLabel}</span>
                         </div>
                       </div>
@@ -624,83 +591,62 @@ export default function History() {
             ))}
           </div>
 
-          {/* RIGHT COLUMN: Selected Trip Details Panel */}
+          {/* RIGHT COLUMN: Trip Details Panel (approx 58-60%) */}
           <div
             className={clsx(
-              'md:col-span-7 bg-white rounded-2xl p-5 sm:p-6 border border-border-clean shadow-2xs space-y-5',
+              'md:col-span-7 bg-white rounded-2xl p-5 sm:p-6 border border-[#E5E5E5] shadow-2xs space-y-4',
               showMobileDetail ? 'block' : 'hidden md:block'
             )}
           >
             {/* Mobile Back Button */}
-            <div className="md:hidden flex items-center justify-between pb-3 border-b border-border-clean">
+            <div className="md:hidden flex items-center justify-between pb-3 border-b border-[#E5E5E5]">
               <button
                 onClick={() => setShowMobileDetail(false)}
                 aria-label="Back to trips"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink px-2.5 py-1.5 rounded-full bg-canvas-soft border border-border-clean"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink px-3 py-1.5 rounded-full bg-[#FAFAFA] border border-[#E5E5E5] cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back to trips</span>
+                <span>Back</span>
               </button>
-              <span className="text-xs font-medium text-ink-mute">Trip details</span>
+              <span className="text-xs font-medium text-[#5E5E5E]">Trip details</span>
             </div>
 
             {selectedTrip ? (
-              <div className="space-y-5">
-                {/* Header Information */}
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold text-ink-mute uppercase tracking-wider">
-                      Trip details
-                    </span>
-                    <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      Completed
-                    </span>
-                  </div>
-
-                  <h2 className="text-lg sm:text-xl font-bold text-ink mt-1 tracking-tight">
+              <div className="space-y-4">
+                {/* 1. Header with Title & Status */}
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="text-xl sm:text-[22px] font-bold text-ink tracking-tight leading-snug">
                     {getHumanReadableTitle(selectedTrip)}
                   </h2>
-                  <p className="text-xs text-ink-body mt-0.5">
-                    {formatTripDateTime(selectedTrip.start_time).fullDate}
-                  </p>
+                  <span className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    Completed
+                  </span>
                 </div>
 
-                {/* Key Summary Metrics Strip */}
-                <div className="grid grid-cols-3 gap-2.5 text-center">
-                  <div className="p-3 bg-canvas-soft rounded-xl border border-border-clean">
-                    <span className="text-[10px] uppercase font-bold text-ink-mute block">Distance</span>
-                    <div className="text-sm sm:text-base font-semibold text-ink mt-0.5">
-                      {formatDistance(selectedTrip.distance_meters)}
-                    </div>
-                  </div>
-                  <div className="p-3 bg-canvas-soft rounded-xl border border-border-clean">
-                    <span className="text-[10px] uppercase font-bold text-ink-mute block">Duration</span>
-                    <div className="text-sm sm:text-base font-semibold text-ink mt-0.5">
-                      {formatDuration(selectedTrip.duration_seconds)}
-                    </div>
-                  </div>
-                  <div className="p-3 bg-canvas-soft rounded-xl border border-border-clean">
-                    <span className="text-[10px] uppercase font-bold text-ink-mute block">Mode</span>
-                    <div className="text-sm sm:text-base font-semibold text-ink mt-0.5 flex items-center justify-center gap-1">
-                      {(() => {
-                        const Icon = getVehicleIcon(selectedTrip.vehicle_type);
-                        return <Icon className="w-3.5 h-3.5 text-ink-body" />;
-                      })()}
-                      <span>{formatVehicleName(selectedTrip.vehicle_type)}</span>
-                    </div>
-                  </div>
+                {/* 2. Compact Inline Trip Summary */}
+                <div className="text-[14px] sm:text-[15px] font-medium text-[#5E5E5E] flex items-center gap-2">
+                  <span>{formatDistance(selectedTrip.distance_meters)}</span>
+                  <span>·</span>
+                  <span>{formatDuration(selectedTrip.duration_seconds)}</span>
+                  <span>·</span>
+                  <span className="inline-flex items-center gap-1.5 text-ink font-semibold">
+                    {(() => {
+                      const Icon = getVehicleIcon(selectedTrip.vehicle_type);
+                      return <Icon className="w-4 h-4 text-[#5E5E5E]" />;
+                    })()}
+                    <span>{formatVehicleName(selectedTrip.vehicle_type)}</span>
+                  </span>
                 </div>
 
-                {/* Real Route Map */}
-                <div className="space-y-1.5">
+                {/* 3. Route Section */}
+                <div className="space-y-2 pt-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-ink-mute uppercase tracking-wider">
-                      Route map
+                    <span className="text-[13px] font-medium text-[#5E5E5E]">
+                      Route
                     </span>
                     {detailLoading && (
-                      <span className="text-[10px] text-ink-mute flex items-center gap-1">
-                        <Clock className="w-3 h-3 animate-spin" />
+                      <span className="text-[11px] text-[#5E5E5E]">
                         Loading route...
                       </span>
                     )}
@@ -712,103 +658,15 @@ export default function History() {
                     startLon={selectedTrip.start_lon}
                     endLat={selectedTrip.end_lat}
                     endLon={selectedTrip.end_lon}
-                    className="w-full h-56 sm:h-64"
+                    className="w-full h-60 sm:h-64"
                   />
-                </div>
-
-                {/* Optional Real Trip Insights (only shown if real data exists) */}
-                {selectedTrip.duration_seconds > 0 && selectedTrip.distance_meters > 0 && (
-                  <div className="p-3.5 bg-canvas-soft rounded-2xl border border-border-clean space-y-2">
-                    <span className="text-[11px] font-bold text-ink-mute uppercase tracking-wider block">
-                      Trip insights
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      <div className="flex items-center gap-2 text-ink-body">
-                        <Gauge className="w-4 h-4 text-ink-mute shrink-0" />
-                        <span>Average trip speed:</span>
-                        <span className="font-semibold text-ink">
-                          {((selectedTrip.distance_meters / selectedTrip.duration_seconds) * 3.6).toFixed(1)} km/h
-                        </span>
-                      </div>
-
-                      {selectedDetail?.navigation_modes_used && selectedDetail.navigation_modes_used.length > 0 && (
-                        <div className="flex items-center gap-2 text-ink-body">
-                          <Compass className="w-4 h-4 text-ink-mute shrink-0" />
-                          <span>Navigation state:</span>
-                          <span className="font-semibold text-ink truncate">
-                            {selectedDetail.navigation_modes_used.join(', ')}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Secondary Collapsible Technical Details */}
-                <div className="border-t border-border-clean pt-3">
-                  <button
-                    onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
-                    className="w-full flex items-center justify-between text-xs font-semibold text-ink-mute hover:text-ink transition-colors py-1 cursor-pointer select-none"
-                  >
-                    <span>Technical details</span>
-                    {showTechnicalDetails ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
-                    )}
-                  </button>
-
-                  {showTechnicalDetails && (
-                    <div className="mt-2.5 p-3 bg-canvas-soft rounded-xl border border-border-clean space-y-2 text-xs font-mono">
-                      {/* Session ID */}
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-ink-mute font-sans text-[11px]">Session ID:</span>
-                        <div className="flex items-center gap-1 text-ink">
-                          <span className="truncate max-w-[180px] sm:max-w-[260px]">
-                            {selectedTrip.session_id}
-                          </span>
-                          <button
-                            onClick={() => handleCopySessionId(selectedTrip.session_id)}
-                            title="Copy session ID"
-                            aria-label="Copy session ID"
-                            className="p-1 hover:bg-white rounded text-ink-mute hover:text-ink transition-colors"
-                          >
-                            {copiedSessionId ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-600" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Coordinates */}
-                      {selectedTrip.start_lat !== null && selectedTrip.start_lat !== undefined && (
-                        <div className="flex items-center justify-between gap-2 border-t border-border-clean pt-1.5">
-                          <span className="text-ink-mute font-sans text-[11px]">Start fix:</span>
-                          <span className="text-ink">
-                            {selectedTrip.start_lat.toFixed(5)}, {selectedTrip.start_lon?.toFixed(5)}
-                          </span>
-                        </div>
-                      )}
-
-                      {selectedTrip.end_lat !== null && selectedTrip.end_lat !== undefined && (
-                        <div className="flex items-center justify-between gap-2 border-t border-border-clean pt-1.5">
-                          <span className="text-ink-mute font-sans text-[11px]">End fix:</span>
-                          <span className="text-ink">
-                            {selectedTrip.end_lat.toFixed(5)}, {selectedTrip.end_lon?.toFixed(5)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             ) : (
-              <div className="py-16 text-center text-ink-mute space-y-2">
+              <div className="py-16 text-center text-[#5E5E5E] space-y-2">
                 <Navigation className="w-8 h-8 mx-auto text-ink-mute" />
                 <p className="text-xs font-medium text-ink">Select a trip</p>
-                <p className="text-[11px] text-ink-body">Choose a trip from the list to view its route and details.</p>
+                <p className="text-[11px] text-[#5E5E5E]">Choose a trip from the list to view its route and details.</p>
               </div>
             )}
           </div>

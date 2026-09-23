@@ -1,4 +1,4 @@
-import { User, LogOut, LogIn, Menu, Navigation } from 'lucide-react';
+import { User, LogOut, LogIn, Menu, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { NavStatusPill } from '../navigation/NavStatusPill';
@@ -37,12 +37,12 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
 
   return (
     <header className="h-16 bg-white border-b border-border-clean flex items-center justify-between px-4 md:px-6 shrink-0 w-full select-none shadow-2xs">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         {onMenuClick && (
           <button
             onClick={onMenuClick}
             title="Open Menu"
-            className="md:hidden p-2 rounded-full bg-canvas-soft text-ink hover:bg-surface-pressed transition-colors cursor-pointer"
+            className="md:hidden p-2 rounded-lg text-ink hover:bg-[#F3F3F3] active:bg-[#EDEDED] transition-colors duration-150 cursor-pointer"
           >
             <Menu className="w-5 h-5" />
           </button>
@@ -57,18 +57,18 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
         {!isNavRoot && (
           <Link
             to="/app"
-            className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-canvas-soft hover:bg-surface-pressed text-ink text-xs font-medium transition-colors border border-border-clean mr-1 press-scale"
+            aria-label="Back to navigation"
+            className="inline-flex items-center gap-1.5 h-10 px-2.5 rounded-lg text-[#111111] text-[15px] font-medium hover:bg-[#F3F3F3] active:bg-[#EDEDED] transition-colors duration-150 cursor-pointer"
           >
-            <Navigation className="w-3.5 h-3.5 fill-ink rotate-[-20deg]" />
-            <span>Navigate</span>
+            <ArrowLeft className="w-4.5 h-4.5 text-[#111111]" strokeWidth={2} />
+            <span className="hidden sm:inline">Navigate</span>
           </Link>
         )}
 
-        <h2 className="text-[16px] font-bold text-ink tracking-tight hidden md:inline">
+        <h2 className="text-[18px] sm:text-[19px] font-bold text-[#111111] tracking-tight hidden md:inline">
           {getPageTitle(location.pathname)}
         </h2>
 
-        <div className="hidden md:block h-4 w-px bg-border-clean mx-1" />
         <NavStatusPill className="hidden lg:inline-flex" />
       </div>
 

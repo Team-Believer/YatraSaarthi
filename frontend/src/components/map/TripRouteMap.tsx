@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { MapPin, Navigation } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import type { TrajectoryPoint } from '../../services/api/historyService';
 
 interface TripRouteMapProps {
@@ -19,7 +19,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
   startLon,
   endLat,
   endLon,
-  className = 'w-full h-64 sm:h-72',
+  className = 'w-full h-60 sm:h-64',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -222,25 +222,22 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
 
   if (!hasValidRoute) {
     return (
-      <div className={`bg-canvas-soft border border-border-clean rounded-2xl flex flex-col items-center justify-center p-8 text-center select-none ${className}`}>
-        <div className="w-10 h-10 rounded-xl bg-white border border-border-clean flex items-center justify-center text-ink-mute mb-2 shadow-2xs">
-          <Navigation className="w-5 h-5 text-ink-mute" />
-        </div>
-        <p className="text-xs font-medium text-ink">Route map unavailable for this trip.</p>
-        <p className="text-[11px] text-ink-body mt-0.5 max-w-xs">
-          Trajectory coordinates were not recorded for this navigation session.
+      <div className="bg-[#FAFAFA] border border-[#E5E5E5] rounded-xl flex flex-col items-center justify-center p-4 text-center select-none h-24 sm:h-28">
+        <p className="text-[13px] font-semibold text-ink">Route map unavailable</p>
+        <p className="text-[12px] text-[#5E5E5E] mt-0.5 max-w-xs">
+          This trip did not record route geometry.
         </p>
       </div>
     );
   }
 
   return (
-    <div className={`relative rounded-2xl overflow-hidden border border-border-clean bg-slate-100 shadow-2xs ${className}`}>
+    <div className={`relative rounded-xl overflow-hidden border border-[#E5E5E5] bg-slate-100 shadow-2xs ${className}`}>
       <div ref={containerRef} className="w-full h-full" />
       {/* Route Badge in Top Corner */}
-      <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-full border border-border-clean shadow-2xs text-[11px] font-medium text-ink flex items-center gap-1.5 pointer-events-none select-none">
+      <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-full border border-[#E5E5E5] shadow-2xs text-[11px] font-medium text-ink flex items-center gap-1.5 pointer-events-none select-none">
         <MapPin className="w-3.5 h-3.5 text-blue-600" />
-        <span>Recorded Route</span>
+        <span>Recorded route</span>
       </div>
     </div>
   );
