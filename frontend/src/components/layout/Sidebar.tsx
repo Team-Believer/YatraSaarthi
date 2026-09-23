@@ -50,8 +50,8 @@ const MAIN_NAV_ITEMS: NavItemConfig[] = [
     icon: Bookmark,
   },
   {
-    name: 'AI Insights',
-    tooltip: 'Motion intelligence',
+    name: 'Nav Intelligence',
+    tooltip: 'Navigation intelligence',
     path: '/app/learning',
     icon: BrainCircuit,
   },
