@@ -7,6 +7,7 @@ import { savedRouteService, type SavedPlaceItem } from '../../services/navigatio
 import { sessionLifecycle } from '../../services/navigation/sessionLifecycle';
 import {
   Navigation2,
+  Navigation,
   X,
   CarFront,
   Bike,
@@ -15,16 +16,28 @@ import {
   Check,
   Bookmark,
   BookmarkCheck,
+  Zap,
+  ChevronDown,
+  ChevronUp,
+  MapPin,
+  CornerUpRight,
+  CornerUpLeft,
+  ArrowUp,
+  RotateCcw,
+  RotateCw,
+  ListOrdered,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface RoutePreviewCardProps {
   onStart?: () => void;
+  onFitRoute?: () => void;
   className?: string;
 }
 
 export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
   onStart,
+  onFitRoute,
   className,
 }) => {
   const isLive = useNavigationStore((s) => s.isLive);
@@ -47,6 +60,7 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
     return savedRouteService.getSavedItems();
   });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [expandedRouteKey, setExpandedRouteKey] = useState<string | null>(null);
 
   // Sync with savedRouteService updates
   useEffect(() => {
@@ -64,6 +78,9 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
     }, 2500);
     return () => clearTimeout(timer);
   }, [toastMessage]);
+
+  const currentRouteKey = `${destination?.name || ''}-${selectedRouteIndex}`;
+  const showDirections = expandedRouteKey === currentRouteKey;
 
   // Determine if the CURRENTLY SELECTED route is saved
   const selectedRoute = availableRoutes[selectedRouteIndex] || availableRoutes[0];
@@ -136,7 +153,7 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
 
       // 2. Source name resolution
       let sourceName = source?.name?.trim() || useLocationStore.getState().placeName?.trim();
-      if (!sourceName || sourceName === 'Start location' || sourceName === 'Unknown location') {
+      if (!sourceName || sourceName === 'Start location' || sourceName === 'Unknown location' || sourceName === 'Your location') {
         sourceName = undefined;
       }
 
@@ -178,79 +195,111 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
   const getModeIcon = (mode: TravelMode) => {
     switch (mode) {
       case 'driving':
-        return <CarFront className="w-4 h-4 shrink-0" />;
+        return <CarFront className="w-3.5 h-3.5 shrink-0" />;
       case 'motorcycle':
-        return <Bike className="w-4 h-4 shrink-0" />;
+        return <Bike className="w-3.5 h-3.5 shrink-0" />;
       case 'cycling':
-        return <Bike className="w-4 h-4 shrink-0" />;
+        return <Bike className="w-3.5 h-3.5 shrink-0" />;
       case 'walking':
-        return <Footprints className="w-4 h-4 shrink-0" />;
+        return <Footprints className="w-3.5 h-3.5 shrink-0" />;
     }
   };
+
+  const getManeuverIcon = (type?: string, modifier?: string) => {
+    const mod = modifier?.toLowerCase() || '';
+    const typ = type?.toLowerCase() || '';
+
+    if (typ === 'arrive') return <MapPin className="w-3.5 h-3.5 text-rose-600 shrink-0" />;
+    if (typ === 'depart') return <Navigation className="w-3.5 h-3.5 text-emerald-600 rotate-45 shrink-0" />;
+    if (mod.includes('left') || typ.includes('left')) return <CornerUpLeft className="w-3.5 h-3.5 text-[#083335] shrink-0" />;
+    if (mod.includes('right') || typ.includes('right')) return <CornerUpRight className="w-3.5 h-3.5 text-[#083335] shrink-0" />;
+    if (mod.includes('u-turn') || typ.includes('uturn')) return <RotateCcw className="w-3.5 h-3.5 text-[#083335] shrink-0" />;
+    if (typ.includes('roundabout')) return <RotateCw className="w-3.5 h-3.5 text-[#083335] shrink-0" />;
+    return <ArrowUp className="w-3.5 h-3.5 text-[#083335] shrink-0" />;
+  };
+
+  const stepsList = selectedRoute?.steps || [];
 
   return (
     <div
       className={clsx(
-        'w-full max-w-[440px] bg-white rounded-2xl p-4 sm:p-5 shadow-nav-sheet border border-border-clean select-none animate-in fade-in duration-150 flex flex-col gap-3.5 max-h-[75dvh]',
+        'w-full bg-white/98 backdrop-blur-md rounded-2xl p-3.5 sm:p-4 shadow-[0_6px_24px_rgba(8,51,53,0.08)] border border-[#E2E8E7] select-none animate-in fade-in duration-150 flex flex-col gap-2.5 max-h-[calc(100dvh-130px)] sm:max-h-[72dvh] overflow-hidden font-body',
         className
       )}
     >
-      {/* Mobile Drag Indicator Handle */}
-      <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto -mt-1 sm:hidden shrink-0" />
+      {/* Mobile Drag Handle */}
+      <div className="w-8 h-1 bg-slate-200 rounded-full mx-auto -mt-1 sm:hidden shrink-0" />
 
-      {/* 1. Header: Eyebrow + Route Title + Actions */}
-      <div className="flex items-start justify-between gap-3 font-body shrink-0">
+      {/* 1. Header: Eyebrow + Destination Title + Actions */}
+      <div className="flex items-start justify-between gap-2 shrink-0">
         <div className="min-w-0 flex-1">
-          {source && !source.isCurrentLocation ? (
-            <div>
-              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider">
-                <span className="text-emerald-700 truncate max-w-[120px]">{source.name}</span>
-                <span className="text-ink-mute">→</span>
-                <span className="text-ink truncate max-w-[120px]">{destination.name}</span>
-              </div>
-              <h3 className="font-bold text-ink text-lg sm:text-xl truncate mt-0.5 font-heading">
-                {destination.name}
-              </h3>
-            </div>
-          ) : (
-            <div>
-              <span className="text-[11px] font-bold text-ink-mute uppercase tracking-wider block leading-none">
-                Route preview
+          <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#6F7F7D] uppercase tracking-[0.08em] font-heading leading-none">
+            <span>ROUTE PREVIEW</span>
+            {selectedRoute?.isFastest && (
+              <>
+                <span>•</span>
+                <span className="text-emerald-700 font-semibold flex items-center gap-0.5">
+                  <Zap className="w-2.5 h-2.5 inline fill-emerald-600" />
+                  Fastest
+                </span>
+              </>
+            )}
+          </div>
+
+          <h3 className="font-bold text-[#083335] text-base sm:text-lg truncate mt-0.5 font-heading leading-tight">
+            {destination.name}
+          </h3>
+
+          {selectedRoute && (
+            <div className="text-xs text-[#4A6364] mt-0.5 flex items-center gap-1.5 truncate">
+              <span className="font-semibold text-[#083335]">
+                {formatDuration(selectedRoute.duration_seconds)}
               </span>
-              <h3 className="font-bold text-ink text-lg sm:text-xl truncate mt-1 font-heading">
-                {destination.name}
-              </h3>
+              <span>•</span>
+              <span>{formatDistance(selectedRoute.distance_meters)}</span>
+              {selectedRoute.summary && (
+                <>
+                  <span>•</span>
+                  <span className="truncate">{selectedRoute.summary}</span>
+                </>
+              )}
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* Save Route Action Button */}
-          <div className="relative group">
+        <div className="flex items-center gap-1 shrink-0 pt-0.5">
+          {/* Fit Route Camera Button */}
+          {onFitRoute && (
             <button
               type="button"
-              onClick={handleToggleSave}
-              aria-label={isSaved ? 'Remove saved route' : 'Save route'}
-              title={isSaved ? 'Remove saved route' : 'Save route'}
-              className={clsx(
-                'w-9 h-9 sm:w-8 sm:h-8 min-w-[36px] min-h-[36px] rounded-full border transition-all flex items-center justify-center cursor-pointer select-none active:scale-[0.95]',
-                isSaved
-                  ? 'bg-[#EAF0F0] text-ink border-[#083335]/30 shadow-2xs hover:bg-[#DCE6E6]'
-                  : 'bg-white text-ink-body border-border-clean hover:bg-canvas-soft hover:text-ink hover:border-[#083335]/30'
-              )}
+              onClick={onFitRoute}
+              aria-label="Fit route to map"
+              title="Fit route to map"
+              className="w-7.5 h-7.5 rounded-full bg-[#F5F8F7] hover:bg-[#EAF0F0] text-[#6F7F7D] hover:text-[#083335] transition-all flex items-center justify-center cursor-pointer select-none active:scale-95"
             >
-              {isSaved ? (
-                <BookmarkCheck className="w-4 h-4 text-ink shrink-0" />
-              ) : (
-                <Bookmark className="w-4 h-4 shrink-0" />
-              )}
+              <Navigation2 className="w-3.5 h-3.5 rotate-45" />
             </button>
+          )}
 
-            {/* Hover Tooltip */}
-            <div className="hidden md:block absolute right-0 top-full mt-1.5 px-2.5 py-1 bg-white border border-border-clean text-ink text-xs font-medium rounded-lg shadow-nav-floating whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-all duration-150 pointer-events-none z-50">
-              {isSaved ? 'Remove saved route' : 'Save route'}
-            </div>
-          </div>
+          {/* Save Route Action Button */}
+          <button
+            type="button"
+            onClick={handleToggleSave}
+            aria-label={isSaved ? 'Remove saved route' : 'Save route'}
+            title={isSaved ? 'Remove saved route' : 'Save route'}
+            className={clsx(
+              'w-7.5 h-7.5 rounded-full border transition-all flex items-center justify-center cursor-pointer select-none active:scale-95',
+              isSaved
+                ? 'bg-[#EAF0F0] text-[#083335] border-[#083335]/30 shadow-2xs'
+                : 'bg-white text-[#6F7F7D] border-[#E2E8E7] hover:bg-[#F5F8F7] hover:text-[#083335]'
+            )}
+          >
+            {isSaved ? (
+              <BookmarkCheck className="w-3.5 h-3.5 text-[#083335] shrink-0" />
+            ) : (
+              <Bookmark className="w-3.5 h-3.5 shrink-0" />
+            )}
+          </button>
 
           {/* Close Action Button */}
           <button
@@ -258,23 +307,23 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
             onClick={handleCancel}
             aria-label="Cancel route preview"
             title="Cancel route preview"
-            className="w-9 h-9 sm:w-8 sm:h-8 min-w-[36px] min-h-[36px] rounded-full bg-canvas-soft hover:bg-surface-pressed text-ink-mute hover:text-ink transition-colors flex items-center justify-center cursor-pointer shrink-0"
+            className="w-7.5 h-7.5 rounded-full bg-[#F5F8F7] hover:bg-[#EAF0F0] text-[#6F7F7D] hover:text-[#083335] transition-colors flex items-center justify-center cursor-pointer shrink-0"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
       {/* Optional Feedback Toast */}
       {toastMessage && (
-        <div className="text-xs font-medium text-slate-800 bg-[#F7F7F7] border border-border-clean px-3 py-1.5 rounded-xl flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-150 shrink-0">
-          <Check className="w-3.5 h-3.5 text-ink shrink-0 stroke-[2.5]" />
+        <div className="text-[11px] font-medium text-[#083335] bg-[#EAF0F0] border border-[#083335]/20 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5 animate-in fade-in duration-150 shrink-0">
+          <Check className="w-3 h-3 text-[#083335] shrink-0 stroke-[2.5]" />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* 2. Travel Mode Selector (with visible text labels & >=44px target) */}
-      <div className="grid grid-cols-4 gap-2 shrink-0">
+      {/* 2. Compact Travel Mode Selector (Segmented Bar) */}
+      <div className="flex items-center p-0.5 bg-[#F0F4F4] rounded-xl border border-[#E2EBEB] shrink-0">
         {TRAVEL_MODES.map((mode) => {
           const isSelected = travelMode === mode.id;
           return (
@@ -284,28 +333,28 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
               onClick={() => handleModeChange(mode.id)}
               aria-label={`Travel mode: ${mode.label}`}
               className={clsx(
-                'h-11 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none active:scale-[0.97] border font-body',
+                'flex-1 h-7.5 rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none font-medium',
                 isSelected
-                  ? 'bg-[#EAF0F0] text-ink font-semibold border-[#083335]/30 shadow-2xs'
-                  : 'bg-white text-ink-body border-border-clean hover:bg-canvas-soft hover:text-ink'
+                  ? 'bg-white text-[#083335] font-semibold shadow-2xs'
+                  : 'text-[#6F7F7D] hover:text-[#083335]'
               )}
             >
               {getModeIcon(mode.id)}
-              <span className="truncate">{mode.label}</span>
+              <span className="truncate text-[11px]">{mode.label}</span>
             </button>
           );
         })}
       </div>
 
-      {/* 3. Route Options Hierarchy */}
-      <div className="space-y-2 overflow-y-auto pr-0.5 hide-scrollbar flex-1 min-h-[70px]">
+      {/* 3. Compact Route Options Rows */}
+      <div className="space-y-1 overflow-y-auto pr-0.5 max-h-[140px] hide-scrollbar shrink-0">
         {isLoadingRoutes ? (
-          <div className="py-7 flex flex-col items-center justify-center gap-2 text-ink-mute text-xs">
-            <Loader2 className="w-5 h-5 animate-spin text-ink" />
+          <div className="py-5 flex flex-col items-center justify-center gap-1.5 text-[#6F7F7D] text-xs">
+            <Loader2 className="w-4 h-4 animate-spin text-[#083335]" />
             <span>Finding best routes...</span>
           </div>
         ) : routeError ? (
-          <div className="py-5 text-center text-xs text-ink-mute">
+          <div className="py-3 text-center text-xs text-rose-600 bg-rose-50 rounded-xl p-2 border border-rose-200">
             {routeError}
           </div>
         ) : availableRoutes.length > 0 ? (
@@ -318,59 +367,104 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
                 onClick={() => routeService.selectAlternativeRoute(idx)}
                 aria-label={`Select route ${formatDuration(route.duration_seconds)}, ${formatDistance(route.distance_meters)}`}
                 className={clsx(
-                  'w-full text-left p-3.5 rounded-xl border transition-all flex items-center justify-between gap-3 cursor-pointer select-none active:scale-[0.99]',
+                  'w-full text-left px-2.5 py-2 rounded-xl border transition-all flex items-center justify-between gap-2.5 cursor-pointer select-none active:scale-[0.99]',
                   isSelected
-                    ? 'border-[#083335] bg-[#EAF0F0] shadow-2xs'
-                    : 'border-border-clean bg-white hover:bg-canvas-soft'
+                    ? 'border-[#083335]/30 bg-[#F0F5F5] shadow-2xs'
+                    : 'border-transparent hover:bg-[#F8FAFA] hover:border-[#E2E8E7]'
                 )}
               >
-                <div className="min-w-0 flex-1 font-body">
+                <div className="min-w-0 flex-1">
                   {/* Primary Metric Line */}
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-lg sm:text-xl font-bold text-ink leading-tight font-heading">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-[14px] font-bold text-[#083335] leading-tight font-heading">
                       {formatDuration(route.duration_seconds)}
                     </span>
-                    <span className="text-xs sm:text-sm text-ink-mute font-body font-medium">
+                    <span className="text-xs text-[#6F7F7D] font-medium">
                       • {formatDistance(route.distance_meters)}
                     </span>
                     {route.isFastest && (
-                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 ml-auto font-body">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100/80 px-1 py-0.2 rounded font-heading ml-auto">
                         Fastest
                       </span>
                     )}
                   </div>
 
-                  {/* Via Street Description */}
-                  <p className="text-xs text-ink-body truncate mt-1 font-body">
-                    {route.summary || (idx === 0 ? 'Main route' : `Alternative route ${idx + 1}`)}
+                  {/* Road / Via Summary */}
+                  <p className="text-[11px] text-[#4A6364] truncate mt-0.5">
+                    {route.summary ? `Via ${route.summary}` : (idx === 0 ? 'Main Highway Route' : `Alternative route ${idx + 1}`)}
                   </p>
                 </div>
 
+                {/* Radio Selection Indicator */}
                 <div className="shrink-0 pl-1">
                   {isSelected ? (
-                    <div className="w-5 h-5 rounded-full bg-[#083335] text-white flex items-center justify-center shadow-2xs">
-                      <Check className="w-3 h-3 stroke-[3]" />
+                    <div className="w-4 h-4 rounded-full bg-[#083335] text-white flex items-center justify-center shadow-2xs">
+                      <Check className="w-2.5 h-2.5 stroke-[3]" />
                     </div>
                   ) : (
-                    <div className="w-5 h-5 rounded-full border border-border-clean" />
+                    <div className="w-4 h-4 rounded-full border border-slate-300 bg-white" />
                   )}
                 </div>
               </button>
             );
           })
         ) : (
-          <div className="py-4 text-center text-xs text-ink-mute">
+          <div className="py-3 text-center text-xs text-[#6F7F7D]">
             No route available.
           </div>
         )}
       </div>
 
-      {/* 4. Action Buttons */}
-      <div className="pt-2 border-t border-border-clean flex items-center gap-2.5 shrink-0">
+      {/* 4. Expandable Turn-by-Turn Directions Accordion */}
+      {selectedRoute && stepsList.length > 0 && (
+        <div className="border border-[#E2E8E7] rounded-xl overflow-hidden bg-[#FAFCFC] shrink-0">
+          <button
+            type="button"
+            onClick={() => setExpandedRouteKey(showDirections ? null : currentRouteKey)}
+            aria-expanded={showDirections}
+            className="w-full px-2.5 py-1.5 flex items-center justify-between text-xs font-semibold text-[#083335] hover:bg-[#F0F5F5] transition-colors cursor-pointer select-none"
+          >
+            <div className="flex items-center gap-1.5">
+              <ListOrdered className="w-3.5 h-3.5 text-[#4A6364]" />
+              <span>Directions ({stepsList.length} steps)</span>
+            </div>
+            {showDirections ? (
+              <ChevronUp className="w-3.5 h-3.5 text-[#4A6364]" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5 text-[#4A6364]" />
+            )}
+          </button>
+
+          {showDirections && (
+            <div className="p-2 border-t border-[#E2E8E7] max-h-[140px] overflow-y-auto space-y-1.5 hide-scrollbar divide-y divide-[#E2E8E7]/60">
+              {stepsList.map((step, sIdx) => (
+                <div key={sIdx} className="pt-1.5 first:pt-0 flex items-start gap-2 text-left">
+                  <div className="w-5 h-5 rounded-md bg-[#F0F4F4] flex items-center justify-center shrink-0 mt-0.5">
+                    {getManeuverIcon(step.type, step.modifier)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11.5px] font-medium text-[#083335] leading-snug">
+                      {step.instruction}
+                    </p>
+                    {step.distance_m > 0 && (
+                      <span className="text-[10px] text-[#6F7F7D]">
+                        {formatDistance(step.distance_m)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 5. Dominant Action Buttons */}
+      <div className="pt-2 border-t border-[#E2E8E7] flex items-center gap-2 shrink-0">
         <button
           type="button"
           onClick={handleCancel}
-          className="flex-1 h-11 bg-white hover:bg-canvas-soft text-ink border border-border-clean rounded-full text-xs sm:text-sm font-semibold transition-colors cursor-pointer select-none active:scale-[0.97]"
+          className="h-10 px-3 text-[#6F7F7D] hover:text-[#083335] hover:bg-[#F5F8F7] rounded-xl text-xs font-semibold transition-colors cursor-pointer select-none active:scale-[0.98]"
         >
           Cancel
         </button>
@@ -379,7 +473,7 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
           type="button"
           onClick={handleStartDrive}
           disabled={sessionStatus === 'STARTING' || availableRoutes.length === 0 || isLoadingRoutes}
-          className="flex-2 h-11 bg-[#083335] hover:bg-[#052426] active:bg-[#031718] disabled:bg-neutral-300 text-white rounded-full text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shadow-2xs transition-colors cursor-pointer select-none active:scale-[0.97] font-body"
+          className="flex-1 h-10 bg-[#083335] hover:bg-[#052426] active:bg-[#031718] disabled:bg-neutral-300 text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shadow-[0_4px_12px_rgba(8,51,53,0.18)] transition-all cursor-pointer select-none active:scale-[0.98]"
         >
           <Navigation2 className="w-4 h-4 fill-white text-white rotate-45 shrink-0" />
           <span>{sessionStatus === 'STARTING' ? 'Starting...' : 'Start navigation'}</span>
@@ -388,5 +482,7 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
     </div>
   );
 };
+
+
 
 

@@ -128,6 +128,47 @@ export default function LiveMap() {
     };
   }, [pickingField, source, destination, deviceLat, deviceLon, setSource, setDestination]);
 
+  // Calculate responsive padding for route camera framing to keep route completely unobscured
+  const getResponsiveRoutePadding = useCallback(() => {
+    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768;
+    if (isDesktop) {
+      // Desktop: Nav Rail (72px) + Gap (16px) + Route Column (390px) + Safe Gap (20px) = ~498px
+      const leftPadding = Math.max(450, Math.min(Math.round(window.innerWidth * 0.36), 520));
+      return {
+        top: 70,
+        bottom: 60,
+        left: leftPadding,
+        right: 90,
+      };
+    } else {
+      // Mobile: Route preview bottom sheet (~280px) + mobile nav
+      const bottomPadding = Math.min(Math.round(window.innerHeight * 0.42), 360);
+      return {
+        top: 120,
+        bottom: Math.max(bottomPadding, 240),
+        left: 24,
+        right: 24,
+      };
+    }
+  }, []);
+
+  // Fit bounds to route geometry with intelligent safe-area padding
+  const fitRouteBounds = useCallback(() => {
+    if (!routeCoordinates || routeCoordinates.length < 2 || !mapRef.current || isLive) return;
+
+    const bounds = new mapboxgl.LngLatBounds();
+    routeCoordinates.forEach((coord) => bounds.extend(coord));
+    if (source?.coordinates) bounds.extend(source.coordinates);
+    if (destination?.coordinates) bounds.extend(destination.coordinates);
+
+    const padding = getResponsiveRoutePadding();
+    mapRef.current.fitBounds(bounds, {
+      padding,
+      maxZoom: 16,
+      duration: 900,
+    });
+  }, [routeCoordinates, source, destination, isLive, getResponsiveRoutePadding]);
+
   // Set initial map position once coordinates arrive
   useEffect(() => {
     if (!initialCentered && mapRef.current && deviceLat !== null && deviceLon !== null) {
@@ -140,17 +181,9 @@ export default function LiveMap() {
   // Automatically fit bounds when route coordinates change
   useEffect(() => {
     if (routeCoordinates && routeCoordinates.length > 1 && mapRef.current && !isLive) {
-      const bounds = new mapboxgl.LngLatBounds();
-      routeCoordinates.forEach((coord) => bounds.extend(coord));
-      if (source?.coordinates) bounds.extend(source.coordinates);
-      if (destination?.coordinates) bounds.extend(destination.coordinates);
-      mapRef.current.fitBounds(bounds, {
-        padding: { top: 140, bottom: 220, left: 60, right: 60 },
-        maxZoom: 16,
-        duration: 1000,
-      });
+      fitRouteBounds();
     }
-  }, [routeCoordinates, source, destination, isLive]);
+  }, [routeCoordinates, source, destination, isLive, fitRouteBounds]);
 
   // Transition camera into 3D driver follow mode when navigation starts
   useEffect(() => {
@@ -302,6 +335,7 @@ export default function LiveMap() {
           {/* Floating Right Map Controls */}
           <MapControls
             onRecenter={handleRecenter}
+            onFitRoute={!isLive && routeCoordinates ? fitRouteBounds : undefined}
             onOrientationToggle={handleOrientationToggle}
             orientationMode={orientationMode}
             followVehicle={followVehicle}
@@ -324,8 +358,14 @@ export default function LiveMap() {
           </div>
         )}
 
-        {/* PRIMARY TOP-CENTER ROUTE PLANNER / ACTIVE MANEUVER GUIDANCE */}
-        <div className="absolute top-[calc(env(safe-area-inset-top)+68px)] left-3 right-3 sm:top-6 sm:left-1/2 sm:-translate-x-1/2 sm:w-[520px] sm:max-w-[560px] z-20 pointer-events-auto flex justify-center">
+        {/* PRIMARY ROUTE PLANNER (Desktop: Floating Left Safe Area; Mobile: Top Floating Bar) / ACTIVE MANEUVER GUIDANCE */}
+        <div
+          className={
+            !isLive
+              ? 'absolute top-[calc(env(safe-area-inset-top)+68px)] left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 sm:w-[480px] md:top-4 md:left-[96px] lg:left-[104px] md:translate-x-0 md:w-[380px] lg:w-[390px] md:max-w-[390px] z-20 pointer-events-auto flex justify-center md:justify-start'
+              : 'absolute top-[calc(env(safe-area-inset-top)+68px)] left-3 right-3 sm:top-6 sm:left-1/2 sm:-translate-x-1/2 sm:w-[500px] sm:max-w-[520px] z-20 pointer-events-auto flex justify-center'
+          }
+        >
           {!isLive ? (
             <DestinationSearch onPickOnMap={(field) => setPickingField(field)} />
           ) : (
@@ -333,10 +373,13 @@ export default function LiveMap() {
           )}
         </div>
 
-        {/* ROUTE PREVIEW PLANNING PANEL (Lower-Left / Bottom Sheet - sits strictly above bottom nav) */}
+        {/* ROUTE PREVIEW PLANNING PANEL (Desktop: Floating Left Column below planner; Mobile: Bottom Sheet) */}
         {!isLive && destination && routeCoordinates && (
-          <div className="absolute bottom-[calc(68px+env(safe-area-inset-bottom)+10px)] left-3 right-3 sm:left-6 sm:bottom-20 z-30 pointer-events-auto w-auto sm:w-[440px] max-w-[440px]">
-            <RoutePreviewCard onStart={() => setFollowVehicle(true)} />
+          <div className="absolute bottom-[calc(68px+env(safe-area-inset-bottom)+10px)] left-3 right-3 md:bottom-auto md:top-[96px] md:left-[96px] lg:left-[104px] z-30 pointer-events-auto w-auto md:w-[380px] lg:w-[390px] md:max-w-[390px]">
+            <RoutePreviewCard
+              onStart={() => setFollowVehicle(true)}
+              onFitRoute={fitRouteBounds}
+            />
           </div>
         )}
 

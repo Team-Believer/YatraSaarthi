@@ -60,7 +60,7 @@ export const routeService = {
     const profile = modeConfig.mapboxProfile;
 
     try {
-      const url = `https://api.mapbox.com/directions/v5/${profile}/${originLon},${originLat};${destinationCoords[0]},${destinationCoords[1]}?geometries=geojson&steps=true&alternatives=true&overview=full&access_token=${MAPBOX_TOKEN}`;
+      const url = `https://api.mapbox.com/directions/v5/${profile}/${originLon},${originLat};${destinationCoords[0]},${destinationCoords[1]}?geometries=geojson&steps=true&alternatives=true&overview=full&language=en&access_token=${MAPBOX_TOKEN}`;
       const res = await fetch(url);
       const data = await res.json();
 
@@ -75,19 +75,22 @@ export const routeService = {
         let parsedSteps: RouteStep[] = [];
         let viaSummary = '';
 
-        if (r.legs && r.legs.length > 0) {
-          const leg = r.legs[0];
-          viaSummary = leg.summary || '';
-          if (leg.steps) {
-            parsedSteps = leg.steps.map((s: any) => ({
-              instruction: s.maneuver?.instruction || s.name || '',
-              distance_m: s.distance || 0,
-              duration_s: s.duration || 0,
-              name: s.name || '',
-              type: s.maneuver?.type,
-              modifier: s.maneuver?.modifier,
-            }));
-          }
+        if (r.legs && Array.isArray(r.legs) && r.legs.length > 0) {
+          viaSummary = r.legs.map((l: any) => l.summary).filter(Boolean).join(', ') || '';
+          r.legs.forEach((leg: any) => {
+            if (leg.steps && Array.isArray(leg.steps)) {
+              leg.steps.forEach((s: any) => {
+                parsedSteps.push({
+                  instruction: s.maneuver?.instruction || s.name || (s.maneuver?.type === 'arrive' ? 'Arrive at destination' : 'Continue on route'),
+                  distance_m: s.distance || 0,
+                  duration_s: s.duration || 0,
+                  name: s.name || '',
+                  type: s.maneuver?.type || 'turn',
+                  modifier: s.maneuver?.modifier,
+                });
+              });
+            }
+          });
         }
 
         return {
@@ -108,7 +111,7 @@ export const routeService = {
       routeStore.setIsLoadingRoutes(false);
 
       // Sync active route coordinates to navigation store for map rendering
-      if (parsedRoutes[0]) {
+      if (parsedRoutes[0] && Array.isArray(parsedRoutes[0].geometry) && parsedRoutes[0].geometry.length >= 2) {
         useNavigationStore.getState().setRouteCoordinates(parsedRoutes[0].geometry);
       }
 

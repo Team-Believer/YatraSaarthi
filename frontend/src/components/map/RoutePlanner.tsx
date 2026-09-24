@@ -308,15 +308,15 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
   const isDropdownOpen = !!activeField;
 
   return (
-    <div className={clsx('relative w-full max-w-[480px] select-none font-body', className)}>
-      {/* Compact Single Floating Surface (76-82px height) */}
-      <div className="bg-white/96 backdrop-blur-md rounded-[16px] border border-[#E2E8E7] shadow-nav-floating px-3 py-1.5 transition-all duration-150 focus-within:border-[#083335]/40 focus-within:ring-1 focus-within:ring-[#083335]/10">
+    <div className={clsx('relative w-full select-none font-body', className)}>
+      {/* Compact Single Floating Input Surface (72-76px height) */}
+      <div className="bg-white/98 backdrop-blur-md rounded-2xl border border-[#E2E8E7] shadow-[0_6px_24px_rgba(8,51,53,0.08)] px-3 py-1.5 transition-all duration-150 focus-within:border-[#083335]/40 focus-within:ring-1 focus-within:ring-[#083335]/10">
         <div className="flex items-center gap-2">
-          {/* Stacked 2 Rows */}
+          {/* Stacked 2 Input Rows */}
           <div className="flex-1 flex flex-col min-w-0">
             {/* Row 1: Source (Your location) */}
-            <div className="flex items-center gap-2.5 h-[36px] min-w-0 px-1">
-              <Navigation className="w-3.5 h-3.5 text-[#083335] rotate-45 shrink-0" />
+            <div className="flex items-center gap-2 h-[34px] min-w-0 px-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-600 shrink-0" />
               <input
                 type="text"
                 aria-label="Starting location"
@@ -329,7 +329,7 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
                 }}
                 onChange={(e) => setSourceQuery(e.target.value)}
                 placeholder="Choose starting point"
-                className="w-full bg-transparent border-none focus:outline-none text-[#083335] text-[13.5px] font-medium placeholder:text-[#6F7F7D] placeholder:font-normal truncate"
+                className="w-full bg-transparent border-none focus:outline-none text-[#083335] text-[13px] font-medium placeholder:text-[#6F7F7D] placeholder:font-normal truncate"
               />
               {sourceQuery && sourceQuery !== 'Your location' && (
                 <button
@@ -344,16 +344,11 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
             </div>
 
             {/* Subtle Divider */}
-            <div className="h-px bg-[#E2E8E7]/80 ml-6 mr-1" />
+            <div className="h-px bg-[#E2E8E7] ml-4 mr-1" />
 
             {/* Row 2: Destination (Where to?) */}
-            <div className="flex items-center gap-2.5 h-[36px] min-w-0 px-1">
-              <MapPin
-                className={clsx(
-                  'w-3.5 h-3.5 shrink-0 stroke-[2.2]',
-                  destQuery ? 'text-[#083335]' : 'text-[#6F7F7D]'
-                )}
-              />
+            <div className="flex items-center gap-2 h-[34px] min-w-0 px-1">
+              <span className={clsx('w-2 h-2 rounded-full shrink-0', destQuery ? 'bg-[#083335]' : 'bg-[#6F7F7D]')} />
               <input
                 type="text"
                 aria-label="Destination"
@@ -368,7 +363,7 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
                   }
                 }}
                 placeholder="Where to?"
-                className="w-full bg-transparent border-none focus:outline-none text-[#083335] text-[13.5px] font-semibold placeholder:text-[#6F7F7D] placeholder:font-normal truncate"
+                className="w-full bg-transparent border-none focus:outline-none text-[#083335] text-[13px] font-semibold placeholder:text-[#6F7F7D] placeholder:font-normal truncate"
               />
               {destQuery && (
                 <button
@@ -390,7 +385,7 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
               onClick={handleSwap}
               aria-label="Swap source and destination"
               title="Swap"
-              className="w-8 h-8 rounded-full bg-[#F5F8F7] hover:bg-[#EAF0F0] active:bg-[#DFE7E6] text-[#083335] border border-[#E2E8E7]/90 flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
+              className="w-7.5 h-7.5 rounded-full bg-[#F5F8F7] hover:bg-[#EAF0F0] active:bg-[#DFE7E6] text-[#083335] border border-[#E2E8E7] flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
             >
               <ArrowUpDown className="w-3.5 h-3.5" />
             </button>

@@ -33,7 +33,7 @@ const MAIN_NAV_ITEMS: NavItemConfig[] = [
     name: 'Navigation',
     tooltip: 'Live navigation',
     path: '/app/map',
-    icon: Navigation2,
+    icon: (props) => <Navigation2 {...props} className={clsx(props.className, 'rotate-45')} />,
   },
   {
     name: 'Trips',

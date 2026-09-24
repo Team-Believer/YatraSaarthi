@@ -7,12 +7,14 @@ import {
   Plus,
   Minus,
   LocateFixed,
+  Maximize2,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { MapOrientationMode } from './MapController';
 
 interface MapControlsProps {
   onRecenter?: () => void;
+  onFitRoute?: () => void;
   onStyleChange?: (style: string) => void;
   onOrientationToggle?: (mode: MapOrientationMode) => void;
   orientationMode?: MapOrientationMode;
@@ -23,6 +25,7 @@ interface MapControlsProps {
 
 export const MapControls: React.FC<MapControlsProps> = ({
   onRecenter,
+  onFitRoute,
   onStyleChange,
   followVehicle = true,
   className = 'absolute top-[44%] -translate-y-1/2 right-3 sm:right-4 z-20 flex flex-col items-end gap-2',
@@ -86,6 +89,22 @@ export const MapControls: React.FC<MapControlsProps> = ({
             Satellite Hybrid
           </button>
         </div>
+      )}
+
+      {/* Control 0: Fit Route (when previewing a route) */}
+      {onFitRoute && (
+        <button
+          type="button"
+          onClick={onFitRoute}
+          aria-label="Fit route on map"
+          title="Fit route"
+          className="group relative w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white hover:bg-canvas-soft border border-border-clean shadow-nav-floating flex items-center justify-center transition-all cursor-pointer select-none active:scale-[0.95]"
+        >
+          <Maximize2 className="w-4.5 h-4.5 text-[#083335]" />
+          <div className="hidden md:block absolute right-full mr-3 px-3 py-1 bg-white border border-slate-200/90 text-ink text-xs font-semibold rounded-xl shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-150 delay-150 pointer-events-none z-50">
+            Fit route
+          </div>
+        </button>
       )}
 
       {/* Control 1: Locate / Recenter (44-48px compact white floating button) */}

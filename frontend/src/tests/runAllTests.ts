@@ -11,6 +11,8 @@ import { runFixtureValidation } from './fixtures/tripFixtures';
 import { runOfflineDrOnnxTests } from './offlineDrOnnx.test';
 import { runFailoverReplayTest } from './failoverReplay.test';
 import { runRoutePlanningTests } from './routePlanning.test';
+import { runRouteGeometryTests } from './routeGeometry.test';
+import { runRouteDirectionsTests } from './routeDirections.test';
 
 export async function runAllFrontendTests() {
   console.log('====================================================');
@@ -36,6 +38,12 @@ export async function runAllFrontendTests() {
   console.log('\n--- 5. Source → Destination Route Planning Tests ---');
   const routePlanResults = await runRoutePlanningTests();
 
+  console.log('\n--- 6. Route Geometry & Road-Following LineString Tests ---');
+  const routeGeomResults = await runRouteGeometryTests();
+
+  console.log('\n--- 7. Turn-by-Turn Route Directions & Steps Tests ---');
+  const routeDirResults = await runRouteDirectionsTests();
+
   console.log('\n====================================================');
   console.log('📊 FINAL TEST RESULTS SUMMARY:');
   console.log(`Timezone Tests:   ${timeResults.passed} passed, ${timeResults.failed} failed`);
@@ -43,6 +51,8 @@ export async function runAllFrontendTests() {
   console.log(`Dead-Reckon Tests: ${drResults.passed} passed, ${drResults.failed} failed`);
   console.log(`Failover Replay:  ${failoverResults.passed ? '1 passed, 0 failed' : '0 passed, 1 failed'}`);
   console.log(`Route Planning:   ${routePlanResults.passed} passed, ${routePlanResults.failed} failed`);
+  console.log(`Route Geometry:   ${routeGeomResults.passed} passed, ${routeGeomResults.failed} failed`);
+  console.log(`Route Directions: ${routeDirResults.passed} passed, ${routeDirResults.failed} failed`);
   console.log('====================================================');
 
   const totalFailed =
@@ -50,7 +60,9 @@ export async function runAllFrontendTests() {
     fixtureResults.failed +
     drResults.failed +
     (failoverResults.passed ? 0 : 1) +
-    routePlanResults.failed;
+    routePlanResults.failed +
+    routeGeomResults.failed +
+    routeDirResults.failed;
 
   if (totalFailed > 0) {
     console.error(`❌ Total failures: ${totalFailed}`);

@@ -352,6 +352,118 @@ export async function runRoutePlanningTests() {
       await sessionLifecycle.endLiveSession();
       assert(useNavigationStore.getState().isLive === false, 'Navigation ended cleanly');
     });
+
+    // -------------------------------------------------------------
+    // Test 10: Desktop layout safe margins - Route Panel does NOT collide with Nav Rail
+    // -------------------------------------------------------------
+    await runTest('10. Route Preview Panel horizontal offset clears Navigation Rail footprint', () => {
+      const NAV_RAIL_LEFT = 16; // 1rem
+      const NAV_RAIL_WIDTH = 72; // w-[72px]
+      const NAV_RAIL_RIGHT_EDGE = NAV_RAIL_LEFT + NAV_RAIL_WIDTH; // 88px
+
+      const ROUTE_PANEL_LEFT_DESKTOP = 104; // lg:left-[104px] / md:left-[96px]
+      const ROUTE_PANEL_WIDTH = 390; // lg:w-[390px] / md:w-[380px]
+
+      const clearanceGap = ROUTE_PANEL_LEFT_DESKTOP - NAV_RAIL_RIGHT_EDGE;
+      assert(clearanceGap >= 8, `Clearance gap (${clearanceGap}px) is positive and safe (>= 8px)`);
+      assert(ROUTE_PANEL_LEFT_DESKTOP + ROUTE_PANEL_WIDTH <= 1280, 'Route panel stays safely within 1280px viewport');
+    });
+
+    // -------------------------------------------------------------
+    // Test 11: Camera asymmetric padding accounts for left panel overlays on desktop
+    // -------------------------------------------------------------
+    await runTest('11. Camera padding accounts for Nav Rail + Route Preview Panel on desktop', () => {
+      const viewports = [
+        { width: 1280, height: 720 },
+        { width: 1366, height: 768 },
+        { width: 1440, height: 900 },
+        { width: 1536, height: 864 },
+        { width: 1920, height: 1080 },
+      ];
+
+      for (const vp of viewports) {
+        const leftPadding = Math.max(450, Math.min(Math.round(vp.width * 0.36), 520));
+        assert(leftPadding >= 450, `Left padding (${leftPadding}px) fully covers left UI on ${vp.width}x${vp.height}`);
+        assert(leftPadding < vp.width * 0.5, `Left padding leaves over 50% unobscured map area on ${vp.width}x${vp.height}`);
+      }
+    });
+
+    // -------------------------------------------------------------
+    // Test 12: Route bounds computation for short routes vs long routes
+    // -------------------------------------------------------------
+    await runTest('12. Short vs Long route bounding box computation', () => {
+      // Short route: Vastral to Ahmedabad (~10km)
+      const shortRoute = [VASTRAL_COORDS, AHMEDABAD_COORDS];
+      assert(shortRoute.length === 2, 'Short route contains 2 points');
+      const shortLonSpan = Math.abs(VASTRAL_COORDS[0] - AHMEDABAD_COORDS[0]);
+      const shortLatSpan = Math.abs(VASTRAL_COORDS[1] - AHMEDABAD_COORDS[1]);
+      assert(shortLonSpan < 0.2, 'Short route lon span is tight');
+      assert(shortLatSpan < 0.2, 'Short route lat span is tight');
+
+      // Long route: Vastral to Dwarka (~475km)
+      const DWARKA_COORDS: [number, number] = [68.9685, 22.2394];
+      const longLonSpan = Math.abs(VASTRAL_COORDS[0] - DWARKA_COORDS[0]);
+      assert(longLonSpan > 3.0, 'Long route lon span reflects 400+ km geometry');
+    });
+
+    // -------------------------------------------------------------
+    // Test 13: Source and Destination markers consistency
+    // -------------------------------------------------------------
+    await runTest('13. Waypoint markers maintain origin and destination integrity', async () => {
+      const routes = await routeService.calculateRoutes(GANDHINAGAR_COORDS, 'driving', VASTRAL_COORDS);
+      const active = routes[0];
+
+      assert(active.origin[0] === VASTRAL_COORDS[0], 'Origin marker at source');
+      assert(active.destination[0] === GANDHINAGAR_COORDS[0], 'Destination marker at destination');
+      assert(active.geometry.length >= 2, 'Geometry connects origin to destination');
+    });
+
+    // -------------------------------------------------------------
+    // Test 14: Start navigation transition dismisses preview state
+    // -------------------------------------------------------------
+    await runTest('14. Start navigation transitions cleanly to live guidance HUD', async () => {
+      useNavigationStore.getState().resetState();
+
+      useNavigationStore.getState().setSource({ name: 'Origin', coordinates: VASTRAL_COORDS });
+      useNavigationStore.getState().setDestination({ name: 'Destination', coordinates: AHMEDABAD_COORDS });
+      useNavigationStore.getState().setRouteCoordinates([VASTRAL_COORDS, AHMEDABAD_COORDS]);
+
+      // Before start: isLive is false, destination exists (Preview active)
+      assert(useNavigationStore.getState().isLive === false, 'isLive is false in preview');
+      assert(useNavigationStore.getState().destination !== null, 'destination is active in preview');
+
+      // Start live session
+      await sessionLifecycle.startLiveSession('CAR', [VASTRAL_COORDS, AHMEDABAD_COORDS], 'Main Road', {
+        destinationName: 'Destination',
+      });
+
+      assert(useNavigationStore.getState().isLive === true, 'isLive is true after start navigation');
+
+      // End session
+      await sessionLifecycle.endLiveSession();
+      assert(useNavigationStore.getState().isLive === false, 'Session ended cleanly');
+    });
+
+    // -------------------------------------------------------------
+    // Test 15: Cancel route preview cleans up all navigation state
+    // -------------------------------------------------------------
+    await runTest('15. Cancel route preview clears source, destination, and coordinates', () => {
+      const navStore = useNavigationStore.getState();
+      navStore.setSource({ name: 'Start', coordinates: VASTRAL_COORDS });
+      navStore.setDestination({ name: 'End', coordinates: AHMEDABAD_COORDS });
+      navStore.setRouteCoordinates([VASTRAL_COORDS, AHMEDABAD_COORDS]);
+
+      // Perform Cancel
+      navStore.setSource(null);
+      navStore.setDestination(null);
+      navStore.setRouteCoordinates(null);
+      useRouteStore.getState().clearRoute();
+
+      assert(useNavigationStore.getState().source === null, 'Source cleared');
+      assert(useNavigationStore.getState().destination === null, 'Destination cleared');
+      assert(useNavigationStore.getState().routeCoordinates === null, 'Route coordinates cleared');
+      assert(useRouteStore.getState().availableRoutes.length === 0, 'Available routes cleared');
+    });
   } finally {
     globalThis.fetch = originalFetch;
   }

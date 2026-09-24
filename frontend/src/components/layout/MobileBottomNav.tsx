@@ -7,7 +7,12 @@ export default function MobileBottomNav() {
 
   const navItems = [
     { name: 'Home', path: '/app', icon: LayoutGrid, exact: true },
-    { name: 'Navigate', path: '/app/map', icon: Navigation2, exact: false },
+    {
+      name: 'Navigate',
+      path: '/app/map',
+      icon: (props: any) => <Navigation2 {...props} className={clsx(props.className, 'rotate-45')} />,
+      exact: false,
+    },
     { name: 'Trips', path: '/app/history', icon: History, exact: false },
     { name: 'Saved', path: '/app/memory', icon: Bookmark, exact: false },
   ];
