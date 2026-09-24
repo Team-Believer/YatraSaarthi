@@ -10,8 +10,9 @@ import { runTimeFormatTests } from './timeFormat.test';
 import { runFixtureValidation } from './fixtures/tripFixtures';
 import { runOfflineDrOnnxTests } from './offlineDrOnnx.test';
 import { runFailoverReplayTest } from './failoverReplay.test';
+import { runRoutePlanningTests } from './routePlanning.test';
 
-export function runAllFrontendTests() {
+export async function runAllFrontendTests() {
   console.log('====================================================');
   console.log('🚀 YATRA SAARTHI FRONTEND TEST SUITE EXECUTION');
   console.log('====================================================\n');
@@ -32,15 +33,25 @@ export function runAllFrontendTests() {
   console.log(`  ✓ Max Step Delta: ${failoverResults.maxDiscrepancyM.toFixed(3)}m (no teleportation)`);
   console.log(`  ✓ Trajectory Total Points: ${failoverResults.trajectoryPointsCount}`);
 
+  console.log('\n--- 5. Source → Destination Route Planning Tests ---');
+  const routePlanResults = await runRoutePlanningTests();
+
   console.log('\n====================================================');
   console.log('📊 FINAL TEST RESULTS SUMMARY:');
   console.log(`Timezone Tests:   ${timeResults.passed} passed, ${timeResults.failed} failed`);
   console.log(`Fixture Tests:    ${fixtureResults.passed} passed, ${fixtureResults.failed} failed`);
   console.log(`Dead-Reckon Tests: ${drResults.passed} passed, ${drResults.failed} failed`);
   console.log(`Failover Replay:  ${failoverResults.passed ? '1 passed, 0 failed' : '0 passed, 1 failed'}`);
+  console.log(`Route Planning:   ${routePlanResults.passed} passed, ${routePlanResults.failed} failed`);
   console.log('====================================================');
 
-  const totalFailed = timeResults.failed + fixtureResults.failed + drResults.failed + (failoverResults.passed ? 0 : 1);
+  const totalFailed =
+    timeResults.failed +
+    fixtureResults.failed +
+    drResults.failed +
+    (failoverResults.passed ? 0 : 1) +
+    routePlanResults.failed;
+
   if (totalFailed > 0) {
     console.error(`❌ Total failures: ${totalFailed}`);
     return false;
@@ -52,5 +63,8 @@ export function runAllFrontendTests() {
 
 // Automatically run if executed directly in node/tsx or imported
 if (typeof window === 'undefined') {
-  runAllFrontendTests();
+  runAllFrontendTests().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
 }

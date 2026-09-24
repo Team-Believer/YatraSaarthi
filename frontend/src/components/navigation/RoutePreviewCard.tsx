@@ -29,7 +29,9 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
 }) => {
   const isLive = useNavigationStore((s) => s.isLive);
   const sessionStatus = useNavigationStore((s) => s.sessionStatus);
+  const source = useNavigationStore((s) => s.source);
   const destination = useNavigationStore((s) => s.destination);
+  const setSource = useNavigationStore((s) => s.setSource);
   const setDestination = useNavigationStore((s) => s.setDestination);
   const setRouteCoordinates = useNavigationStore((s) => s.setRouteCoordinates);
 
@@ -81,7 +83,7 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
     if (newMode === travelMode && availableRoutes.length > 0) return;
     setTravelMode(newMode);
     if (destination.coordinates) {
-      routeService.calculateRoutes(destination.coordinates, newMode);
+      routeService.calculateRoutes(destination.coordinates, newMode, source?.coordinates);
     }
   };
 
@@ -104,7 +106,7 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
         savedRouteService.saveRoute({
           name: destination.name,
           coordinates: destination.coordinates,
-          originCoordinates: selectedRoute?.origin,
+          originCoordinates: selectedRoute?.origin || source?.coordinates,
           address: address,
           summary: routeSummary,
           distance_meters: distance,
@@ -133,7 +135,7 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
       const destName = destination?.name?.trim() || roadName;
 
       // 2. Source name resolution
-      let sourceName = useLocationStore.getState().placeName?.trim();
+      let sourceName = source?.name?.trim() || useLocationStore.getState().placeName?.trim();
       if (!sourceName || sourceName === 'Start location' || sourceName === 'Unknown location') {
         sourceName = undefined;
       }
@@ -141,7 +143,7 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
       await sessionLifecycle.startLiveSession(vehicleType, routeGeometry, roadName, {
         sourceName: sourceName,
         destinationName: destName,
-        sourceCoords: activeSelectedRoute?.origin,
+        sourceCoords: source?.coordinates || activeSelectedRoute?.origin,
         destinationCoords: destination?.coordinates || activeSelectedRoute?.destination,
         roadSummary: activeSelectedRoute?.summary || roadName,
         distance_meters: activeSelectedRoute?.distance_meters,
@@ -154,6 +156,7 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
   };
 
   const handleCancel = () => {
+    setSource(null);
     setDestination(null);
     setRouteCoordinates(null);
     clearRoute();
@@ -195,15 +198,30 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
       {/* Mobile Drag Indicator Handle */}
       <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto -mt-1 sm:hidden shrink-0" />
 
-      {/* 1. Header: Eyebrow + Destination Name + Actions */}
+      {/* 1. Header: Eyebrow + Route Title + Actions */}
       <div className="flex items-start justify-between gap-3 font-body shrink-0">
         <div className="min-w-0 flex-1">
-          <span className="text-[11px] font-bold text-ink-mute uppercase tracking-wider block leading-none">
-            Route preview
-          </span>
-          <h3 className="font-bold text-ink text-lg sm:text-xl truncate mt-1 font-heading">
-            {destination.name}
-          </h3>
+          {source && !source.isCurrentLocation ? (
+            <div>
+              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider">
+                <span className="text-emerald-700 truncate max-w-[120px]">{source.name}</span>
+                <span className="text-ink-mute">→</span>
+                <span className="text-ink truncate max-w-[120px]">{destination.name}</span>
+              </div>
+              <h3 className="font-bold text-ink text-lg sm:text-xl truncate mt-0.5 font-heading">
+                {destination.name}
+              </h3>
+            </div>
+          ) : (
+            <div>
+              <span className="text-[11px] font-bold text-ink-mute uppercase tracking-wider block leading-none">
+                Route preview
+              </span>
+              <h3 className="font-bold text-ink text-lg sm:text-xl truncate mt-1 font-heading">
+                {destination.name}
+              </h3>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">

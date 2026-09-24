@@ -139,7 +139,8 @@ interface NavigationStore {
 
   // Detailed telemetry for diagnostics & backward compatibility
   state: NavigationState;
-  // Destination and Routing
+  // Source, Destination and Routing
+  source: { name: string; coordinates: [number, number]; isCurrentLocation?: boolean } | null;
   destination: { name: string; coordinates: [number, number] } | null;
   routeCoordinates: [number, number][] | null;
 
@@ -154,6 +155,7 @@ interface NavigationStore {
   setErrorMessage: (msg: string | null) => void;
   setSessionId: (id: string | null) => void;
   
+  setSource: (source: { name: string; coordinates: [number, number]; isCurrentLocation?: boolean } | null) => void;
   setDestination: (dest: { name: string; coordinates: [number, number] } | null) => void;
   setRouteCoordinates: (coords: [number, number][] | null) => void;
 
@@ -181,6 +183,7 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
   errorMessage: null,
   state: { ...defaultNavigationState },
   
+  source: null,
   destination: null,
   routeCoordinates: null,
   isNavStatusDrawerOpen: false,
@@ -212,6 +215,7 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
     isEnding: false,
   })),
 
+  setSource: (source) => set({ source }),
   setDestination: (dest) => set({ destination: dest }),
   setRouteCoordinates: (coords) => set({ routeCoordinates: coords }),
 
@@ -255,6 +259,7 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
     fusedPosition: null,
     trajectory: [],
     totalDistanceM: 0,
+    source: null,
     destination: null,
     routeCoordinates: null,
     state: { ...defaultNavigationState },
@@ -270,6 +275,7 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
     fusedPosition: null,
     trajectory: [],
     totalDistanceM: 0,
+    source: null,
     destination: null,
     routeCoordinates: null,
     journeySummary: null,

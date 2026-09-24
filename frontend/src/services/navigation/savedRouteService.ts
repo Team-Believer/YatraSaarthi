@@ -79,11 +79,13 @@ export const DEFAULT_SAVED_PLACES: SavedPlaceItem[] = [
 export const savedRouteService = {
   getSavedItems(): SavedPlaceItem[] {
     try {
-      const stored = localStorage.getItem(SAVED_ROUTES_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+      if (typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem(SAVED_ROUTES_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
         }
       }
     } catch (e) {
@@ -94,7 +96,9 @@ export const savedRouteService = {
 
   setSavedItems(items: SavedPlaceItem[]): void {
     try {
-      localStorage.setItem(SAVED_ROUTES_STORAGE_KEY, JSON.stringify(items));
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(SAVED_ROUTES_STORAGE_KEY, JSON.stringify(items));
+      }
       offlineStorage.cacheSavedRoutes(items).catch((err) => {
         console.warn('Failed to sync saved routes to IndexedDB:', err);
       });

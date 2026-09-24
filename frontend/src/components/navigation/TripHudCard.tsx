@@ -198,7 +198,7 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
                 disabled={isEnding}
                 aria-label="End navigation"
                 className={clsx(
-                  'h-11 px-3.5 sm:px-4.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer select-none active:scale-[0.97] border font-body shrink-0',
+                  'h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer select-none active:scale-[0.97] border font-body shrink-0',
                   confirmEnd
                     ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-600 shadow-xs'
                     : 'bg-white hover:bg-canvas-soft text-ink border-border-clean shadow-2xs'
@@ -216,20 +216,20 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
                   </>
                 )}
               </button>
-            ) : (
+            ) : destination ? (
               <button
                 type="button"
                 onClick={handleStartSession}
                 disabled={sessionStatus === 'STARTING'}
                 aria-label="Start navigation"
-                className="h-11 px-3.5 sm:px-4.5 bg-[#083335] hover:bg-[#052426] active:bg-[#031718] text-white rounded-xl text-xs sm:text-[13px] font-semibold flex items-center gap-1.5 shadow-nav-floating transition-colors cursor-pointer select-none active:scale-[0.97] font-body shrink-0"
+                className="h-10 px-3.5 sm:px-4 bg-[#083335] hover:bg-[#052426] active:bg-[#031718] text-white rounded-xl text-xs sm:text-[13px] font-semibold flex items-center gap-1.5 shadow-nav-floating transition-colors cursor-pointer select-none active:scale-[0.97] font-body shrink-0"
               >
                 <Navigation2 className="w-4 h-4 fill-white text-white rotate-45 shrink-0" />
                 <span className="whitespace-nowrap">
                   {sessionStatus === 'STARTING' ? 'Starting...' : 'Start navigation'}
                 </span>
               </button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

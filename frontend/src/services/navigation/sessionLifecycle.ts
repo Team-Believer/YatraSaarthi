@@ -174,9 +174,15 @@ export class NavigationSessionLifecycle {
     const store = useNavigationStore.getState();
     store.setWebsocketStatus('CONNECTING');
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
+    const isBrowser = typeof window !== 'undefined';
+    const protocol = isBrowser && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = isBrowser ? window.location.host : 'localhost:8000';
     const wsUrl = `${protocol}//${host}/ws/navigation/${sessionId}`;
+
+    if (typeof WebSocket === 'undefined') {
+      store.setWebsocketStatus('DISCONNECTED');
+      return;
+    }
 
     try {
       const ws = new WebSocket(wsUrl);

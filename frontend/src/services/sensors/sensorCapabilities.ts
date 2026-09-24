@@ -14,12 +14,16 @@ export interface SensorCapabilities {
 }
 
 export function detectSensorCapabilities(): SensorCapabilities {
+  const hasNavigator = typeof navigator !== 'undefined';
+  const hasWindow = typeof window !== 'undefined';
+
   return {
-    geolocation: 'geolocation' in navigator,
-    deviceMotion: 'DeviceMotionEvent' in window,
-    deviceOrientation: 'DeviceOrientationEvent' in window,
-    absoluteOrientation: 'DeviceOrientationAbsoluteEvent' in window || 'DeviceOrientationEvent' in window,
-    permissions: 'permissions' in navigator,
+    geolocation: hasNavigator && 'geolocation' in navigator,
+    deviceMotion: hasWindow && 'DeviceMotionEvent' in window,
+    deviceOrientation: hasWindow && 'DeviceOrientationEvent' in window,
+    absoluteOrientation:
+      hasWindow && ('DeviceOrientationAbsoluteEvent' in window || 'DeviceOrientationEvent' in window),
+    permissions: hasNavigator && 'permissions' in navigator,
   };
 }
 

@@ -7,7 +7,7 @@
 export type PermissionState = 'GRANTED' | 'DENIED' | 'PROMPT' | 'UNSUPPORTED';
 
 export async function requestGeolocationPermission(): Promise<PermissionState> {
-  if (!('geolocation' in navigator)) return 'UNSUPPORTED';
+  if (typeof navigator === 'undefined' || !('geolocation' in navigator)) return 'UNSUPPORTED';
   
   try {
     // Some browsers support Permissions API for geolocation
@@ -35,7 +35,7 @@ export async function requestGeolocationPermission(): Promise<PermissionState> {
 }
 
 export async function requestMotionPermission(): Promise<PermissionState> {
-  if (!('DeviceMotionEvent' in window)) return 'UNSUPPORTED';
+  if (typeof window === 'undefined' || !('DeviceMotionEvent' in window)) return 'UNSUPPORTED';
   
   try {
     // @ts-ignore - iOS specific API
@@ -53,7 +53,7 @@ export async function requestMotionPermission(): Promise<PermissionState> {
 }
 
 export async function requestOrientationPermission(): Promise<PermissionState> {
-  if (!('DeviceOrientationEvent' in window)) return 'UNSUPPORTED';
+  if (typeof window === 'undefined' || !('DeviceOrientationEvent' in window)) return 'UNSUPPORTED';
   
   try {
     // @ts-ignore - iOS specific API

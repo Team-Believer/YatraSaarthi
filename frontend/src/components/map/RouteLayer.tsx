@@ -5,16 +5,19 @@ import { useRouteStore } from '../../stores/useRouteStore';
 
 interface RouteLayerProps {
   geometry?: [number, number][]; // [[lon, lat], ...]
+  sourceName?: string;
   destinationName?: string;
   showAlternatives?: boolean;
 }
 
 export const RouteLayer: React.FC<RouteLayerProps> = ({
   geometry = [],
+  sourceName,
   destinationName,
   showAlternatives = true,
 }) => {
   const map = useMap();
+  const sourceMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const destMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const availableRoutes = useRouteStore((s) => s.availableRoutes);
   const selectedRouteIndex = useRouteStore((s) => s.selectedRouteIndex);
@@ -91,7 +94,7 @@ export const RouteLayer: React.FC<RouteLayerProps> = ({
     };
   }, [map, availableRoutes, selectedRouteIndex, showAlternatives]);
 
-  // 2. Render Active Primary Route & Destination Marker
+  // 2. Render Active Primary Route & Waypoint Markers (Source & Destination)
   useEffect(() => {
     if (!map) return;
 
@@ -103,6 +106,10 @@ export const RouteLayer: React.FC<RouteLayerProps> = ({
       if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
       if (map.getLayer(casingLayerId)) map.removeLayer(casingLayerId);
       if (map.getSource(sourceId)) map.removeSource(sourceId);
+      if (sourceMarkerRef.current) {
+        sourceMarkerRef.current.remove();
+        sourceMarkerRef.current = null;
+      }
       if (destMarkerRef.current) {
         destMarkerRef.current.remove();
         destMarkerRef.current = null;
@@ -177,6 +184,37 @@ export const RouteLayer: React.FC<RouteLayerProps> = ({
       });
     }
 
+    // Add / Update Source Waypoint Pin (Start)
+    const startCoords = geometry[0];
+    if (startCoords) {
+      if (!sourceMarkerRef.current) {
+        const startContainer = document.createElement('div');
+        startContainer.className = 'flex flex-col items-center select-none pointer-events-none';
+
+        const pinBadge = document.createElement('div');
+        pinBadge.className = 'w-6.5 h-6.5 rounded-full bg-emerald-600 border-2 border-white shadow-nav-floating flex items-center justify-center text-white';
+        pinBadge.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <circle cx="12" cy="12" r="8"/>
+          </svg>
+        `;
+        startContainer.appendChild(pinBadge);
+
+        if (sourceName) {
+          const labelEl = document.createElement('div');
+          labelEl.className = 'px-2 py-0.5 mt-1 bg-white border border-border-clean shadow-nav-floating rounded-full text-[10px] font-semibold text-emerald-800 whitespace-nowrap max-w-[130px] truncate';
+          labelEl.innerText = sourceName;
+          startContainer.appendChild(labelEl);
+        }
+
+        sourceMarkerRef.current = new mapboxgl.Marker({ element: startContainer, anchor: 'center' })
+          .setLngLat(startCoords)
+          .addTo(map);
+      } else {
+        sourceMarkerRef.current.setLngLat(startCoords);
+      }
+    }
+
     // Add / Update Destination Waypoint Pin
     const destCoords = geometry[geometry.length - 1];
     if (destCoords) {
@@ -215,12 +253,16 @@ export const RouteLayer: React.FC<RouteLayerProps> = ({
       if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
       if (map.getLayer(casingLayerId)) map.removeLayer(casingLayerId);
       if (map.getSource(sourceId)) map.removeSource(sourceId);
+      if (sourceMarkerRef.current) {
+        sourceMarkerRef.current.remove();
+        sourceMarkerRef.current = null;
+      }
       if (destMarkerRef.current) {
         destMarkerRef.current.remove();
         destMarkerRef.current = null;
       }
     };
-  }, [map, geometry, destinationName]);
+  }, [map, geometry, sourceName, destinationName]);
 
   return null;
 };

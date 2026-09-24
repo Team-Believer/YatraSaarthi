@@ -2,7 +2,7 @@ import { useRouteStore, type TravelMode, type RouteData, type RouteStep } from '
 import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useLocationStore } from '../../stores/useLocationStore';
 
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+const MAPBOX_TOKEN = (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_MAPBOX_TOKEN : '') || (typeof process !== 'undefined' && process.env ? process.env.VITE_MAPBOX_TOKEN : '') || '';
 
 export const TRAVEL_MODES: {
   id: TravelMode;
@@ -24,13 +24,32 @@ export const routeService = {
 
   async calculateRoutes(
     destinationCoords: [number, number],
-    mode: TravelMode = 'driving'
+    mode: TravelMode = 'driving',
+    originCoords?: [number, number]
   ): Promise<RouteData[]> {
-    const { latitude: currentLat, longitude: currentLon } = useLocationStore.getState();
+    const navStore = useNavigationStore.getState();
+    const locStore = useLocationStore.getState();
     const routeStore = useRouteStore.getState();
 
-    if (!currentLat || !currentLon) {
-      console.warn('Cannot calculate route without current user coordinates');
+    // Priority: Explicit parameter > Navigation store custom source > Current GPS location
+    let originLon: number | null = null;
+    let originLat: number | null = null;
+
+    if (originCoords && originCoords.length === 2 && !isNaN(originCoords[0]) && !isNaN(originCoords[1])) {
+      originLon = originCoords[0];
+      originLat = originCoords[1];
+    } else if (navStore.source?.coordinates && navStore.source.coordinates.length === 2) {
+      originLon = navStore.source.coordinates[0];
+      originLat = navStore.source.coordinates[1];
+    } else if (locStore.longitude !== null && locStore.latitude !== null) {
+      originLon = locStore.longitude;
+      originLat = locStore.latitude;
+    }
+
+    if (originLon === null || originLat === null) {
+      console.warn('Cannot calculate route without origin coordinates (no source selected and GPS not acquired)');
+      routeStore.setRouteError('Please select a starting point or enable GPS');
+      routeStore.setIsLoadingRoutes(false);
       return [];
     }
 
@@ -41,7 +60,7 @@ export const routeService = {
     const profile = modeConfig.mapboxProfile;
 
     try {
-      const url = `https://api.mapbox.com/directions/v5/${profile}/${currentLon},${currentLat};${destinationCoords[0]},${destinationCoords[1]}?geometries=geojson&steps=true&alternatives=true&overview=full&access_token=${MAPBOX_TOKEN}`;
+      const url = `https://api.mapbox.com/directions/v5/${profile}/${originLon},${originLat};${destinationCoords[0]},${destinationCoords[1]}?geometries=geojson&steps=true&alternatives=true&overview=full&access_token=${MAPBOX_TOKEN}`;
       const res = await fetch(url);
       const data = await res.json();
 
@@ -74,7 +93,7 @@ export const routeService = {
         return {
           id: `route-${idx}-${Math.round(r.duration)}`,
           summary: viaSummary || (idx === 0 ? 'Main route' : `Alternative ${idx}`),
-          origin: [currentLon, currentLat],
+          origin: [originLon, originLat],
           destination: destinationCoords,
           distance_meters: r.distance,
           duration_seconds: r.duration,

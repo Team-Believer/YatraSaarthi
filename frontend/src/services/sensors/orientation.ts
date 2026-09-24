@@ -19,7 +19,7 @@ export class OrientationCollector {
   private isRunning = false;
 
   public start(onData: OrientationCallback) {
-    if (!('DeviceOrientationEvent' in window)) {
+    if (typeof window === 'undefined' || !('DeviceOrientationEvent' in window)) {
       console.warn('DeviceOrientationEvent not supported');
       return;
     }
@@ -37,15 +37,17 @@ export class OrientationCollector {
   }
 
   public stop() {
-    const win = window as any;
-    if (this.isRunning) {
-      if ('ondeviceorientationabsolute' in win) {
-        win.removeEventListener('deviceorientationabsolute', this.handleOrientation, true);
-      } else if ('removeEventListener' in win) {
-        win.removeEventListener('deviceorientation', this.handleOrientation, true);
+    if (typeof window !== 'undefined') {
+      const win = window as any;
+      if (this.isRunning) {
+        if ('ondeviceorientationabsolute' in win) {
+          win.removeEventListener('deviceorientationabsolute', this.handleOrientation, true);
+        } else if ('removeEventListener' in win) {
+          win.removeEventListener('deviceorientation', this.handleOrientation, true);
+        }
       }
-      this.isRunning = false;
     }
+    this.isRunning = false;
     this.onData = null;
   }
 

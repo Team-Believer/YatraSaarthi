@@ -22,7 +22,7 @@ export class GeolocationCollector {
   private onError: GeolocationErrorCallback | null = null;
 
   public start(onData: GeolocationCallback, onError: GeolocationErrorCallback) {
-    if (!('geolocation' in navigator)) {
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
       console.error('Geolocation not supported');
       return;
     }
@@ -42,10 +42,10 @@ export class GeolocationCollector {
   }
 
   public stop() {
-    if (this.watchId !== null) {
+    if (typeof navigator !== 'undefined' && this.watchId !== null) {
       navigator.geolocation.clearWatch(this.watchId);
-      this.watchId = null;
     }
+    this.watchId = null;
     this.onData = null;
     this.onError = null;
   }

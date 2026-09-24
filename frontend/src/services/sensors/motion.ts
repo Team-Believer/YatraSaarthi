@@ -22,7 +22,7 @@ export class MotionCollector {
   private isRunning = false;
 
   public start(onData: MotionCallback) {
-    if (!('DeviceMotionEvent' in window)) {
+    if (typeof window === 'undefined' || !('DeviceMotionEvent' in window)) {
       console.warn('DeviceMotionEvent not supported');
       return;
     }
@@ -35,10 +35,10 @@ export class MotionCollector {
   }
 
   public stop() {
-    if (this.isRunning) {
+    if (typeof window !== 'undefined' && this.isRunning) {
       window.removeEventListener('devicemotion', this.handleMotion, true);
-      this.isRunning = false;
     }
+    this.isRunning = false;
     this.onData = null;
   }
 
