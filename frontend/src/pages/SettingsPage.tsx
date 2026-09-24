@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useSettingsStore, type UserSettings } from '../stores/useSettingsStore';
 import { SUPPORTED_VEHICLES } from '../utils/navigation/vehicleProfiles';
+import { SavedOfflineRoutes } from '../components/navigation/SavedOfflineRoutes';
 import { clsx } from 'clsx';
 
 
@@ -386,12 +387,34 @@ export default function SettingsPage() {
         <div className="border-t border-slate-200/60" />
 
         {/* ========================================================================= */}
-        {/* 04. ABOUT YATRASAARTHI                                                    */}
+        {/* 04. OFFLINE SAVED ROUTES                                                 */}
+        {/* ========================================================================= */}
+        <section aria-labelledby="offline-heading" className="space-y-4">
+          <div>
+            <span className="text-[11px] font-bold tracking-widest uppercase text-[#083335] font-sans block mb-1">
+              04 Offline Storage
+            </span>
+            <h2 id="offline-heading" className="text-lg sm:text-xl font-bold font-display text-ink tracking-tight">
+              Saved offline routes
+            </h2>
+            <p className="text-xs sm:text-[13px] text-ink-body font-sans mt-0.5">
+              Manage routes saved locally on this device for zero-connectivity navigation.
+            </p>
+          </div>
+
+          <SavedOfflineRoutes />
+        </section>
+
+        {/* Divider */}
+        <div className="border-t border-slate-200/60" />
+
+        {/* ========================================================================= */}
+        {/* 05. ABOUT YATRASAARTHI                                                    */}
         {/* ========================================================================= */}
         <section aria-labelledby="about-heading" className="space-y-4">
           <div>
             <span className="text-[11px] font-bold tracking-widest uppercase text-[#083335] font-sans block mb-1">
-              04 System
+              05 System
             </span>
             <h2 id="about-heading" className="text-lg sm:text-xl font-bold font-display text-ink tracking-tight">
               About YatraSaarthi

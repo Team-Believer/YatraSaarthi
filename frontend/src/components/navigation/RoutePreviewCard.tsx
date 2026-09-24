@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useRouteStore, type TravelMode } from '../../stores/useRouteStore';
 import { useLocationStore } from '../../stores/useLocationStore';
 import { routeService, TRAVEL_MODES } from '../../services/navigation/routeService';
 import { savedRouteService, type SavedPlaceItem } from '../../services/navigation/savedRouteService';
 import { sessionLifecycle } from '../../services/navigation/sessionLifecycle';
+import { offlineNavigationController } from '../../services/offline/offlineNavigationController';
 import {
   Navigation2,
   X,
@@ -18,6 +19,7 @@ import {
   Zap,
   AlertCircle,
   RotateCw,
+  Download,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -129,6 +131,27 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
       setToastMessage('Failed to update saved route');
     }
   };
+
+  const [isSavingOffline, setIsSavingOffline] = useState(false);
+  const [offlineSaved, setOfflineSaved] = useState(false);
+
+  const handleSaveForOffline = useCallback(async () => {
+    if (!selectedRoute || !destination || isSavingOffline) return;
+    setIsSavingOffline(true);
+    try {
+      const originName = source?.name || 'Current Location';
+      const destName = destination.name || 'Destination';
+      await offlineNavigationController.saveRouteForOffline(selectedRoute, originName, destName);
+      setOfflineSaved(true);
+      setToastMessage('Route saved for offline navigation');
+      setTimeout(() => setOfflineSaved(false), 5000);
+    } catch (err) {
+      console.error('[RoutePreviewCard] Save for offline failed:', err);
+      setToastMessage('Failed to save route offline');
+    } finally {
+      setIsSavingOffline(false);
+    }
+  }, [selectedRoute, destination, source, isSavingOffline]);
 
   const handleStartDrive = async () => {
     try {
@@ -274,6 +297,29 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
               <BookmarkCheck className="w-3.5 h-3.5 text-[#083335] shrink-0" />
             ) : (
               <Bookmark className="w-3.5 h-3.5 shrink-0" />
+            )}
+          </button>
+
+          {/* Save for Offline Button */}
+          <button
+            type="button"
+            onClick={handleSaveForOffline}
+            disabled={isSavingOffline || !selectedRoute || availableRoutes.length === 0}
+            aria-label={offlineSaved ? 'Route saved offline' : 'Save route for offline navigation'}
+            title={offlineSaved ? 'Route saved offline' : 'Save for offline'}
+            className={clsx(
+              'w-7.5 h-7.5 rounded-full border transition-all flex items-center justify-center cursor-pointer select-none active:scale-95 disabled:opacity-40',
+              offlineSaved
+                ? 'bg-emerald-50 text-emerald-600 border-emerald-300 shadow-2xs'
+                : 'bg-white text-[#6F7F7D] border-[#E2E8E7] hover:bg-[#F5F8F7] hover:text-[#083335]'
+            )}
+          >
+            {isSavingOffline ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+            ) : offlineSaved ? (
+              <Check className="w-3.5 h-3.5 shrink-0" />
+            ) : (
+              <Download className="w-3.5 h-3.5 shrink-0" />
             )}
           </button>
 
