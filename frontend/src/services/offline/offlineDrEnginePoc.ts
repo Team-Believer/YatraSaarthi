@@ -423,14 +423,22 @@ export class ClientInEKF {
     this.P[1 * 15 + 1] = (1 - kGainE) * pPosE;
     this.P[2 * 15 + 2] = (1 - kGainD) * pPosD;
 
-    // If speed and heading provided by GNSS
-    if (gnss.speed !== undefined && gnss.speed >= 0 && gnss.heading !== undefined) {
-      const hRad = (gnss.heading * Math.PI) / 180.0;
-      const vN = gnss.speed * Math.cos(hRad);
-      const vE = gnss.speed * Math.sin(hRad);
-      const kVel = 0.3;
-      this.velocity[0] += (vN - this.velocity[0]) * kVel;
-      this.velocity[1] += (vE - this.velocity[1]) * kVel;
+    // If speed provided by GNSS (even if heading is missing on mobile)
+    if (gnss.speed !== undefined && gnss.speed >= 0) {
+      if (gnss.speed < 0.3) {
+        // Vehicle stationary -> apply ZUPT damping
+        this.velocity[0] *= 0.1;
+        this.velocity[1] *= 0.1;
+        this.velocity[2] *= 0.1;
+      } else {
+        const headingDeg = (gnss.heading !== undefined && !isNaN(gnss.heading)) ? gnss.heading : this.getHeadingDeg();
+        const hRad = (headingDeg * Math.PI) / 180.0;
+        const vN = gnss.speed * Math.cos(hRad);
+        const vE = gnss.speed * Math.sin(hRad);
+        const kVel = 0.5;
+        this.velocity[0] += (vN - this.velocity[0]) * kVel;
+        this.velocity[1] += (vE - this.velocity[1]) * kVel;
+      }
     }
   }
 

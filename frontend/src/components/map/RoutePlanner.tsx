@@ -13,12 +13,9 @@ import { useLocationStore } from '../../stores/useLocationStore';
 import { useRouteStore } from '../../stores/useRouteStore';
 import { routeService } from '../../services/navigation/routeService';
 import { savedRouteService, type SavedPlaceItem } from '../../services/navigation/savedRouteService';
+import { getMapboxToken } from '../../services/api/envConfig';
 import { clsx } from 'clsx';
 
-const MAPBOX_TOKEN =
-  (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_MAPBOX_TOKEN : '') ||
-  (typeof process !== 'undefined' && process.env ? process.env.VITE_MAPBOX_TOKEN : '') ||
-  '';
 
 interface SearchResult {
   id: string;
@@ -117,10 +114,11 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
       setIsSearching(true);
       try {
         const proximity = currentLat && currentLon ? `&proximity=${currentLon},${currentLat}` : '';
+        const token = getMapboxToken();
         const res = await fetch(
           `https://api.mapbox.com/search/geocode/v6/forward?q=${encodeURIComponent(
             trimmed
-          )}&access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5${proximity}`
+          )}&access_token=${token}&autocomplete=true&limit=5${proximity}`
         );
         const data = await res.json();
 

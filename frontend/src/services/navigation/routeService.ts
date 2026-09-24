@@ -1,8 +1,8 @@
 import { useRouteStore, type TravelMode, type RouteData, type RouteStep } from '../../stores/useRouteStore';
 import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useLocationStore } from '../../stores/useLocationStore';
+import { getMapboxToken } from '../api/envConfig';
 
-const MAPBOX_TOKEN = (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_MAPBOX_TOKEN : '') || (typeof process !== 'undefined' && process.env ? process.env.VITE_MAPBOX_TOKEN : '') || '';
 
 export const TRAVEL_MODES: {
   id: TravelMode;
@@ -60,8 +60,10 @@ export const routeService = {
     const profile = modeConfig.mapboxProfile;
 
     try {
-      const url = `https://api.mapbox.com/directions/v5/${profile}/${originLon},${originLat};${destinationCoords[0]},${destinationCoords[1]}?geometries=geojson&steps=true&alternatives=true&overview=full&access_token=${MAPBOX_TOKEN}`;
+      const token = getMapboxToken();
+      const url = `https://api.mapbox.com/directions/v5/${profile}/${originLon},${originLat};${destinationCoords[0]},${destinationCoords[1]}?geometries=geojson&steps=true&alternatives=true&overview=full&access_token=${token}`;
       const res = await fetch(url);
+
       const data = await res.json();
 
       if (!data.routes || data.routes.length === 0) {

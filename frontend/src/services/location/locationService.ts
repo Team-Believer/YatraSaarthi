@@ -1,6 +1,5 @@
 import { useLocationStore } from '../../stores/useLocationStore';
-
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+import { getMapboxToken } from '../api/envConfig';
 
 function haversineDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371e3;
@@ -27,7 +26,8 @@ export class LocationService {
   private isResolving = false;
 
   public async reverseGeocode(lat: number, lon: number) {
-    if (this.isResolving || !MAPBOX_TOKEN) return;
+    const token = getMapboxToken();
+    if (this.isResolving || !token) return;
 
     const now = Date.now();
     if (
@@ -46,7 +46,7 @@ export class LocationService {
 
     try {
       // Primary: Mapbox Geocoding v5 places endpoint (most reliable reverse geocoder)
-      const v5Url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lon},${lat}.json?types=neighborhood,locality,place,district,region&limit=1&access_token=${MAPBOX_TOKEN}`;
+      const v5Url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lon},${lat}.json?types=neighborhood,locality,place,district,region&limit=1&access_token=${token}`;
       const v5Res = await fetch(v5Url);
       const v5Data = await v5Res.json();
 
@@ -69,7 +69,8 @@ export class LocationService {
       }
 
       // Secondary fallback: Mapbox Geocoding v6 search endpoint
-      const v6Url = `https://api.mapbox.com/search/geocode/v6/reverse?longitude=${lon}&latitude=${lat}&access_token=${MAPBOX_TOKEN}&types=neighborhood,locality,place,district,region&limit=1`;
+      const v6Url = `https://api.mapbox.com/search/geocode/v6/reverse?longitude=${lon}&latitude=${lat}&access_token=${token}&types=neighborhood,locality,place,district,region&limit=1`;
+
       const res6 = await fetch(v6Url);
       const data6 = await res6.json();
 

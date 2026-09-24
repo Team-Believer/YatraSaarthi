@@ -46,7 +46,7 @@ export async function runApiConfigurationTests() {
   const prodHttpsBase = getApiBaseUrl({
     NODE_ENV: 'production',
     DEV: 'false',
-    VITE_API_URL: 'https://yatrasaarthi.onrender.com/',
+    API_URL: 'https://yatrasaarthi.onrender.com/',
   });
   assert(
     prodHttpsBase === 'https://yatrasaarthi.onrender.com',
@@ -57,18 +57,18 @@ export async function runApiConfigurationTests() {
   const devEmptyBase = getApiBaseUrl({
     NODE_ENV: 'development',
     DEV: 'true',
-    VITE_API_URL: '',
+    API_URL: '',
   });
   assert(
     devEmptyBase === '',
-    '2. Development mode without VITE_API_URL defaults to relative base for Vite proxy'
+    '2. Development mode without API_URL defaults to relative base for Vite proxy'
   );
 
   // Test 3: Production HTTPS -> WSS conversion
   const prodWssUrl = getWsBaseUrl({
     NODE_ENV: 'production',
     DEV: 'false',
-    VITE_API_URL: 'https://yatrasaarthi.onrender.com',
+    API_URL: 'https://yatrasaarthi.onrender.com',
   });
   assert(
     prodWssUrl === 'wss://yatrasaarthi.onrender.com',
@@ -79,7 +79,7 @@ export async function runApiConfigurationTests() {
   const devWsUrl = getWsBaseUrl({
     NODE_ENV: 'development',
     DEV: 'true',
-    VITE_API_URL: 'http://192.168.1.15:8000',
+    API_URL: 'http://192.168.1.15:8000',
   });
   assert(
     devWsUrl === 'ws://192.168.1.15:8000',
@@ -90,12 +90,12 @@ export async function runApiConfigurationTests() {
   const prodLocalhostBase = getApiBaseUrl({
     NODE_ENV: 'production',
     DEV: 'false',
-    VITE_API_URL: 'http://localhost:8000',
+    API_URL: 'http://localhost:8000',
   });
   const prod127Base = getApiBaseUrl({
     NODE_ENV: 'production',
     DEV: 'false',
-    VITE_API_URL: 'http://127.0.0.1:8000',
+    API_URL: 'http://127.0.0.1:8000',
   });
   assert(
     prodLocalhostBase === PRODUCTION_DEFAULT_API_URL && prod127Base === PRODUCTION_DEFAULT_API_URL,
@@ -106,7 +106,7 @@ export async function runApiConfigurationTests() {
   const prod192Base = getApiBaseUrl({
     NODE_ENV: 'production',
     DEV: 'false',
-    VITE_API_URL: 'http://192.168.1.50:8000',
+    API_URL: 'http://192.168.1.50:8000',
   });
   assert(
     prod192Base === PRODUCTION_DEFAULT_API_URL,
@@ -117,7 +117,7 @@ export async function runApiConfigurationTests() {
   const prodApiBase = getApiBaseUrl({
     NODE_ENV: 'production',
     DEV: 'false',
-    VITE_API_URL: 'https://yatrasaarthi.onrender.com',
+    API_URL: 'https://yatrasaarthi.onrender.com',
   });
   const sessionUrl = `${prodApiBase}/api/v1/navigation/session`;
   assert(
@@ -129,7 +129,7 @@ export async function runApiConfigurationTests() {
   const wsFullUrl = getNavigationWsUrl('sess-prod-999', {
     NODE_ENV: 'production',
     DEV: 'false',
-    VITE_API_URL: 'https://yatrasaarthi.onrender.com',
+    API_URL: 'https://yatrasaarthi.onrender.com',
   });
   assert(
     wsFullUrl === 'wss://yatrasaarthi.onrender.com/ws/navigation/sess-prod-999',
@@ -140,8 +140,8 @@ export async function runApiConfigurationTests() {
   const defaultProdWs = getWsBaseUrl({
     NODE_ENV: 'production',
     DEV: 'false',
-    VITE_API_URL: '',
-    VITE_WS_URL: '',
+    API_URL: '',
+    WS_URL: '',
   });
   assert(
     defaultProdWs === PRODUCTION_DEFAULT_WS_URL,

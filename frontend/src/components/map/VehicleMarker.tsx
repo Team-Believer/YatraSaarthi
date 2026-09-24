@@ -1,12 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { useMap } from './MapContainer';
+import { useSettingsStore } from '../../stores/useSettingsStore';
+import { type SupportedVehicleType, sanitizeVehicleType } from '../../utils/navigation/vehicleProfiles';
 
 interface VehicleMarkerProps {
   latitude: number | null;
   longitude: number | null;
   heading?: number;
   mode?: string;
+  vehicleType?: SupportedVehicleType;
 }
 
 export const VehicleMarker: React.FC<VehicleMarkerProps> = ({
@@ -14,12 +17,17 @@ export const VehicleMarker: React.FC<VehicleMarkerProps> = ({
   longitude,
   heading = 0,
   mode = 'GNSS_AIDED',
+  vehicleType: propVehicleType,
 }) => {
   const map = useMap();
+  const storeVehicleType = useSettingsStore((s) => s.settings.vehicle_type);
+  const activeVehicleType = sanitizeVehicleType(propVehicleType || storeVehicleType);
+
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const elementRef = useRef<HTMLDivElement | null>(null);
   const chevronRef = useRef<HTMLDivElement | null>(null);
   const prevHeadingRef = useRef<number>(heading);
+  const prevVehicleRef = useRef<SupportedVehicleType>(activeVehicleType);
 
   useEffect(() => {
     if (!map || latitude === null || longitude === null || latitude === 0 || longitude === 0) {
@@ -46,7 +54,7 @@ export const VehicleMarker: React.FC<VehicleMarkerProps> = ({
       if (isDr) {
         return 'w-10 h-10 rounded-full bg-amber-500 border-2 border-white shadow-nav-floating flex items-center justify-center text-white z-10 transition-colors duration-200';
       }
-      return 'w-10 h-10 rounded-full bg-blue-600 border-2 border-white shadow-nav-floating flex items-center justify-center text-white z-10 transition-colors duration-200';
+      return 'w-10 h-10 rounded-full bg-[#083335] border-2 border-white shadow-nav-floating flex items-center justify-center text-white z-10 transition-colors duration-200';
     };
 
     const getRingClass = () => {
@@ -56,10 +64,32 @@ export const VehicleMarker: React.FC<VehicleMarkerProps> = ({
       if (isDr) {
         return 'absolute inset-1.5 rounded-full bg-amber-500/15 border border-amber-400/30 transition-all duration-300';
       }
-      return 'absolute inset-1.5 rounded-full bg-blue-500/15 border border-blue-400/30 transition-all duration-300';
+      return 'absolute inset-1.5 rounded-full bg-[#083335]/15 border border-[#083335]/30 transition-all duration-300';
     };
 
-    if (!markerRef.current) {
+    const getVehicleSvg = (vType: SupportedVehicleType) => {
+      if (vType === 'MOTORCYCLE' || vType === 'SCOOTER') {
+        return `
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <path d="M12 2L6 18L12 15.5L18 18L12 2Z"/>
+          </svg>
+        `;
+      }
+      // Car / Standard
+      return `
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+          <path d="M12 2.5L4.5 19.5L6.2 20.8L12 17.5L17.8 20.8L19.5 19.5L12 2.5Z"/>
+        </svg>
+      `;
+    };
+
+    if (!markerRef.current || prevVehicleRef.current !== activeVehicleType) {
+      if (markerRef.current) {
+        markerRef.current.remove();
+        markerRef.current = null;
+      }
+      prevVehicleRef.current = activeVehicleType;
+
       // Create main marker container
       const container = document.createElement('div');
       container.className = 'relative flex items-center justify-center pointer-events-none select-none';
@@ -79,11 +109,7 @@ export const VehicleMarker: React.FC<VehicleMarkerProps> = ({
       const chevron = document.createElement('div');
       chevron.className = 'transform transition-transform duration-200 ease-out flex items-center justify-center';
       chevron.style.transformOrigin = 'center center';
-      chevron.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-          <path d="M12 2.5L4.5 19.5L6.2 20.8L12 17.5L17.8 20.8L19.5 19.5L12 2.5Z"/>
-        </svg>
-      `;
+      chevron.innerHTML = getVehicleSvg(activeVehicleType);
       pinDisc.appendChild(chevron);
       container.appendChild(pinDisc);
 
@@ -100,6 +126,7 @@ export const VehicleMarker: React.FC<VehicleMarkerProps> = ({
     } else {
       markerRef.current.setLngLat([longitude, latitude]);
     }
+
 
     // Shortest angular path calculation for smooth continuous rotation
     if (chevronRef.current) {

@@ -3,6 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MapPin } from 'lucide-react';
 import type { TrajectoryPoint } from '../../services/api/historyService';
+import { getMapboxToken } from '../../services/api/envConfig';
 
 interface TripRouteMapProps {
   points?: TrajectoryPoint[];
@@ -29,7 +30,8 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
   const endMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
 
-  const token = import.meta.env.VITE_MAPBOX_TOKEN;
+  const token = getMapboxToken();
+
 
   // Extract valid [lng, lat] coordinate pairs
   const coordinates: [number, number][] = React.useMemo(() => {

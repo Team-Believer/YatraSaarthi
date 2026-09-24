@@ -47,7 +47,7 @@ export async function runSessionLifecycleTests() {
   );
 
   // Test 2: WebSocket URL construction
-  const wsUrl = getNavigationWsUrl('test-sess-001', { VITE_API_URL: 'http://192.168.1.10:8000' });
+  const wsUrl = getNavigationWsUrl('test-sess-001', { API_URL: 'http://192.168.1.10:8000' });
   assert(
     wsUrl === 'ws://192.168.1.10:8000/ws/navigation/test-sess-001',
     '2. WebSocket URL properly formats endpoint with session ID'

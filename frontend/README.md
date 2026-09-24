@@ -65,12 +65,11 @@ frontend/
 
 ---
 
-## 3. Environment Variables (`frontend/.env`)
+## 3. Environment Variables (`frontend/.env` or root `.env`)
 
 ```env
-VITE_MAPBOX_TOKEN="your_mapbox_access_token"
-VITE_API_URL="http://localhost:8000"
-VITE_WS_URL="ws://localhost:8000"
+MAPBOX_TOKEN="your_mapbox_access_token"
+API_URL="https://yatrasaarthi.onrender.com"
 ```
 
 ---

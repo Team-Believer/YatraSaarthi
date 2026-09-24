@@ -1,11 +1,28 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [
-    react(),
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const mapboxToken = env.MAPBOX_TOKEN || env.MAPBOX_ACCESS_TOKEN || process.env.MAPBOX_TOKEN || process.env.MAPBOX_ACCESS_TOKEN || '';
+  const apiUrl = env.API_URL || env.API_BASE_URL || process.env.API_URL || process.env.API_BASE_URL || '';
+  const wsUrl = env.WS_URL || process.env.WS_URL || '';
+
+  return {
+    define: {
+      __APP_ENV__: JSON.stringify({
+        MAPBOX_TOKEN: mapboxToken,
+        API_URL: apiUrl,
+        WS_URL: wsUrl,
+      }),
+      'import.meta.env.MAPBOX_TOKEN': JSON.stringify(mapboxToken),
+      'import.meta.env.API_URL': JSON.stringify(apiUrl),
+      'import.meta.env.WS_URL': JSON.stringify(wsUrl),
+    },
+    plugins: [
+      react(),
+
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/*.png', 'assets/*', 'models/*.onnx'],
@@ -86,4 +103,6 @@ export default defineConfig({
       },
     },
   },
-})
+};
+});
+

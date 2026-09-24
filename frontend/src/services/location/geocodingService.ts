@@ -5,8 +5,10 @@
  * existing Mapbox Geocoding API with multi-tier memory + localStorage caching.
  */
 
-const MAPBOX_TOKEN = (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_MAPBOX_TOKEN : '') || '';
+import { getMapboxToken } from '../api/envConfig';
+
 const GEO_CACHE_STORAGE_KEY = 'yatrasaarthi_geocache_v1';
+
 
 export function getCoordKey(lat: number, lon: number): string {
   return `${lat.toFixed(3)},${lon.toFixed(3)}`;
@@ -82,15 +84,17 @@ class GeocodingService {
       return this.pendingRequests.get(key)!;
     }
 
-    if (!MAPBOX_TOKEN) {
+    const token = getMapboxToken();
+    if (!token) {
       return null;
     }
 
     // 3. Make Mapbox Geocoding request
     const requestPromise = (async () => {
       try {
-        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lon},${lat}.json?types=neighborhood,locality,place,district&limit=1&access_token=${MAPBOX_TOKEN}`;
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lon},${lat}.json?types=neighborhood,locality,place,district&limit=1&access_token=${token}`;
         const res = await fetch(url);
+
         if (!res.ok) return null;
 
         const data = await res.json();

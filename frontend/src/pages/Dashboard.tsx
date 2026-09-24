@@ -20,6 +20,8 @@ import { useNavigationStore } from '../stores/useNavigationStore';
 import { useLocationStore } from '../stores/useLocationStore';
 import { useRouteStore } from '../stores/useRouteStore';
 import { useSensorStore } from '../stores/useSensorStore';
+import { useSettingsStore } from '../stores/useSettingsStore';
+import { getVehicleIcon, getVehicleLabel } from '../utils/navigation/vehicleProfiles';
 import { useDemoOutage } from '../hooks/useDemoOutage';
 import { deriveGnssNavStatus } from '../utils/navigation/gnssStatus';
 import { routeService } from '../services/navigation/routeService';
@@ -27,11 +29,8 @@ import { savedRouteService, type SavedPlaceItem } from '../services/navigation/s
 import { tripMetadataService, type TripMetadata } from '../services/navigation/tripMetadataService';
 import { MapContainer, MapController, VehicleMarker } from '../components/map';
 import { locationService } from '../services/location/locationService';
+import { getMapboxToken } from '../services/api/envConfig';
 
-const MAPBOX_TOKEN =
-  (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_MAPBOX_TOKEN : '') ||
-  (typeof process !== 'undefined' && process.env ? process.env.VITE_MAPBOX_TOKEN : '') ||
-  '';
 
 interface SearchResult {
   id: string;
@@ -59,6 +58,10 @@ export default function Dashboard() {
   const { capabilities } = useSensorStore();
   const { isSimulating: isDemoOutageActive, outageSeconds: demoOutageSeconds } = useDemoOutage();
   const travelMode = useRouteStore((s) => s.travelMode);
+  const vehicleType = useSettingsStore((s) => s.settings.vehicle_type);
+  const VehicleIcon = getVehicleIcon(vehicleType);
+  const vehicleLabel = getVehicleLabel(vehicleType);
+
 
   const hasCoordinates = deviceLat !== null && deviceLon !== null;
   const isGnssAvailable = hasCoordinates || navState.gnss_available;
@@ -133,13 +136,16 @@ export default function Dashboard() {
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
+        const token = getMapboxToken();
+        if (!token) return;
         const proximity = deviceLat && deviceLon ? `&proximity=${deviceLon},${deviceLat}` : '';
         const res = await fetch(
           `https://api.mapbox.com/search/geocode/v6/forward?q=${encodeURIComponent(
             trimmed
-          )}&access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5${proximity}`
+          )}&access_token=${token}&autocomplete=true&limit=5${proximity}`
         );
         const data = await res.json();
+
         if (data.features) {
           setResults(
             data.features.map((f: any) => ({
@@ -346,19 +352,32 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Compact Navigation / GNSS Status Chip */}
-            <div
-              className={clsx(
-                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold font-body border shrink-0',
-                gnssStatus.badgeBg,
-                gnssStatus.badgeBorder,
-                gnssStatus.textColor
-              )}
-            >
-              <span className={clsx('w-1.5 h-1.5 rounded-full shrink-0', gnssStatus.dotColor)} />
-              <span>{gnssStatus.title}</span>
+            {/* Vehicle Profile & Compact GNSS Status Chips */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => navigate('/settings')}
+                title={`Selected Vehicle: ${vehicleLabel} (Click to change in Settings)`}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold font-body border border-slate-200/90 bg-slate-50 hover:bg-slate-100 text-[#083335] transition-colors cursor-pointer"
+              >
+                <VehicleIcon className="w-3.5 h-3.5 text-[#083335]" />
+                <span>{vehicleLabel}</span>
+              </button>
+
+              <div
+                className={clsx(
+                  'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold font-body border shrink-0',
+                  gnssStatus.badgeBg,
+                  gnssStatus.badgeBorder,
+                  gnssStatus.textColor
+                )}
+              >
+                <span className={clsx('w-1.5 h-1.5 rounded-full shrink-0', gnssStatus.dotColor)} />
+                <span>{gnssStatus.title}</span>
+              </div>
             </div>
           </div>
+
 
           {/* ─── Primary Search Bar ─── */}
           <div className="pointer-events-auto relative">

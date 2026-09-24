@@ -13,8 +13,26 @@
  *    - Never assumes Vercel origin is the WebSocket server or FastAPI backend.
  */
 
-export const PRODUCTION_DEFAULT_API_URL = 'https://yatrasaarthi.onrender.com';
-export const PRODUCTION_DEFAULT_WS_URL = 'wss://yatrasaarthi.onrender.com';
+export {
+  PRODUCTION_DEFAULT_API_URL,
+  PRODUCTION_DEFAULT_WS_URL,
+  getRawEnv as getEnv,
+  isDevEnvironment,
+  isLocalOrPrivateHost,
+  isBackendConfigured,
+  getApiBaseUrl,
+  getWsBaseUrl,
+  getNavigationWsUrl,
+  getMapboxToken,
+} from './envConfig';
+
+import {
+  isDevEnvironment,
+  isBackendConfigured,
+  getApiBaseUrl,
+  getNavigationWsUrl,
+} from './envConfig';
+
 
 export type NetworkErrorKind =
   | 'API_URL_UNCONFIGURED'
@@ -32,136 +50,6 @@ export interface ClassifiedApiError {
   message: string;
   userFriendlyMessage: string;
   status: number;
-}
-
-/**
- * Resolves current environment variables safely across Vite and Node test environments
- */
-export function getEnv(overrideEnv?: Record<string, string | undefined>): Record<string, string | undefined> {
-  if (overrideEnv) return overrideEnv;
-  if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
-    return (import.meta as any).env;
-  }
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env as Record<string, string | undefined>;
-  }
-  return {};
-}
-
-/**
- * Detects whether the current execution is in Development mode
- */
-export function isDevEnvironment(overrideEnv?: Record<string, string | undefined>): boolean {
-  const env = getEnv(overrideEnv);
-  if (typeof env.DEV === 'boolean') return env.DEV;
-  if (typeof env.DEV === 'string') return env.DEV === 'true';
-  if (typeof env.MODE === 'string') return env.MODE === 'development' || env.MODE === 'test';
-  if (typeof env.NODE_ENV === 'string') return env.NODE_ENV !== 'production';
-
-  if (typeof process !== 'undefined' && process.env?.NODE_ENV) {
-    return process.env.NODE_ENV !== 'production';
-  }
-  if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
-    return Boolean((import.meta as any).env.DEV);
-  }
-  return true;
-}
-
-/**
- * Identifies localhost, 127.0.0.1, 0.0.0.0, or private RFC 1918 LAN addresses
- */
-export function isLocalOrPrivateHost(url: string): boolean {
-  if (!url) return false;
-  return /(localhost|127\.0\.0\.1|0\.0\.0\.0|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)/i.test(url);
-}
-
-/**
- * Returns whether a valid production backend is configured
- */
-export function isBackendConfigured(overrideEnv?: Record<string, string | undefined>): boolean {
-  const isDev = isDevEnvironment(overrideEnv);
-  if (isDev) return true; // Development relies on Vite dev proxy
-
-  const apiBase = getApiBaseUrl(overrideEnv);
-  return Boolean(apiBase && !isLocalOrPrivateHost(apiBase));
-}
-
-/**
- * Returns the configured Backend API Base URL.
- * In development: returns custom VITE_API_URL or "" (relative same-origin Vite proxy).
- * In production: returns sanitized public HTTPS API URL (defaults to verified Render backend).
- */
-export function getApiBaseUrl(overrideEnv?: Record<string, string | undefined>): string {
-  const env = getEnv(overrideEnv);
-  const rawUrl = (env.VITE_API_URL || env.VITE_API_BASE_URL || '').trim();
-  const isDev = isDevEnvironment(overrideEnv);
-
-  if (rawUrl) {
-    const cleaned = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
-    if (!isDev && isLocalOrPrivateHost(cleaned)) {
-      console.warn(`[apiConfig] Rejected local/LAN URL '${cleaned}' in production environment. Using ${PRODUCTION_DEFAULT_API_URL}`);
-      return PRODUCTION_DEFAULT_API_URL;
-    }
-    return cleaned;
-  }
-
-  // In development without explicit VITE_API_URL, return "" for Vite dev proxy
-  if (isDev) {
-    return '';
-  }
-
-  // In production default to verified Render deployment
-  return PRODUCTION_DEFAULT_API_URL;
-}
-
-/**
- * Returns the WebSocket base URL derived from VITE_WS_URL or API Base URL.
- * In development: supports Vite WS proxy or ws://localhost:8000.
- * In production: strictly derives wss:// from public API base URL or verified Render URL.
- */
-export function getWsBaseUrl(overrideEnv?: Record<string, string | undefined>): string {
-  const env = getEnv(overrideEnv);
-  const isDev = isDevEnvironment(overrideEnv);
-  const explicitWs = (env.VITE_WS_URL || '').trim();
-
-  if (explicitWs) {
-    const cleaned = explicitWs.endsWith('/') ? explicitWs.slice(0, -1) : explicitWs;
-    if (!isDev && isLocalOrPrivateHost(cleaned)) {
-      console.warn(`[apiConfig] Rejected local/LAN WebSocket URL '${cleaned}' in production.`);
-      return PRODUCTION_DEFAULT_WS_URL;
-    }
-    return cleaned;
-  }
-
-  const apiBase = getApiBaseUrl(overrideEnv);
-  if (apiBase.startsWith('https://')) {
-    return apiBase.replace(/^https:\/\//, 'wss://');
-  }
-  if (apiBase.startsWith('http://')) {
-    return apiBase.replace(/^http:\/\//, 'ws://');
-  }
-
-  // Development same-origin Vite proxy mode
-  if (isDev) {
-    if (typeof window !== 'undefined' && window.location) {
-      const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host;
-      return `${wsProto}//${host}`;
-    }
-    return 'ws://localhost:8000';
-  }
-
-  // In production fallback to verified Render WebSocket base
-  return PRODUCTION_DEFAULT_WS_URL;
-}
-
-/**
- * Returns the full WebSocket URL for a live navigation session.
- */
-export function getNavigationWsUrl(sessionId: string, overrideEnv?: Record<string, string | undefined>): string {
-  const wsBase = getWsBaseUrl(overrideEnv);
-  if (!wsBase) return '';
-  return `${wsBase}/ws/navigation/${encodeURIComponent(sessionId)}`;
 }
 
 /**
@@ -194,9 +82,10 @@ export function classifyNetworkError(
       kind: 'API_URL_UNCONFIGURED',
       status: 0,
       message: 'Production FastAPI backend URL is not defined in the frontend configuration.',
-      userFriendlyMessage: 'Production FastAPI backend URL is not defined in the frontend configuration. Please configure VITE_API_URL in your deployment settings.',
+      userFriendlyMessage: 'Production FastAPI backend URL is not defined in the frontend configuration. Please configure API_URL in your deployment settings.',
     };
   }
+
 
   // 2. Check for mixed content blocking
   if (isMixedContentRisk(undefined, overrideEnv)) {

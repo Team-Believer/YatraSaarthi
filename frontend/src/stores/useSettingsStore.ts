@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { type SupportedVehicleType, sanitizeVehicleType } from '../utils/navigation/vehicleProfiles';
 
 export interface UserSettings {
   distance_unit: 'km' | 'mi';
@@ -8,7 +9,7 @@ export interface UserSettings {
   auto_tunnel_mode: boolean;
   high_accuracy_mode: boolean;
   sensor_fusion_enabled: boolean;
-  vehicle_type: 'CAR' | 'TRUCK' | 'MOTORCYCLE' | 'SCOOTER';
+  vehicle_type: SupportedVehicleType;
   theme: 'light' | 'dark';
 }
 
@@ -31,10 +32,23 @@ export const useSettingsStore = create<SettingsState>()(
         theme: 'light',
       },
       updateSettings: (newSettings) => 
-        set((state) => ({ settings: { ...state.settings, ...newSettings } })),
+        set((state) => {
+          const updated = { ...state.settings, ...newSettings };
+          if (updated.vehicle_type) {
+            updated.vehicle_type = sanitizeVehicleType(updated.vehicle_type);
+          }
+          return { settings: updated };
+        }),
     }),
     {
       name: 'yatrasaarthi-settings',
+      migrate: (persistedState: any) => {
+        if (persistedState && persistedState.settings) {
+          persistedState.settings.vehicle_type = sanitizeVehicleType(persistedState.settings.vehicle_type);
+        }
+        return persistedState;
+      },
     }
   )
 );
+

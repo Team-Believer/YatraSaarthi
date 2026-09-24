@@ -62,6 +62,7 @@ class MapMatcher:
         Load road geometry from route coordinates [[lon, lat], ...].
         Used when a route is computed via Mapbox directions.
         """
+        self.clear()
         if len(coordinates) < 2:
             return
         
@@ -93,7 +94,7 @@ class MapMatcher:
     
     def match(self, lat: float, lon: float, heading_deg: Optional[float] = None) -> MatchResult:
         """
-        Find the best road match for a given position.
+        Find the best road match for a given position using geographically correct metric projection.
         
         Returns MatchResult with confidence score.
         If no roads loaded, returns low-confidence result at input position.
@@ -111,22 +112,43 @@ class MapMatcher:
             )
         
         point = Point(lon, lat)
+        cos_lat = math.cos(math.radians(lat))
         
         best_distance = float('inf')
         best_segment: Optional[RoadSegment] = None
         best_projected: Optional[Point] = None
         
         for segment in self.road_segments:
-            dist = point.distance(segment.geometry)
-            dist_meters = dist * 111319.5  # Approximate conversion at equator
+            # Geographically scaled projection to avoid parallel road mismatch
+            # Segment endpoints in metric offset relative to query point
+            coords = list(segment.geometry.coords)
+            p1_x = (coords[0][0] - lon) * 111319.5 * cos_lat
+            p1_y = (coords[0][1] - lat) * 111319.5
+            p2_x = (coords[1][0] - lon) * 111319.5 * cos_lat
+            p2_y = (coords[1][1] - lat) * 111319.5
+            
+            dx = p2_x - p1_x
+            dy = p2_y - p1_y
+            seg_len_sq = dx * dx + dy * dy
+            
+            if seg_len_sq < 1e-6:
+                dist_meters = math.hypot(p1_x, p1_y)
+                proj_lon, proj_lat = coords[0][0], coords[0][1]
+            else:
+                # Project point (0,0) onto segment (p1 -> p2)
+                t = max(0.0, min(1.0, -(p1_x * dx + p1_y * dy) / seg_len_sq))
+                proj_x = p1_x + t * dx
+                proj_y = p1_y + t * dy
+                dist_meters = math.hypot(proj_x, proj_y)
+                
+                # Interpolate geographic coordinate
+                proj_lon = coords[0][0] + t * (coords[1][0] - coords[0][0])
+                proj_lat = coords[0][1] + t * (coords[1][1] - coords[0][1])
             
             if dist_meters < best_distance:
                 best_distance = dist_meters
                 best_segment = segment
-                nearest_on_road = segment.geometry.interpolate(
-                    segment.geometry.project(point)
-                )
-                best_projected = nearest_on_road
+                best_projected = Point(proj_lon, proj_lat)
         
         if best_segment is None or best_projected is None or best_distance > self._max_match_distance:
             return MatchResult(
@@ -141,13 +163,13 @@ class MapMatcher:
             )
         
         # Compute confidence
-        distance_confidence = max(0, 1.0 - best_distance / self._confidence_decay_distance)
+        distance_confidence = max(0.0, 1.0 - best_distance / self._confidence_decay_distance)
         
         heading_confidence = 1.0
         if heading_deg is not None and best_segment.bearing is not None:
             heading_diff = abs(heading_deg - best_segment.bearing)
             heading_diff = min(heading_diff, 360 - heading_diff)
-            heading_confidence = max(0, 1.0 - heading_diff / 90.0)
+            heading_confidence = max(0.0, 1.0 - heading_diff / 90.0)
         
         overall_confidence = (
             (1 - self._heading_weight) * distance_confidence +

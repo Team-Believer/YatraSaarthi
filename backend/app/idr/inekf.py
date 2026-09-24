@@ -199,8 +199,20 @@ class InvariantEKF:
         innovation_norm = float(np.sqrt(gamma))
         
         if gamma > self.innovation_gate:
+            self._consecutive_rejections = getattr(self, '_consecutive_rejections', 0) + 1
+            if self._consecutive_rejections >= 3 and gnss.accuracy < 25.0:
+                # Re-center position to recover from filter divergence / reacquisition jump
+                self.mechanization.position_lla[0] = np.radians(gnss.latitude)
+                self.mechanization.position_lla[1] = np.radians(gnss.longitude)
+                if gnss.altitude is not None:
+                    self.mechanization.position_lla[2] = gnss.altitude
+                self.P[0:3, 0:3] = np.eye(3) * max(gnss.accuracy, 2.0)**2
+                self._consecutive_rejections = 0
+                return True, innovation_norm
             # Reject measurement - likely multipath or position jump
             return False, innovation_norm
+        
+        self._consecutive_rejections = 0
         
         # Kalman gain
         K = self.P @ H.T @ S_inv

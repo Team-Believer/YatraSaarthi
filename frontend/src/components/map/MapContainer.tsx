@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { AlertCircle, MonitorOff } from 'lucide-react';
+import { getMapboxToken } from '../../services/api/envConfig';
 
 interface MapContainerProps {
   onMapLoaded?: (map: mapboxgl.Map) => void;
@@ -28,14 +29,15 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [webGlSupported, setWebGlSupported] = useState(true);
 
-  const token = import.meta.env.VITE_MAPBOX_TOKEN;
+  const token = getMapboxToken();
 
   useEffect(() => {
     // 1. Check Mapbox token validity
     if (!token || token.trim() === '' || token.includes('your_mapbox_access_token') || token.includes('your_mapbox_public_token_here')) {
-      setError('Mapbox Access Token is missing or placeholder. Set VITE_MAPBOX_TOKEN in frontend/.env.');
+      setError('Mapbox Access Token is missing or placeholder. Set MAPBOX_TOKEN in frontend/.env.');
       return;
     }
+
 
     // 2. Check WebGL support
     if (!mapboxgl.supported()) {

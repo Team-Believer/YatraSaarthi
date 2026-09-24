@@ -182,19 +182,24 @@ class NavigationSessionEngine:
         self.nav_state.last_gnss_time = ts
         
         # Update heading from GNSS course
-        if gnss.speed is not None and gnss.heading is not None:
+        if gnss.speed is not None and gnss.heading is not None and gnss.speed > 0.5:
             self.heading_engine.update_gnss_course(gnss.heading, gnss.speed, gnss.accuracy)
         
         # Velocity update from GNSS speed
-        if gnss.speed is not None and gnss.heading is not None and gnss.speed > 0.5:
-            heading_rad = np.radians(gnss.heading)
-            v_gnss = np.array([
-                gnss.speed * np.cos(heading_rad),
-                gnss.speed * np.sin(heading_rad),
-                0.0
-            ])
-            R_vel = np.eye(3) * max(gnss.accuracy * 0.1, 0.5) ** 2
-            self.ekf.update_velocity(v_gnss, R_vel)
+        if gnss.speed is not None and gnss.speed >= 0:
+            if gnss.speed < 0.3:
+                # Vehicle stationary -> apply Zero Velocity Update (ZUPT)
+                self.ekf.update_zupt(0.05)
+            else:
+                effective_heading = gnss.heading if gnss.heading is not None else self.nav_state.heading_deg
+                heading_rad = np.radians(effective_heading)
+                v_gnss = np.array([
+                    gnss.speed * np.cos(heading_rad),
+                    gnss.speed * np.sin(heading_rad),
+                    0.0
+                ])
+                R_vel = np.eye(3) * max(gnss.accuracy * 0.1, 0.5) ** 2
+                self.ekf.update_velocity(v_gnss, R_vel)
     
     def _process_imu(self, packet: dict, ts: float):
         """Process a real IMU measurement."""

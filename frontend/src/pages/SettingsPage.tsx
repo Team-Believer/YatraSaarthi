@@ -1,8 +1,5 @@
 import { useState } from 'react';
 import {
-  CarFront,
-  Truck,
-  Bike,
   Gauge,
   Ruler,
   Check,
@@ -10,41 +7,9 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { useSettingsStore, type UserSettings } from '../stores/useSettingsStore';
+import { SUPPORTED_VEHICLES } from '../utils/navigation/vehicleProfiles';
 import { clsx } from 'clsx';
 
-interface VehicleOption {
-  type: UserSettings['vehicle_type'];
-  label: string;
-  desc: string;
-  icon: typeof CarFront;
-}
-
-const VEHICLE_OPTIONS: VehicleOption[] = [
-  {
-    type: 'CAR',
-    label: 'Passenger Car',
-    desc: 'Zero-lateral velocity road behavior',
-    icon: CarFront,
-  },
-  {
-    type: 'TRUCK',
-    label: 'Heavy Transport',
-    desc: 'Dual-axle mass constraint',
-    icon: Truck,
-  },
-  {
-    type: 'MOTORCYCLE',
-    label: 'Motorcycle',
-    desc: 'Roll-aware vehicle dynamics',
-    icon: Bike,
-  },
-  {
-    type: 'SCOOTER',
-    label: 'Scooter / Moped',
-    desc: 'Urban lightweight dynamics',
-    icon: Bike,
-  },
-];
 
 export default function SettingsPage() {
   const { settings, updateSettings } = useSettingsStore();
@@ -90,7 +55,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200/80 divide-y divide-slate-100 overflow-hidden">
-            {VEHICLE_OPTIONS.map((v) => {
+            {SUPPORTED_VEHICLES.map((v) => {
               const Icon = v.icon;
               const isSelected = settings.vehicle_type === v.type;
 
@@ -121,7 +86,7 @@ export default function SettingsPage() {
                         <span>{v.label}</span>
                       </div>
                       <p className="text-xs text-ink-body mt-0.5 truncate">
-                        {v.desc}
+                        {v.description}
                       </p>
                     </div>
                   </div>
