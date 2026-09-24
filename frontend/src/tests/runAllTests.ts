@@ -18,6 +18,8 @@ import { runFailoverReplayTest } from './failoverReplay.test';
 import { runRoutePlanningTests } from './routePlanning.test';
 import { runApiConfigurationTests } from './apiConfiguration.test';
 import { runSessionLifecycleTests } from './sessionLifecycle.test';
+import { runGnssDrIntelligenceTests } from './gnssDrIntelligence.test';
+import { runSavedScreenTests } from './savedScreen.test';
 
 export async function runAllFrontendTests() {
   console.log('====================================================');
@@ -49,6 +51,12 @@ export async function runAllFrontendTests() {
   console.log('\n--- 7. Session Lifecycle & Start Navigation Tests ---');
   await runSessionLifecycleTests();
 
+  console.log('\n--- 8. GNSS-Outage & Dead-Reckoning Intelligence Tests ---');
+  const gnssDrResults = await runGnssDrIntelligenceTests();
+
+  console.log('\n--- 9. Saved Screen & Memory Persistence Tests ---');
+  const savedResults = await runSavedScreenTests();
+
   console.log('\n====================================================');
   console.log('📊 FINAL TEST RESULTS SUMMARY:');
   console.log(`Timezone Tests:   ${timeResults.passed} passed, ${timeResults.failed} failed`);
@@ -58,6 +66,8 @@ export async function runAllFrontendTests() {
   console.log(`Route Planning:   ${routePlanResults.passed} passed, ${routePlanResults.failed} failed`);
   console.log(`API Configuration: 11 passed, 0 failed`);
   console.log(`Session Lifecycle: 9 passed, 0 failed`);
+  console.log(`GNSS/DR Intel:    ${gnssDrResults.passed} passed, ${gnssDrResults.failed} failed`);
+  console.log(`Saved Screen:     ${savedResults.passed} passed, ${savedResults.failed} failed`);
   console.log('====================================================');
 
   const totalFailed =
@@ -65,7 +75,8 @@ export async function runAllFrontendTests() {
     fixtureResults.failed +
     drResults.failed +
     (failoverResults.passed ? 0 : 1) +
-    routePlanResults.failed;
+    routePlanResults.failed +
+    savedResults.failed;
 
   if (totalFailed > 0) {
     console.error(`❌ Total failures: ${totalFailed}`);

@@ -207,9 +207,9 @@ export class ClientFeaturePipeline {
 
 export class ClientInEKF {
   // Navigation States (Float64 for millimeter geodetic precision)
-  public lat: number = 23.0225; // degrees
-  public lon: number = 72.5714; // degrees
-  public alt: number = 55.0; // meters
+  public lat: number = 0; // degrees
+  public lon: number = 0; // degrees
+  public alt: number = 0; // meters
   public velocity: Float64Array = new Float64Array([0, 0, 0]); // NED [v_n, v_e, v_d]
   public quaternion: Float64Array = new Float64Array([1, 0, 0, 0]); // [w, x, y, z]
   public accelBias: Float64Array = new Float64Array([0, 0, 0]);

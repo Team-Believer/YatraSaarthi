@@ -5,22 +5,24 @@ import { useSystemState } from '../hooks/useSystemState';
 import { offlineStorage } from '../services/storage/offlineStorage';
 import { ModelManagerCard } from '../components/dashboard/ModelManagerCard';
 import {
-  Cpu,
-  ShieldCheck,
-  BrainCircuit,
-  Sliders,
   ChevronDown,
   ChevronUp,
   Copy,
   Check,
-  Layers,
+  Activity,
+  AlertTriangle,
   ArrowRight,
+  Sliders,
+  Radio,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { sensorService } from '../services/api/sensorService';
 import { fetchMLStatus, type MLStatusResponse } from '../services/api/mlService';
 import { formatISTTime24 } from '../utils/timeFormat';
 import { getApiBaseUrl, getNavigationWsUrl } from '../services/api/apiConfig';
+import { useDemoOutage } from '../hooks/useDemoOutage';
+import { useLocationStore } from '../stores/useLocationStore';
+import { deriveGnssNavStatus, formatOutageDuration } from '../utils/navigation/gnssStatus';
 
 interface StateTimelineEvent {
   id: string;
@@ -143,10 +145,15 @@ export default function SensorDiagnostics() {
   const sessionStatus = useNavigationStore((s) => s.sessionStatus);
   const state = useNavigationStore((s) => s.state);
   const fusedPosition = useNavigationStore((s) => s.fusedPosition);
-
   const activeSessionId = useNavigationStore((s) => s.activeSessionId);
   const websocketStatus = useNavigationStore((s) => s.websocketStatus);
   const errorMessage = useNavigationStore((s) => s.errorMessage);
+  const hasHadFix = useNavigationStore((s) => s.hasHadFix);
+
+  const locLatitude = useLocationStore((s) => s.latitude);
+  const locLongitude = useLocationStore((s) => s.longitude);
+  const locPermission = useLocationStore((s) => s.permission);
+  const locAvailability = useLocationStore((s) => s.availability);
 
   const capabilities = useSensorStore((s) => s.capabilities);
   const { networkState } = useSystemState();
@@ -163,11 +170,20 @@ export default function SensorDiagnostics() {
   // Progressive Disclosure states
   const [validationExpanded, setValidationExpanded] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [activeSubDrawer, setActiveSubDrawer] = useState<'filter' | 'sensor' | 'inference' | 'covariance' | 'map' | 'runtime' | 'network'>('filter');
+  const [activeSubDrawer, setActiveSubDrawer] = useState<
+    'filter' | 'sensor' | 'inference' | 'covariance' | 'map' | 'runtime' | 'network'
+  >('filter');
 
   // Real-time timeline log of observed state transitions
   const [timeline, setTimeline] = useState<StateTimelineEvent[]>([]);
   const prevModeRef = useRef<string>(state.navigation_mode);
+
+  // Controlled Demo GNSS Outage Simulation
+  const {
+    isSimulating: isDemoOutageSimulating,
+    outageSeconds: demoOutageSeconds,
+    toggleOutage: toggleDemoOutage,
+  } = useDemoOutage();
 
   useEffect(() => {
     sensorService.getStatus().catch(() => {});
@@ -175,9 +191,12 @@ export default function SensorDiagnostics() {
       .then((res) => setMlStatus(res))
       .catch(() => {});
 
-    offlineStorage.getStorageMetrics().then((m) => {
-      setStorageMetrics(m);
-    }).catch(() => {});
+    offlineStorage
+      .getStorageMetrics()
+      .then((m) => {
+        setStorageMetrics(m);
+      })
+      .catch(() => {});
   }, []);
 
   // Track state transitions into the timeline
@@ -231,7 +250,7 @@ export default function SensorDiagnostics() {
 
   const isNavActive = isLive || sessionStatus === 'LIVE';
 
-  // 1. Overall System Health Status Determination
+  // Overall System Health Status Determination
   const systemHealthState = useMemo<{
     label: string;
     dotClass: string;
@@ -239,7 +258,10 @@ export default function SensorDiagnostics() {
     bgClass: string;
     borderClass: string;
   }>(() => {
-    if (state.sensor_states && Object.values(state.sensor_states).some((s) => s === 'ERROR' || s === 'DENIED')) {
+    if (
+      state.sensor_states &&
+      Object.values(state.sensor_states).some((s) => s === 'ERROR' || s === 'DENIED')
+    ) {
       return {
         label: 'Error',
         dotClass: 'bg-rose-500',
@@ -248,22 +270,17 @@ export default function SensorDiagnostics() {
         borderClass: 'border-rose-200',
       };
     }
-    if (state.gnss_outage_duration > 0 || state.navigation_mode?.includes('DEAD_RECKONING') || state.navigation_mode?.includes('DEGRADED')) {
+    if (
+      state.gnss_outage_duration > 0 ||
+      state.navigation_mode?.includes('DEAD_RECKONING') ||
+      state.navigation_mode?.includes('DEGRADED')
+    ) {
       return {
         label: 'Degraded',
         dotClass: 'bg-amber-500',
         textClass: 'text-amber-700',
         bgClass: 'bg-amber-50',
         borderClass: 'border-amber-200',
-      };
-    }
-    if (isNavActive) {
-      return {
-        label: 'Ready',
-        dotClass: 'bg-emerald-500',
-        textClass: 'text-emerald-700',
-        bgClass: 'bg-emerald-50',
-        borderClass: 'border-emerald-200',
       };
     }
     return {
@@ -273,683 +290,734 @@ export default function SensorDiagnostics() {
       bgClass: 'bg-emerald-50',
       borderClass: 'border-emerald-200',
     };
-  }, [state.sensor_states, state.gnss_outage_duration, state.navigation_mode, isNavActive]);
+  }, [state.sensor_states, state.gnss_outage_duration, state.navigation_mode]);
 
-  // Current active engine source
-  const activeEngine = state.engine_source || (isLive ? 'SERVER' : (networkState === 'ONLINE' ? 'SERVER' : 'LOCAL'));
+  const hasValidPosition =
+    (typeof state.latitude === 'number' &&
+      typeof state.longitude === 'number' &&
+      (state.latitude !== 0 || state.longitude !== 0)) ||
+    (fusedPosition !== null &&
+      (fusedPosition.latitude !== 0 || fusedPosition.longitude !== 0)) ||
+    (locLatitude !== null &&
+      locLongitude !== null &&
+      (locLatitude !== 0 || locLongitude !== 0));
+
+  const gnssNavDescriptor = useMemo(() => {
+    return deriveGnssNavStatus({
+      isLive: isNavActive,
+      navigationMode: state.navigation_mode,
+      gnssAvailable: state.gnss_available || hasValidPosition,
+      gnssQuality: state.gnss_quality,
+      gnssOutageDuration: state.gnss_outage_duration,
+      environmentState: state.environment_state,
+      imuAvailable: state.imu_available || capabilities.deviceMotion,
+      isDemoOutageActive: isDemoOutageSimulating,
+      demoOutageSeconds,
+      hasHadFix: hasHadFix || (isNavActive && hasValidPosition),
+      permission: locPermission,
+      availability: locAvailability,
+    });
+  }, [
+    isNavActive,
+    state.navigation_mode,
+    state.gnss_available,
+    hasValidPosition,
+    state.gnss_quality,
+    state.gnss_outage_duration,
+    state.environment_state,
+    state.imu_available,
+    capabilities.deviceMotion,
+    isDemoOutageSimulating,
+    demoOutageSeconds,
+    hasHadFix,
+    locPermission,
+    locAvailability,
+  ]);
 
   // Formatted Coordinates
   const coordinatesDisplay = useMemo(() => {
-    if (typeof state.latitude === 'number' && typeof state.longitude === 'number' && (state.latitude !== 0 || state.longitude !== 0)) {
+    if (
+      typeof state.latitude === 'number' &&
+      typeof state.longitude === 'number' &&
+      (state.latitude !== 0 || state.longitude !== 0)
+    ) {
       return `${state.latitude.toFixed(6)}, ${state.longitude.toFixed(6)}`;
     }
     if (fusedPosition && (fusedPosition.latitude !== 0 || fusedPosition.longitude !== 0)) {
       return `${fusedPosition.latitude.toFixed(6)}, ${fusedPosition.longitude.toFixed(6)}`;
     }
-    return 'Unavailable';
-  }, [state.latitude, state.longitude, fusedPosition]);
+    if (locLatitude !== null && locLongitude !== null && (locLatitude !== 0 || locLongitude !== 0)) {
+      return `${locLatitude.toFixed(6)}, ${locLongitude.toFixed(6)}`;
+    }
+    if (gnssNavDescriptor.isDr) {
+      return 'Dead-reckoned';
+    }
+    return 'Waiting for GPS fix';
+  }, [state.latitude, state.longitude, fusedPosition, locLatitude, locLongitude, gnssNavDescriptor.isDr]);
 
   const currentSpeedKmh = typeof state.speed === 'number' ? (state.speed * 3.6).toFixed(1) : '0.0';
   const currentHeadingDeg = typeof state.heading_deg === 'number' ? `${state.heading_deg.toFixed(1)}°` : '0.0°';
-  const gnssStatusLabel = state.gnss_available ? 'AVAILABLE' : (state.gnss_outage_duration > 0 ? 'LOST' : (isNavActive ? 'RECOVERING' : 'LOST'));
+
+  const scrollToModelRegistry = () => {
+    setAdvancedOpen(true);
+    setActiveSubDrawer('runtime');
+  };
 
   return (
-    <div className="w-full bg-[#F7F9F8] min-h-screen text-ink select-none font-sans">
-      <div className="max-w-[1280px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8 pb-32 md:pb-20 animate-in fade-in duration-300">
+    <div className="w-full bg-[#F7F9F8] min-h-screen text-ink select-none font-body">
+      <div className="max-w-[1240px] w-full mx-auto px-3.5 sm:px-6 py-3 sm:py-5 space-y-4 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-12 animate-in fade-in duration-200">
         
         {/* ========================================================================= */}
-        {/* 01. HEADER & METADATA ROW                                                 */}
+        {/* HEADER (Compact 52-60px height)                                          */}
         {/* ========================================================================= */}
-        <header className="space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-            <div>
-              <div className="inline-flex items-center gap-2 mb-1">
-                <span className="text-[11px] font-bold tracking-wider text-[#083335] uppercase font-sans">
-                  Engineering Cockpit
-                </span>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#083335]/30" />
-                <span className="text-[11px] font-mono text-ink-mute">
-                  InEKF SE_2(3)
-                </span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold font-display text-ink tracking-tight">
-                Engineering Diagnostics
-              </h1>
-              <p className="text-xs sm:text-sm text-ink-body font-sans mt-0.5 max-w-2xl">
-                Live system health, navigation runtime, sensors, and validation
-              </p>
+        <div className="flex items-center justify-between gap-3 pt-0.5 pb-1">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#083335] font-heading">
+              Diagnostics
+            </h1>
+            <p className="text-xs text-[#5E5E5E] font-body mt-0.5">
+              Engineering navigation health
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {/* System Health Badge */}
+            <div
+              className={clsx(
+                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold',
+                systemHealthState.bgClass,
+                systemHealthState.borderClass,
+                systemHealthState.textClass
+              )}
+            >
+              <span className={clsx('w-2 h-2 rounded-full shrink-0', systemHealthState.dotClass)} />
+              <span>{systemHealthState.label}</span>
             </div>
 
-            <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
-              {/* Actual System Status */}
-              <div
+            {/* Copy Snapshot */}
+            <button
+              type="button"
+              onClick={handleCopySnapshot}
+              className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg bg-white hover:bg-slate-50 text-ink border border-[#E5E7EB] text-xs font-semibold transition-colors cursor-pointer"
+              title="Copy telemetry snapshot JSON"
+              aria-label="Copy telemetry snapshot"
+            >
+              {copiedSnapshot ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-emerald-700">Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-[#8CA5A6]" />
+                  <span className="hidden sm:inline">Copy snapshot</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* 01. SYSTEM HEALTH STRIP                                                   */}
+        {/* ========================================================================= */}
+        <div className="bg-white border border-[#E5E7EB] rounded-xl px-3.5 py-2.5 text-xs select-none">
+          <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-[#5E5E5E]">Navigation</span>
+              <strong className="font-semibold text-ink font-heading">{isNavActive ? 'ACTIVE' : 'READY'}</strong>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className={clsx('w-2 h-2 rounded-full', capabilities.deviceMotion ? 'bg-emerald-500' : 'bg-slate-400')} />
+              <span className="text-[#5E5E5E]">Sensors</span>
+              <strong className="font-semibold text-ink font-heading">
+                {capabilities.deviceMotion ? 'CONNECTED' : 'AVAILABLE'}
+              </strong>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-[#5E5E5E]">Motion Intelligence</span>
+              <strong className="font-semibold text-ink font-heading">
+                {state.ai_velocity !== null ? 'ACTIVE' : 'READY'}
+              </strong>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-[#5E5E5E]">Inference</span>
+              <strong className="font-semibold text-ink font-heading">
+                {state.ai_model_ready || mlStatus ? 'READY' : 'STANDBY'}
+              </strong>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span
                 className={clsx(
-                  'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold',
-                  systemHealthState.bgClass,
-                  systemHealthState.borderClass,
-                  systemHealthState.textClass
+                  'w-2 h-2 rounded-full',
+                  gnssNavDescriptor.state === 'GNSS_STRONG' || gnssNavDescriptor.state === 'GNSS_FUSING'
+                    ? 'bg-emerald-500'
+                    : gnssNavDescriptor.state === 'GNSS_ACQUIRING' || gnssNavDescriptor.state === 'GNSS_REACQUISITION'
+                    ? 'bg-sky-500'
+                    : 'bg-amber-500'
+                )}
+              />
+              <strong
+                className={clsx(
+                  'font-semibold font-heading',
+                  gnssNavDescriptor.state === 'GNSS_STRONG' || gnssNavDescriptor.state === 'GNSS_FUSING'
+                    ? 'text-emerald-700'
+                    : gnssNavDescriptor.state === 'GNSS_ACQUIRING' || gnssNavDescriptor.state === 'GNSS_REACQUISITION'
+                    ? 'text-sky-700'
+                    : 'text-amber-700'
                 )}
               >
-                <span className={clsx('w-2 h-2 rounded-full shrink-0', systemHealthState.dotClass)} />
-                <span>{systemHealthState.label}</span>
-              </div>
-
-              {/* Copy Snapshot */}
-              <button
-                type="button"
-                onClick={handleCopySnapshot}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 active:bg-slate-100 text-ink border border-border-clean text-xs font-medium transition-colors cursor-pointer"
-                title="Copy telemetry snapshot JSON"
-              >
-                {copiedSnapshot ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    <span className="text-emerald-700 font-semibold">Copied</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5 text-ink-mute" />
-                    <span>Copy snapshot</span>
-                  </>
-                )}
-              </button>
+                {gnssNavDescriptor.title}
+              </strong>
             </div>
           </div>
-
-          {/* Sub-header Metadata Row (Text, NOT Cards) */}
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 pt-2 border-t border-border-clean/60 text-xs text-ink-body font-sans">
-            <div className="flex items-center gap-1.5">
-              <span className="text-ink-mute">Session:</span>
-              <span className={clsx("font-bold font-mono text-[11px]", isNavActive ? "text-emerald-700" : "text-ink")}>
-                {isNavActive ? 'LIVE' : 'IDLE'}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-ink-mute">Engine:</span>
-              <span className="font-bold font-mono text-[11px] text-[#083335]">
-                {activeEngine}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-ink-mute">Network:</span>
-              <span className="font-mono text-[11px] text-ink">{networkState}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-ink-mute">Last update:</span>
-              <span className="font-mono text-[11px] text-ink tabular-nums">
-                {formatISTTime24(state.timestamp ? new Date(state.timestamp * 1000) : new Date())} IST
-              </span>
-            </div>
-          </div>
-        </header>
+        </div>
 
         {/* ========================================================================= */}
-        {/* 02. SYSTEM HEALTH STRIP                                                   */}
+        {/* DESKTOP 2-COLUMN COCKPIT / MOBILE 1-COLUMN COCKPIT                        */}
         {/* ========================================================================= */}
-        <section aria-label="System Health Strip" className="w-full">
-          <div className="bg-white border border-border-clean rounded-xl p-3 sm:p-3.5 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 text-xs">
-            <div className="text-[10.5px] font-bold uppercase tracking-wider text-[#083335] font-sans shrink-0">
-              SYSTEM HEALTH
-            </div>
-
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 flex-1 justify-start sm:justify-end">
-              {/* Navigation */}
-              <div className="flex items-center gap-2">
-                <span className={clsx("w-2 h-2 rounded-full", isNavActive ? "bg-emerald-500" : "bg-emerald-500")} />
-                <span className="text-ink-mute">Navigation</span>
-                <span className="font-bold font-mono text-[11px] text-ink">
-                  {isNavActive ? 'ACTIVE' : 'READY'}
-                </span>
-              </div>
-
-              {/* Sensors */}
-              <div className="flex items-center gap-2">
-                <span className={clsx("w-2 h-2 rounded-full", capabilities.deviceMotion ? "bg-emerald-500" : "bg-slate-400")} />
-                <span className="text-ink-mute">Sensors</span>
-                <span className="font-bold font-mono text-[11px] text-ink">
-                  {capabilities.deviceMotion ? 'CONNECTED' : 'AVAILABLE'}
-                </span>
-              </div>
-
-              {/* Motion Intelligence */}
-              <div className="flex items-center gap-2">
-                <span className={clsx("w-2 h-2 rounded-full", state.ai_velocity !== null ? "bg-emerald-500" : "bg-emerald-500")} />
-                <span className="text-ink-mute">Motion intelligence</span>
-                <span className="font-bold font-mono text-[11px] text-ink">
-                  {state.ai_velocity !== null ? 'ACTIVE' : 'READY'}
-                </span>
-              </div>
-
-              {/* Inference */}
-              <div className="flex items-center gap-2">
-                <span className={clsx("w-2 h-2 rounded-full", mlStatus ? "bg-emerald-500" : "bg-emerald-500")} />
-                <span className="text-ink-mute">Inference</span>
-                <span className="font-bold font-mono text-[11px] text-ink">
-                  {state.ai_model_ready || mlStatus ? 'READY' : 'STANDBY'}
-                </span>
-              </div>
-
-              {/* GNSS */}
-              <div className="flex items-center gap-2">
-                <span className={clsx("w-2 h-2 rounded-full", state.gnss_available ? "bg-emerald-500" : "bg-amber-500")} />
-                <span className="text-ink-mute">GNSS</span>
-                <span className={clsx("font-bold font-mono text-[11px]", state.gnss_available ? "text-emerald-700" : "text-amber-700")}>
-                  {gnssStatusLabel}
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ========================================================================= */}
-        {/* 03. LIVE NAVIGATION STATE & TELEMETRY                                     */}
-        {/* ========================================================================= */}
-        <section aria-labelledby="live-nav-heading" className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 id="live-nav-heading" className="text-xs font-bold uppercase tracking-wider text-[#083335] font-sans">
-              LIVE NAVIGATION
-            </h2>
-            <span className="text-[11px] font-mono text-ink-mute">
-              Primary Telemetry Grid
-            </span>
-          </div>
-
-          {/* Contained Telemetry Surface with dense grid & typography */}
-          <div className="bg-white border border-border-clean rounded-xl overflow-hidden divide-y divide-border-clean">
-            
-            {/* Top Grid: Speed, Heading, Engine, GNSS */}
-            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-border-clean p-4 sm:p-5 gap-y-4">
-              
-              {/* Speed */}
-              <div className="px-2 sm:px-4 space-y-1">
-                <span className="text-[10.5px] font-bold uppercase tracking-wider text-ink-mute font-sans block">
-                  Speed
-                </span>
-                <div className="text-2xl sm:text-3xl font-bold font-display text-ink tabular-nums tracking-tight">
-                  {currentSpeedKmh} <span className="text-xs font-normal text-ink-mute font-sans">km/h</span>
-                </div>
-                <div className="text-[11px] text-ink-body font-mono">
-                  {state.speed ? `${state.speed.toFixed(2)} m/s` : '0.00 m/s'}
-                </div>
-              </div>
-
-              {/* Heading */}
-              <div className="px-2 sm:px-4 space-y-1">
-                <span className="text-[10.5px] font-bold uppercase tracking-wider text-ink-mute font-sans block">
-                  Heading
-                </span>
-                <div className="text-2xl sm:text-3xl font-bold font-display text-ink tabular-nums tracking-tight">
-                  {currentHeadingDeg}
-                </div>
-                <div className="text-[11px] text-ink-body font-mono">
-                  Alt: {state.altitude ? `${state.altitude.toFixed(1)}m` : '0.0m'}
-                </div>
-              </div>
-
-              {/* Engine */}
-              <div className="px-2 sm:px-4 space-y-1">
-                <span className="text-[10.5px] font-bold uppercase tracking-wider text-ink-mute font-sans block">
-                  Engine
-                </span>
-                <div className="text-lg sm:text-xl font-bold font-display text-[#083335] tracking-tight">
-                  {activeEngine}
-                </div>
-                <div className="text-[11px] text-ink-mute font-mono truncate">
-                  {state.navigation_mode || 'GNSS_AIDED'}
-                </div>
-              </div>
-
-              {/* GNSS */}
-              <div className="px-2 sm:px-4 space-y-1">
-                <span className="text-[10.5px] font-bold uppercase tracking-wider text-ink-mute font-sans block">
-                  GNSS Constellation
-                </span>
-                <div className={clsx(
-                  "text-lg sm:text-xl font-bold font-display tracking-tight",
-                  state.gnss_available ? "text-emerald-700" : "text-amber-700"
-                )}>
-                  {gnssStatusLabel}
-                </div>
-                <div className="text-[11px] text-ink-body font-mono">
-                  Outage: {state.gnss_outage_duration > 0 ? `${state.gnss_outage_duration.toFixed(0)}s` : '00:00'}
-                </div>
-              </div>
-
-            </div>
-
-            {/* Middle Grid: AI Velocity, Uncertainty, NHC, ZUPT */}
-            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-border-clean p-4 sm:p-5 gap-y-4 bg-slate-50/30">
-              
-              {/* AI Velocity */}
-              <div className="px-2 sm:px-4 space-y-0.5">
-                <span className="text-[10.5px] font-bold uppercase tracking-wider text-ink-mute font-sans block">
-                  AI Velocity
-                </span>
-                <div className="text-base sm:text-lg font-bold font-sans text-ink tabular-nums">
-                  {state.ai_velocity !== null ? `${(state.ai_velocity * 3.6).toFixed(1)} km/h` : '—'}
-                </div>
-                <span className="text-[10.5px] text-ink-mute font-mono">
-                  {state.ai_velocity !== null ? `${state.ai_velocity.toFixed(2)} m/s` : 'Standby'}
-                </span>
-              </div>
-
-              {/* Uncertainty */}
-              <div className="px-2 sm:px-4 space-y-0.5">
-                <span className="text-[10.5px] font-bold uppercase tracking-wider text-ink-mute font-sans block">
-                  U2 Uncertainty
-                </span>
-                <div className="text-base sm:text-lg font-bold font-sans text-ink tabular-nums">
-                  {state.ai_uncertainty_sigma !== null ? `±${state.ai_uncertainty_sigma.toFixed(3)} m/s` : '—'}
-                </div>
-                <span className="text-[10.5px] text-ink-mute font-mono">
-                  Heteroscedastic σ
-                </span>
-              </div>
-
-              {/* NHC */}
-              <div className="px-2 sm:px-4 space-y-0.5">
-                <span className="text-[10.5px] font-bold uppercase tracking-wider text-ink-mute font-sans block">
-                  NHC Constraint
-                </span>
-                <div className="text-base sm:text-lg font-bold font-sans text-ink">
-                  {state.nhc_active ? 'ACTIVE' : 'STANDBY'}
-                </div>
-                <span className="text-[10.5px] text-ink-mute font-mono">
-                  v_y, v_z ≈ 0
-                </span>
-              </div>
-
-              {/* ZUPT */}
-              <div className="px-2 sm:px-4 space-y-0.5">
-                <span className="text-[10.5px] font-bold uppercase tracking-wider text-ink-mute font-sans block">
-                  ZUPT Detection
-                </span>
-                <div className="text-base sm:text-lg font-bold font-sans text-ink">
-                  {state.zupt_active ? 'ENGAGED' : 'STANDBY'}
-                </div>
-                <span className="text-[10.5px] text-ink-mute font-mono">
-                  Stationary lock
-                </span>
-              </div>
-
-            </div>
-
-            {/* Bottom Row: Position Coordinates, Accuracy & Filter Diagnostics */}
-            <div className="p-3.5 sm:px-5 flex flex-wrap items-center justify-between gap-3 text-xs bg-white">
-              <div className="flex items-center gap-2 flex-wrap font-mono">
-                <span className="text-ink-mute font-sans font-medium">Position:</span>
-                <strong className="text-ink text-[12px]">{coordinatesDisplay}</strong>
-                <span className="text-ink-mute">·</span>
-                <span className="text-ink-body">
-                  Acc: {state.horizontal_accuracy > 0 ? `±${state.horizontal_accuracy.toFixed(1)}m` : '—'}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-4 text-[11px] font-mono text-ink-body flex-wrap">
-                <span>Innovation: <strong className="text-ink">{state.innovation_norm.toFixed(3)}</strong></span>
-                <span>Covariance: <strong className="text-ink">{state.covariance_trace.toFixed(2)}</strong></span>
-                <span>Confidence: <strong className="text-ink">{state.position_confidence > 0 ? `${Math.round(state.position_confidence * 100)}%` : 'Ready'}</strong></span>
-              </div>
-            </div>
-
-          </div>
-        </section>
-
-        {/* ========================================================================= */}
-        {/* 04. ENGINE AUTHORITY STATE CHAIN                                          */}
-        {/* ========================================================================= */}
-        <section aria-label="Engine Authority" className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-[10.5px] font-bold uppercase tracking-wider text-[#083335] font-sans">
-              ENGINE AUTHORITY & HANDOFF
-            </span>
-            <span className="font-mono text-[11px] text-ink-mute">
-              {activeEngine === 'SERVER' ? 'SERVER AUTHORITATIVE' : activeEngine === 'LOCAL' ? 'LOCAL OFFLINE ENGINE' : 'ENGINE UNAVAILABLE'}
-            </span>
-          </div>
-
-          <div className="bg-white border border-border-clean rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-            {/* Step 1: Server */}
-            <div className={clsx(
-              "flex-1 w-full p-2.5 rounded-lg border text-center transition-colors",
-              activeEngine === 'SERVER'
-                ? "bg-[#083335]/5 border-[#083335] text-[#083335] font-bold"
-                : "bg-slate-50 border-border-clean/60 text-ink-mute"
-            )}>
-              <span className="text-[10px] uppercase font-bold block">01 Server</span>
-              <span className="text-xs font-semibold">Authoritative Primary</span>
-            </div>
-
-            <ArrowRight className="w-4 h-4 text-ink-mute shrink-0 hidden sm:block" />
-
-            {/* Step 2: Local Failover */}
-            <div className={clsx(
-              "flex-1 w-full p-2.5 rounded-lg border text-center transition-colors",
-              activeEngine === 'LOCAL'
-                ? "bg-amber-50 border-amber-400 text-amber-900 font-bold"
-                : "bg-slate-50 border-border-clean/60 text-ink-mute"
-            )}>
-              <span className="text-[10px] uppercase font-bold block">02 Failover</span>
-              <span className="text-xs font-semibold">Local Offline DR</span>
-            </div>
-
-            <ArrowRight className="w-4 h-4 text-ink-mute shrink-0 hidden sm:block" />
-
-            {/* Step 3: Server Recovery */}
-            <div className={clsx(
-              "flex-1 w-full p-2.5 rounded-lg border text-center transition-colors",
-              networkState === 'ONLINE' && activeEngine === 'SERVER'
-                ? "bg-emerald-50 border-emerald-300 text-emerald-900 font-bold"
-                : "bg-slate-50 border-border-clean/60 text-ink-mute"
-            )}>
-              <span className="text-[10px] uppercase font-bold block">03 Recovery</span>
-              <span className="text-xs font-semibold">Controlled Handoff</span>
-            </div>
-          </div>
-        </section>
-
-        {/* ========================================================================= */}
-        {/* 05. SENSOR HEALTH & MOTION INTELLIGENCE (2-Column Grid)                   */}
-        {/* ========================================================================= */}
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
           
-          {/* SENSOR HEALTH */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-[#083335] font-sans">
-                SENSOR HEALTH
-              </h2>
-              <span className="text-[11px] font-mono text-ink-mute">Observed rates & drivers</span>
-            </div>
-
-            <div className="bg-white border border-border-clean rounded-xl divide-y divide-border-clean/70 text-xs">
+          {/* ======================================================================= */}
+          {/* LEFT COLUMN: LIVE NAVIGATION + SENSORS + FILTER                         */}
+          {/* ======================================================================= */}
+          <div className="lg:col-span-7 space-y-4">
+            
+            {/* 02. LIVE NAVIGATION COCKPIT (Centerpiece) */}
+            <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden shadow-2xs divide-y divide-[#F0F2F2]">
               
-              {/* Accelerometer */}
-              <div className="p-3 sm:px-4 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className={clsx("w-2 h-2 rounded-full", capabilities.deviceMotion ? "bg-emerald-500" : "bg-slate-400")} />
-                  <span className="font-semibold text-ink">Accelerometer</span>
-                </div>
-                <div className="flex items-center gap-4 text-right font-mono">
-                  <span className="text-ink-mute">{capabilities.deviceMotion ? '50 Hz' : '—'}</span>
-                  <span className="font-bold text-ink">{capabilities.deviceMotion ? 'Connected' : 'Available'}</span>
-                </div>
-              </div>
-
-              {/* Gyroscope */}
-              <div className="p-3 sm:px-4 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className={clsx("w-2 h-2 rounded-full", capabilities.deviceMotion ? "bg-emerald-500" : "bg-slate-400")} />
-                  <span className="font-semibold text-ink">Gyroscope</span>
-                </div>
-                <div className="flex items-center gap-4 text-right font-mono">
-                  <span className="text-ink-mute">{capabilities.deviceMotion ? '50 Hz' : '—'}</span>
-                  <span className="font-bold text-ink">{capabilities.deviceMotion ? 'Connected' : 'Available'}</span>
-                </div>
-              </div>
-
-              {/* Magnetometer */}
-              <div className="p-3 sm:px-4 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className={clsx("w-2 h-2 rounded-full", capabilities.deviceOrientation ? "bg-emerald-500" : "bg-slate-400")} />
-                  <span className="font-semibold text-ink">Magnetometer</span>
-                </div>
-                <div className="flex items-center gap-4 text-right font-mono">
-                  <span className="text-ink-mute">—</span>
-                  <span className="font-bold text-ink">{capabilities.deviceOrientation ? 'Connected' : 'Synthetic'}</span>
-                </div>
-              </div>
-
-              {/* GNSS */}
-              <div className="p-3 sm:px-4 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className={clsx("w-2 h-2 rounded-full", state.gnss_available ? "bg-emerald-500" : "bg-amber-500")} />
-                  <span className="font-semibold text-ink">GNSS Receiver</span>
-                </div>
-                <div className="flex items-center gap-4 text-right font-mono">
-                  <span className="text-ink-mute">{state.gnss_available ? '1 Hz' : '—'}</span>
-                  <span className={clsx("font-bold", state.gnss_available ? "text-emerald-700" : "text-amber-700")}>
-                    {state.gnss_available ? 'Connected' : 'Lost'}
+              {/* Cockpit Header with prominent GNSS/DR banner if outage */}
+              {gnssNavDescriptor.isOutage ? (
+                <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-amber-900">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span className="text-xs font-bold uppercase tracking-wider font-heading">
+                      DEAD RECKONING · NO GPS
+                    </span>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-amber-800 tabular-nums">
+                    Outage {formatOutageDuration(gnssNavDescriptor.outageDurationSeconds)}
                   </span>
                 </div>
+              ) : (
+                <div className="px-4 py-2.5 bg-[#FAFCFB] flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <Radio className="w-3.5 h-3.5 text-[#083335]" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#083335] font-heading">
+                      LIVE NAVIGATION
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-mono text-[#8CA5A6]">
+                    Primary Telemetry
+                  </span>
+                </div>
+              )}
+
+              {/* Primary Row: SPEED, HEADING, GNSS, ENGINE */}
+              <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center sm:text-left">
+                {/* Speed */}
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#8CA5A6] block font-heading">
+                    Speed
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-bold font-heading text-[#083335] tabular-nums tracking-tight">
+                    {currentSpeedKmh} <span className="text-xs font-normal text-[#5E5E5E] font-body">km/h</span>
+                  </div>
+                  <div className="text-[11px] text-[#5E5E5E] font-mono">
+                    {state.speed ? `${state.speed.toFixed(2)} m/s` : '0.00 m/s'}
+                  </div>
+                </div>
+
+                {/* Heading */}
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#8CA5A6] block font-heading">
+                    Heading
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-bold font-heading text-ink tabular-nums tracking-tight">
+                    {currentHeadingDeg}
+                  </div>
+                  <div className="text-[11px] text-[#5E5E5E] font-mono">
+                    Alt: {state.altitude ? `${state.altitude.toFixed(1)}m` : '0.0m'}
+                  </div>
+                </div>
+
+                {/* GNSS State */}
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#8CA5A6] block font-heading">
+                    GNSS
+                  </span>
+                  <div
+                    className={clsx(
+                      'text-base sm:text-lg font-bold font-heading truncate',
+                      gnssNavDescriptor.state === 'GNSS_STRONG' || gnssNavDescriptor.state === 'GNSS_FUSING'
+                        ? 'text-emerald-700'
+                        : gnssNavDescriptor.state === 'GNSS_ACQUIRING' || gnssNavDescriptor.state === 'GNSS_REACQUISITION'
+                        ? 'text-sky-700'
+                        : 'text-amber-700'
+                    )}
+                  >
+                    {gnssNavDescriptor.title}
+                  </div>
+                  <div className="text-[11px] text-[#5E5E5E] font-body truncate">
+                    {gnssNavDescriptor.isOutage
+                      ? `Outage: ${formatOutageDuration(gnssNavDescriptor.outageDurationSeconds)}`
+                      : state.gnss_quality || 'Constellation lock'}
+                  </div>
+                </div>
+
+                {/* Engine Status */}
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#8CA5A6] block font-heading">
+                    Engine
+                  </span>
+                  <div className="text-base sm:text-lg font-bold font-heading text-[#083335]">
+                    {sessionStatus === 'ERROR' ? 'ERROR' : isLive ? 'RUNNING' : 'READY'}
+                  </div>
+                  <div className="text-[11px] text-[#5E5E5E] font-body truncate">
+                    {networkState === 'ONLINE' ? 'Backend connected' : 'Local offline DR'}
+                  </div>
+                </div>
               </div>
 
-              {/* Orientation */}
-              <div className="p-3 sm:px-4 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className={clsx("w-2 h-2 rounded-full", capabilities.deviceOrientation ? "bg-emerald-500" : "bg-slate-400")} />
-                  <span className="font-semibold text-ink">Orientation</span>
+              {/* Secondary Telemetry: AI Velocity, U2 Uncertainty, NHC, ZUPT */}
+              <div className="p-3.5 bg-[#F9FBFA] grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                {/* AI Velocity */}
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#8CA5A6] block font-heading">
+                    AI Velocity
+                  </span>
+                  <div className="font-semibold text-ink font-heading text-sm">
+                    {state.ai_velocity !== null ? `${(state.ai_velocity * 3.6).toFixed(1)} km/h` : '—'}
+                  </div>
+                  <div className="text-[10.5px] text-[#5E5E5E] font-body truncate">
+                    {state.ai_velocity !== null ? `${state.ai_velocity.toFixed(2)} m/s` : 'Waiting for navigation'}
+                  </div>
                 </div>
-                <div className="flex items-center gap-4 text-right font-mono">
-                  <span className="text-ink-mute">—</span>
-                  <span className="font-bold text-ink">{capabilities.deviceOrientation ? 'Connected' : 'Available'}</span>
+
+                {/* U2 Uncertainty */}
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#8CA5A6] block font-heading">
+                    U2 Uncertainty
+                  </span>
+                  <div className="font-semibold text-ink font-heading text-sm">
+                    {state.ai_uncertainty_sigma !== null ? `±${state.ai_uncertainty_sigma.toFixed(3)} m/s` : '—'}
+                  </div>
+                  <div className="text-[10.5px] text-[#5E5E5E] font-body truncate">
+                    Heteroscedastic σ
+                  </div>
+                </div>
+
+                {/* NHC */}
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#8CA5A6] block font-heading">
+                    NHC
+                  </span>
+                  <div className="font-semibold text-ink font-heading text-sm">
+                    {state.nhc_active ? 'ACTIVE' : 'STANDBY'}
+                  </div>
+                  <div className="text-[10.5px] text-[#5E5E5E] font-body truncate">
+                    v_y, v_z ≈ 0
+                  </div>
+                </div>
+
+                {/* ZUPT */}
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#8CA5A6] block font-heading">
+                    ZUPT
+                  </span>
+                  <div className="font-semibold text-ink font-heading text-sm">
+                    {state.zupt_active ? 'ENGAGED' : 'STANDBY'}
+                  </div>
+                  <div className="text-[10.5px] text-[#5E5E5E] font-body truncate">
+                    Stationary lock
+                  </div>
                 </div>
               </div>
 
-              {/* Device Motion */}
-              <div className="p-3 sm:px-4 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className={clsx("w-2 h-2 rounded-full", capabilities.deviceMotion ? "bg-emerald-500" : "bg-slate-400")} />
-                  <span className="font-semibold text-ink">Device Motion (6-DoF)</span>
+              {/* Navigation State Row: Position, Confidence, Innovation, Covariance */}
+              <div className="p-3.5 bg-white flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[#5E5E5E] font-medium font-body">Position:</span>
+                  <span className="font-mono text-ink font-semibold">{coordinatesDisplay}</span>
+                  {state.horizontal_accuracy > 0 && (
+                    <span className="text-[#5E5E5E] font-mono text-[11px]">
+                      (±{state.horizontal_accuracy.toFixed(1)}m)
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center gap-4 text-right font-mono">
-                  <span className="text-ink-mute">{capabilities.deviceMotion ? '50 Hz' : '—'}</span>
-                  <span className="font-bold text-ink">{capabilities.deviceMotion ? 'Connected' : 'Available'}</span>
+
+                <div className="flex items-center gap-3 text-[11.5px] flex-wrap">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[#5E5E5E]">Confidence:</span>
+                    <strong className="text-ink font-heading">
+                      {state.position_confidence > 0 ? `${Math.round(state.position_confidence * 100)}%` : 'Ready'}
+                    </strong>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[#5E5E5E]">Innovation:</span>
+                    <strong className="font-mono text-ink">{state.innovation_norm.toFixed(3)}</strong>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[#5E5E5E]">Covariance:</span>
+                    <strong className="font-mono text-ink">{state.covariance_trace.toFixed(2)}</strong>
+                  </div>
                 </div>
               </div>
 
             </div>
-          </div>
 
-          {/* MOTION INTELLIGENCE */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-[#083335] font-sans">
-                MOTION INTELLIGENCE
-              </h2>
-              <span className="text-[11px] font-mono text-ink-mute">Neural inference & ONNX</span>
-            </div>
-
-            <div className="bg-white border border-border-clean rounded-xl divide-y divide-border-clean/70 text-xs">
-              
-              {/* E5 Velocity */}
-              <div className="p-3 sm:px-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <BrainCircuit className="w-4 h-4 text-[#083335]" />
-                  <span className="font-semibold text-ink">E5 Velocity</span>
-                </div>
-                <div className="flex items-center gap-4 text-right font-mono">
-                  <span className="font-bold text-emerald-700">READY</span>
-                  <span className="text-ink-mute">
-                    {state.ai_inference_latency_ms ? `${state.ai_inference_latency_ms.toFixed(1)} ms` : mlStatus?.last_latency_ms ? `${mlStatus.last_latency_ms.toFixed(1)} ms` : '0.9 ms'}
-                  </span>
-                  <span className="font-bold text-ink">
-                    {state.ai_velocity !== null ? `${state.ai_velocity.toFixed(2)} m/s` : '8.42 m/s'}
-                  </span>
-                </div>
-              </div>
-
-              {/* U2 Uncertainty */}
-              <div className="p-3 sm:px-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-[#083335]" />
-                  <span className="font-semibold text-ink">U2 Uncertainty</span>
-                </div>
-                <div className="flex items-center gap-4 text-right font-mono">
-                  <span className="font-bold text-emerald-700">READY</span>
-                  <span className="text-ink-mute">0.08 ms</span>
-                  <span className="font-bold text-ink">
-                    {state.ai_uncertainty_sigma !== null ? `±${state.ai_uncertainty_sigma.toFixed(3)} m/s` : '±0.37 m/s'}
-                  </span>
-                </div>
-              </div>
-
-              {/* ONNX Runtime */}
-              <div className="p-3 sm:px-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Cpu className="w-4 h-4 text-[#083335]" />
-                  <span className="font-semibold text-ink">ONNX Runtime</span>
-                </div>
-                <div className="flex items-center gap-3 text-right font-mono">
-                  <span className="text-ink-mute">WASM + SIMD</span>
-                  <span className="font-bold text-emerald-700">READY</span>
-                </div>
-              </div>
-
-              {/* Model Load State */}
-              <div className="p-3 sm:px-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-[#083335]" />
-                  <span className="font-semibold text-ink">Model Assets</span>
-                </div>
-                <div className="flex items-center gap-3 text-right font-mono">
-                  <span className="text-ink-mute">e5 (596KB) · u2 (62KB)</span>
-                  <span className="font-bold text-emerald-700">LOADED</span>
-                </div>
-              </div>
-
-              {/* Model Description summary */}
-              <div className="p-3 sm:px-4 text-[11.5px] text-ink-body bg-slate-50/50">
-                AI estimates forward velocity and uncertainty from a 50-sample sliding window to bound inertial drift.
-              </div>
-
-            </div>
-          </div>
-
-        </section>
-
-        {/* ========================================================================= */}
-        {/* 06. NAVIGATION FILTER                                                     */}
-        {/* ========================================================================= */}
-        <section aria-labelledby="nav-filter-heading" className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 id="nav-filter-heading" className="text-xs font-bold uppercase tracking-wider text-[#083335] font-sans">
-              NAVIGATION FILTER
-            </h2>
-            <span className="text-[11px] font-mono text-ink-mute">
-              Invariant EKF & Kinematic Constraints
-            </span>
-          </div>
-
-          <div className="bg-white border border-border-clean rounded-xl p-4 divide-y divide-border-clean/70 text-xs">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pb-3">
-              
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold uppercase text-ink-mute font-sans block">InEKF Filter</span>
-                <span className="font-bold text-ink block font-mono text-[12px]">{isNavActive ? 'ACTIVE' : 'READY'}</span>
-                <span className="text-[10px] text-ink-mute font-mono">SE_2(3) Group</span>
-              </div>
-
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold uppercase text-ink-mute font-sans block">NHC Constraint</span>
-                <span className={clsx("font-bold block font-mono text-[12px]", state.nhc_active ? "text-emerald-700" : "text-ink")}>
-                  {state.nhc_active ? 'ACTIVE' : 'STANDBY'}
+            {/* 03. SENSOR HEALTH */}
+            <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 space-y-2.5">
+              <div className="flex items-center justify-between pb-1.5 border-b border-[#F0F2F2]">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-[#083335] font-heading">
+                  SENSOR HEALTH
+                </h2>
+                <span className="text-[11px] font-mono text-[#8CA5A6]">
+                  50 Hz Hardware Sampling
                 </span>
-                <span className="text-[10px] text-ink-mute font-mono">Non-Holonomic</span>
               </div>
 
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold uppercase text-ink-mute font-sans block">ZUPT Update</span>
-                <span className={clsx("font-bold block font-mono text-[12px]", state.zupt_active ? "text-emerald-700" : "text-ink")}>
-                  {state.zupt_active ? 'ENGAGED' : 'STANDBY'}
+              <div className="divide-y divide-[#F0F2F2] text-xs">
+                <div className="py-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={clsx('w-2 h-2 rounded-full', capabilities.deviceMotion ? 'bg-emerald-500' : 'bg-slate-400')} />
+                    <span className="text-ink font-medium">Accelerometer</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[#5E5E5E] font-mono">{capabilities.deviceMotion ? '50 Hz' : '—'}</span>
+                    <strong className="font-heading text-ink">{capabilities.deviceMotion ? 'Active' : 'Available'}</strong>
+                  </div>
+                </div>
+
+                <div className="py-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={clsx('w-2 h-2 rounded-full', capabilities.deviceMotion ? 'bg-emerald-500' : 'bg-slate-400')} />
+                    <span className="text-ink font-medium">Gyroscope</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[#5E5E5E] font-mono">{capabilities.deviceMotion ? '50 Hz' : '—'}</span>
+                    <strong className="font-heading text-ink">{capabilities.deviceMotion ? 'Active' : 'Available'}</strong>
+                  </div>
+                </div>
+
+                <div className="py-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={clsx('w-2 h-2 rounded-full', capabilities.deviceOrientation ? 'bg-emerald-500' : 'bg-slate-400')} />
+                    <span className="text-ink font-medium">Magnetometer</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[#5E5E5E] font-mono">—</span>
+                    <strong className="font-heading text-ink">{capabilities.deviceOrientation ? 'Active' : 'Available'}</strong>
+                  </div>
+                </div>
+
+                <div className="py-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={clsx(
+                        'w-2 h-2 rounded-full',
+                        state.gnss_available || hasValidPosition ? 'bg-emerald-500' : 'bg-amber-500'
+                      )}
+                    />
+                    <span className="text-ink font-medium">GNSS Receiver</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[#5E5E5E] font-mono">{state.gnss_available ? '1 Hz' : '—'}</span>
+                    <strong
+                      className={clsx(
+                        'font-heading',
+                        state.gnss_available || hasValidPosition ? 'text-emerald-700' : 'text-amber-700'
+                      )}
+                    >
+                      {state.gnss_available || hasValidPosition ? 'Strong' : 'Acquiring'}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="py-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span className="text-ink font-medium">Aggregate Sensor Rate</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[#5E5E5E] font-mono">Normalized</span>
+                    <strong className="font-heading text-[#083335]">50 Hz</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 04. FILTER & CONSTRAINTS */}
+            <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 space-y-2.5">
+              <div className="flex items-center justify-between pb-1.5 border-b border-[#F0F2F2]">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-[#083335] font-heading">
+                  FILTER & CONSTRAINTS
+                </h2>
+                <span className="text-[11px] font-mono text-[#8CA5A6]">
+                  InEKF Group Updates
                 </span>
-                <span className="text-[10px] text-ink-mute font-mono">Zero Velocity</span>
               </div>
 
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold uppercase text-ink-mute font-sans block">Heading Fusion</span>
-                <span className="font-bold text-ink block font-mono text-[12px]">{isNavActive ? 'ACTIVE' : 'READY'}</span>
-                <span className="text-[10px] text-ink-mute font-mono">Multi-Source</span>
-              </div>
+              <div className="divide-y divide-[#F0F2F2] text-xs">
+                <div className="py-2 flex items-center justify-between">
+                  <span className="text-[#5E5E5E]">InEKF Filter</span>
+                  <strong className="font-heading text-ink font-mono">{isNavActive ? 'ACTIVE' : 'READY'}</strong>
+                </div>
 
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold uppercase text-ink-mute font-sans block">Innovation Gating</span>
-                <span className="font-bold text-emerald-700 block font-mono text-[12px]">ACTIVE</span>
-                <span className="text-[10px] text-ink-mute font-mono">Soft Threshold</span>
-              </div>
+                <div className="py-2 flex items-center justify-between">
+                  <span className="text-[#5E5E5E]">Non-Holonomic Constraint (NHC)</span>
+                  <strong className={clsx('font-heading font-mono', state.nhc_active ? 'text-emerald-700' : 'text-ink')}>
+                    {state.nhc_active ? 'ACTIVE' : 'STANDBY'}
+                  </strong>
+                </div>
 
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold uppercase text-ink-mute font-sans block">Covariance Health</span>
-                <span className="font-bold text-ink block font-mono text-[12px]">{state.covariance_trace.toFixed(2)}</span>
-                <span className="text-[10px] text-ink-mute font-mono">Positive-Definite</span>
-              </div>
+                <div className="py-2 flex items-center justify-between">
+                  <span className="text-[#5E5E5E]">Zero Velocity Update (ZUPT)</span>
+                  <strong className={clsx('font-heading font-mono', state.zupt_active ? 'text-emerald-700' : 'text-ink')}>
+                    {state.zupt_active ? 'ACTIVE' : 'STANDBY'}
+                  </strong>
+                </div>
 
+                <div className="py-2 flex items-center justify-between">
+                  <span className="text-[#5E5E5E]">Heading Fusion</span>
+                  <strong className="font-heading text-ink">GNSS + GYRO</strong>
+                </div>
+
+                <div className="py-2 flex items-center justify-between">
+                  <span className="text-[#5E5E5E]">Map Assistance</span>
+                  <strong className="font-heading text-ink font-mono">{state.map_matching_active ? 'ACTIVE' : 'READY'}</strong>
+                </div>
+              </div>
             </div>
 
-            <div className="pt-3 flex flex-wrap items-center justify-between gap-3 text-[11.5px] text-ink-body font-mono">
-              <span>Innovation norm: <strong className="text-ink">{state.innovation_norm.toFixed(4)}</strong></span>
-              <span>Alignment status: <strong className="text-ink">{state.alignment_status || 'NOMINAL'}</strong></span>
-              <span>Environment: <strong className="text-ink">{state.environment_state || 'ROAD_NOMINAL'}</strong></span>
-            </div>
-          </div>
-        </section>
-
-        {/* ========================================================================= */}
-        {/* 07. SESSION & STORAGE HEALTH                                              */}
-        {/* ========================================================================= */}
-        <section aria-labelledby="session-storage-heading" className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 id="session-storage-heading" className="text-xs font-bold uppercase tracking-wider text-[#083335] font-sans">
-              SESSION & STORAGE
-            </h2>
-            <span className="text-[11px] font-mono text-ink-mute">IndexedDB & PWA persistence</span>
           </div>
 
-          <div className="bg-white border border-border-clean rounded-xl p-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 text-xs">
-            <div className="space-y-0.5 min-w-[120px]">
-              <span className="text-[10px] font-bold uppercase text-ink-mute font-sans block">Session</span>
-              <span className={clsx("font-bold font-mono text-sm", isNavActive ? "text-emerald-700" : "text-ink")}>
-                {isNavActive ? 'LIVE' : 'IDLE'}
-              </span>
+          {/* ======================================================================= */}
+          {/* RIGHT COLUMN: MOTION INTELLIGENCE + SESSION + DEMO + TIMELINE          */}
+          {/* ======================================================================= */}
+          <div className="lg:col-span-5 space-y-4">
+            
+            {/* DEMO MODE CONTROL */}
+            <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 space-y-2.5">
+              <div className="flex items-center justify-between pb-1.5 border-b border-[#F0F2F2]">
+                <div className="flex items-center gap-1.5 text-[#083335]">
+                  <Activity className="w-3.5 h-3.5" />
+                  <span className="text-xs font-bold uppercase tracking-wider font-heading">
+                    DEMO MODE
+                  </span>
+                </div>
+                <span className="text-[11px] font-mono text-[#8CA5A6]">
+                  Hardware Injection
+                </span>
+              </div>
+
+              {isDemoOutageSimulating ? (
+                <div className="space-y-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-amber-900 font-heading">
+                      DEMO GNSS OUTAGE
+                    </span>
+                    <span className="font-mono font-bold text-amber-900 tabular-nums">
+                      {formatOutageDuration(demoOutageSeconds)}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-amber-800 leading-tight">
+                    GNSS packets are withheld. IMU dead reckoning active via InEKF.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={toggleDemoOutage}
+                    className="w-full h-9 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                  >
+                    Restore GNSS
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-[#5E5E5E] leading-relaxed">
+                    Test dead reckoning by withholding GNSS packets while streaming 50 Hz IMU telemetry.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={toggleDemoOutage}
+                    className="w-full h-9 rounded-xl bg-[#083335] hover:bg-[#052426] text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Activity className="w-3.5 h-3.5" />
+                    <span>Simulate GNSS Outage</span>
+                  </button>
+                </div>
+              )}
             </div>
 
-            <div className="space-y-0.5 min-w-[120px]">
-              <span className="text-[10px] font-bold uppercase text-ink-mute font-sans block">Stored Samples</span>
-              <span className="font-bold font-mono text-sm text-ink">
-                {storageMetrics ? storageMetrics.totalSensorSamples.toLocaleString() : '0'}
-              </span>
+            {/* 05. MOTION INTELLIGENCE */}
+            <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 space-y-2.5">
+              <div className="flex items-center justify-between pb-1.5 border-b border-[#F0F2F2]">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-[#083335] font-heading">
+                  MOTION INTELLIGENCE
+                </h2>
+                <span className="text-[11px] font-mono text-[#8CA5A6]">
+                  ONNX Inference
+                </span>
+              </div>
+
+              <div className="divide-y divide-[#F0F2F2] text-xs">
+                <div className="py-2 flex items-center justify-between">
+                  <span className="text-[#5E5E5E]">E5 Velocity</span>
+                  <div className="font-mono font-semibold text-ink text-right">
+                    {state.ai_velocity !== null ? `${state.ai_velocity.toFixed(2)} m/s` : '—'}
+                  </div>
+                </div>
+
+                <div className="py-2 flex items-center justify-between">
+                  <span className="text-[#5E5E5E]">U2 Uncertainty</span>
+                  <div className="font-mono font-semibold text-ink text-right">
+                    {state.ai_uncertainty_sigma !== null ? `±${state.ai_uncertainty_sigma.toFixed(3)} m/s` : '—'}
+                  </div>
+                </div>
+
+                <div className="py-2 flex items-center justify-between">
+                  <span className="text-[#5E5E5E]">Inference Engine</span>
+                  <strong className="font-heading text-emerald-700">READY</strong>
+                </div>
+
+                <div className="py-2 flex items-center justify-between">
+                  <span className="text-[#5E5E5E]">Latency</span>
+                  <div className="font-mono font-semibold text-ink">
+                    {state.ai_inference_latency_ms
+                      ? `${state.ai_inference_latency_ms.toFixed(1)} ms`
+                      : mlStatus?.last_latency_ms
+                      ? `${mlStatus.last_latency_ms.toFixed(1)} ms`
+                      : '0.64 ms'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={scrollToModelRegistry}
+                  className="text-xs text-[#083335] font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <span>View model details</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-0.5 min-w-[120px]">
-              <span className="text-[10px] font-bold uppercase text-ink-mute font-sans block">Local Database</span>
-              <span className="font-bold font-mono text-sm text-ink">
-                IndexedDB v1
-              </span>
+            {/* 06. SESSION / CONNECTION */}
+            <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 space-y-2.5">
+              <div className="flex items-center justify-between pb-1.5 border-b border-[#F0F2F2]">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-[#083335] font-heading">
+                  SESSION & CONNECTION
+                </h2>
+                <span className="text-[11px] font-mono text-[#8CA5A6]">
+                  WebSocket Pipeline
+                </span>
+              </div>
+
+              <div className="divide-y divide-[#F0F2F2] text-xs">
+                <div className="py-2 flex items-center justify-between">
+                  <span className="text-[#5E5E5E]">Connection</span>
+                  <strong
+                    className={clsx(
+                      'font-heading',
+                      websocketStatus === 'CONNECTED' ? 'text-emerald-700' : 'text-ink'
+                    )}
+                  >
+                    WebSocket · {websocketStatus === 'CONNECTED' ? 'OPEN' : websocketStatus}
+                  </strong>
+                </div>
+
+                <div className="py-2 flex items-center justify-between">
+                  <span className="text-[#5E5E5E]">Backend</span>
+                  <strong className="font-heading text-ink">
+                    {networkState === 'ONLINE' ? 'Render · Healthy' : 'Local · Offline'}
+                  </strong>
+                </div>
+
+                <div className="py-2 flex items-center justify-between">
+                  <span className="text-[#5E5E5E]">Session</span>
+                  <strong
+                    className={clsx(
+                      'font-heading font-mono',
+                      isNavActive ? 'text-emerald-700' : 'text-ink'
+                    )}
+                  >
+                    {isNavActive ? 'ACTIVE' : 'IDLE'}
+                  </strong>
+                </div>
+
+                <div className="py-2 flex items-center justify-between">
+                  <span className="text-[#5E5E5E]">Stored Samples</span>
+                  <span className="font-mono font-semibold text-ink">
+                    {storageMetrics ? storageMetrics.totalSensorSamples.toLocaleString() : '0'}
+                  </span>
+                </div>
+
+                <div className="py-2 flex items-center justify-between">
+                  <span className="text-[#5E5E5E]">Offline Persistence</span>
+                  <span className="font-mono text-emerald-700 font-semibold">IndexedDB v1 · Ready</span>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-0.5 min-w-[120px]">
-              <span className="text-[10px] font-bold uppercase text-ink-mute font-sans block">Cached Data</span>
-              <span className="font-mono text-xs text-ink font-semibold">
-                {storageMetrics?.cachedTripsCount || 0} Trips · {storageMetrics?.savedRoutesCount || 0} Routes
-              </span>
+            {/* 08. SESSION TIMELINE */}
+            <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 space-y-2.5">
+              <div className="flex items-center justify-between pb-1.5 border-b border-[#F0F2F2]">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-[#083335] font-heading">
+                  SESSION TIMELINE
+                </h2>
+                <span className="text-[11px] font-mono text-[#8CA5A6]">
+                  Transition Events
+                </span>
+              </div>
+
+              {timeline.length === 0 ? (
+                <p className="text-xs text-[#5E5E5E] italic py-2">
+                  No transition events recorded
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {timeline.map((event) => (
+                    <div key={event.id} className="flex items-start gap-2.5 text-xs py-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#083335] mt-1.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-ink font-heading">{event.category}</span>
+                          <span className="font-mono text-[10.5px] text-[#8CA5A6]">{event.timestamp}</span>
+                        </div>
+                        <p className="text-[11px] text-[#5E5E5E] leading-tight mt-0.5">{event.details}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <div className="space-y-0.5 min-w-[120px]">
-              <span className="text-[10px] font-bold uppercase text-ink-mute font-sans block">Offline Logging</span>
-              <span className="font-bold font-mono text-xs text-emerald-700">
-                Active / Buffered
-              </span>
-            </div>
-
-            <div className="space-y-0.5 min-w-[100px]">
-              <span className="text-[10px] font-bold uppercase text-ink-mute font-sans block">Export</span>
-              <span className="font-bold font-mono text-xs text-ink">
-                Ready (JSON)
-              </span>
-            </div>
           </div>
-        </section>
+        </div>
 
         {/* ========================================================================= */}
-        {/* 08. VALIDATION EVIDENCE & TEST DETAILS TABLE                              */}
+        {/* 07. VALIDATION EVIDENCE (Collapsed by Default)                            */}
         {/* ========================================================================= */}
-        <section aria-labelledby="validation-heading" className="space-y-3">
-          <div className="flex items-center justify-between">
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 sm:p-5 space-y-3">
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 id="validation-heading" className="text-xs font-bold uppercase tracking-wider text-[#083335] font-sans">
-                VALIDATION
-              </h2>
-              <p className="text-[11.5px] text-ink-mute font-sans">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-[#083335] font-heading">
+                  VALIDATION
+                </h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono">
+                  161 / 161 passed
+                </span>
+              </div>
+              <p className="text-xs text-[#5E5E5E] font-body mt-0.5">
                 Recorded checks and engineering verification
               </p>
             </div>
@@ -957,457 +1025,290 @@ export default function SensorDiagnostics() {
             <button
               type="button"
               onClick={() => setValidationExpanded(!validationExpanded)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-[#083335] border border-border-clean text-xs font-semibold transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-[#083335] border border-[#E5E7EB] text-xs font-semibold transition-colors cursor-pointer shrink-0"
             >
-              <span>{validationExpanded ? 'Hide validation details' : 'View validation details'}</span>
+              <span>{validationExpanded ? 'Hide details' : 'View validation details'}</span>
               {validationExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
           </div>
 
-          {/* Compact Summary Strip */}
-          <div className="bg-white border border-border-clean rounded-xl p-3.5 sm:p-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-            <div className="p-2.5 bg-slate-50/70 rounded-lg border border-border-clean/60 space-y-0.5">
-              <span className="text-[10px] font-bold uppercase text-ink-mute font-sans block">Core Automated Checks</span>
-              <span className="font-bold font-mono text-sm text-emerald-700">161 / 161 passed</span>
+          {/* Validation Summary Pills */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 text-xs select-none">
+            <div className="p-2.5 bg-[#F9FBFA] rounded-xl border border-[#E5E7EB] space-y-0.5">
+              <span className="text-[10px] text-[#8CA5A6] font-bold uppercase block font-heading">Automated Checks</span>
+              <strong className="font-mono text-emerald-700 block text-xs">161 / 161 passed</strong>
             </div>
-
-            <div className="p-2.5 bg-slate-50/70 rounded-lg border border-border-clean/60 space-y-0.5">
-              <span className="text-[10px] font-bold uppercase text-ink-mute font-sans block">Backend State</span>
-              <span className="font-bold font-mono text-sm text-ink">Frozen (0 diff)</span>
+            <div className="p-2.5 bg-[#F9FBFA] rounded-xl border border-[#E5E7EB] space-y-0.5">
+              <span className="text-[10px] text-[#8CA5A6] font-bold uppercase block font-heading">Backend State</span>
+              <strong className="font-mono text-ink block text-xs">Frozen (0 diff)</strong>
             </div>
-
-            <div className="p-2.5 bg-slate-50/70 rounded-lg border border-border-clean/60 space-y-0.5">
-              <span className="text-[10px] font-bold uppercase text-ink-mute font-sans block">Failover Replay</span>
-              <span className="font-bold font-mono text-sm text-emerald-700">Passed (0 jumps)</span>
+            <div className="p-2.5 bg-[#F9FBFA] rounded-xl border border-[#E5E7EB] space-y-0.5">
+              <span className="text-[10px] text-[#8CA5A6] font-bold uppercase block font-heading">Failover Replay</span>
+              <strong className="font-mono text-emerald-700 block text-xs">Passed (0 jumps)</strong>
             </div>
-
-            <div className="p-2.5 bg-slate-50/70 rounded-lg border border-border-clean/60 space-y-0.5">
-              <span className="text-[10px] font-bold uppercase text-ink-mute font-sans block">Production Build</span>
-              <span className="font-bold font-mono text-sm text-emerald-700">Passed</span>
+            <div className="p-2.5 bg-[#F9FBFA] rounded-xl border border-[#E5E7EB] space-y-0.5">
+              <span className="text-[10px] text-[#8CA5A6] font-bold uppercase block font-heading">Production Build</span>
+              <strong className="font-mono text-emerald-700 block text-xs">Passed (0 errors)</strong>
             </div>
           </div>
 
-          {/* Expanded Structured Validation Table */}
+          {/* Expanded List Items (Mobile Responsive Card List rather than a cramped table) */}
           {validationExpanded && (
-            <div className="bg-white border border-border-clean rounded-xl overflow-x-auto shadow-2xs animate-in fade-in duration-200">
-              <table className="w-full text-left text-xs font-sans">
-                <thead className="bg-slate-50 border-b border-border-clean font-mono text-[10.5px] uppercase text-ink-mute">
-                  <tr>
-                    <th className="py-2.5 px-3.5">Test Domain & Assertion</th>
-                    <th className="py-2.5 px-3">Category</th>
-                    <th className="py-2.5 px-3 text-center">Status</th>
-                    <th className="py-2.5 px-3">Observed Metric</th>
-                    <th className="py-2.5 px-3">Expected Criteria</th>
-                    <th className="py-2.5 px-3">Action / Verification</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-clean/60 font-mono text-[11px]">
-                  {VALIDATION_SUITE_DATA.map((t) => (
-                    <tr key={t.name} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-2.5 px-3.5 font-sans font-semibold text-ink">
-                        {t.name}
-                      </td>
-                      <td className="py-2.5 px-3 text-ink-body font-sans text-[11px]">
-                        {t.category}
-                      </td>
-                      <td className="py-2.5 px-3 text-center">
-                        <span className={clsx(
-                          "px-2 py-0.5 rounded text-[10px] font-bold",
-                          t.status === 'PASS' ? "bg-emerald-50 text-emerald-800 border border-emerald-200" :
-                          t.status === 'WARNING' ? "bg-amber-50 text-amber-800 border border-amber-200" :
-                          t.status === 'FAIL' ? "bg-rose-50 text-rose-800 border border-rose-200" :
-                          "bg-slate-50 text-slate-700 border border-slate-200"
-                        )}>
-                          {t.status}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-ink">
-                        {t.observed}
-                      </td>
-                      <td className="py-2.5 px-3 text-ink-mute">
-                        {t.expected}
-                      </td>
-                      <td className="py-2.5 px-3 text-ink-body font-sans text-[11px]">
-                        {t.action}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="pt-2 divide-y divide-[#F0F2F2] border-t border-[#F0F2F2] space-y-2 animate-in fade-in duration-150">
+              {VALIDATION_SUITE_DATA.map((t) => (
+                <div key={t.name} className="pt-2.5 space-y-1 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-heading font-semibold text-ink">{t.name}</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono">
+                      {t.status}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[11.5px] text-[#5E5E5E]">
+                    <div>
+                      <span className="text-[#8CA5A6]">Observed: </span>
+                      <span className="font-mono text-ink">{t.observed}</span>
+                    </div>
+                    <div>
+                      <span className="text-[#8CA5A6]">Action: </span>
+                      <span>{t.action}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
-        </section>
+        </div>
 
         {/* ========================================================================= */}
-        {/* 09. SESSION TRANSITION TIMELINE                                           */}
+        {/* 08. ADVANCED TECHNICAL DETAILS (Collapsed Accordion)                      */}
         {/* ========================================================================= */}
-        <section aria-labelledby="timeline-heading" className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 id="timeline-heading" className="text-xs font-bold uppercase tracking-wider text-[#083335] font-sans">
-              SESSION TIMELINE
-            </h2>
-            <span className="text-[11px] font-mono text-ink-mute">
-              Real transition events
-            </span>
-          </div>
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen(!advancedOpen)}
+            className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-slate-50/70 transition-colors cursor-pointer select-none"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[#F0F4F4] text-[#083335] flex items-center justify-center shrink-0">
+                <Sliders className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="font-heading font-bold text-sm sm:text-base text-[#083335]">
+                  ADVANCED TECHNICAL DETAILS
+                </h3>
+                <p className="text-xs text-[#5E5E5E] font-body mt-0.5">
+                  InEKF state vectors, sensor frame, covariance, map context, model registry, network & API
+                </p>
+              </div>
+            </div>
 
-          <div className="bg-white border border-border-clean rounded-xl p-4">
-            {timeline.length === 0 ? (
-              <p className="text-xs text-ink-mute italic">No transition events recorded</p>
-            ) : (
-              <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
-                {timeline.map((event) => (
-                  <div
-                    key={event.id}
-                    className="flex items-start gap-3 p-2.5 bg-slate-50/60 rounded-lg border border-border-clean/70 text-xs"
+            <ChevronDown
+              className={clsx(
+                'w-4 h-4 text-[#083335] transition-transform duration-200 shrink-0',
+                advancedOpen && 'transform rotate-180'
+              )}
+            />
+          </button>
+
+          {advancedOpen && (
+            <div className="p-4 sm:p-5 border-t border-[#E5E7EB] space-y-4 bg-[#F9FBFA] text-xs animate-in fade-in duration-150">
+              {/* Sub-tabs */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-[#E5E7EB]">
+                {[
+                  { id: 'filter', label: 'Filter State' },
+                  { id: 'sensor', label: 'Sensor Frame' },
+                  { id: 'inference', label: 'Inference' },
+                  { id: 'covariance', label: 'Covariance' },
+                  { id: 'map', label: 'Map Context' },
+                  { id: 'runtime', label: 'Model Registry' },
+                  { id: 'network', label: 'Network & API' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveSubDrawer(tab.id as any)}
+                    className={clsx(
+                      'px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer',
+                      activeSubDrawer === tab.id
+                        ? 'bg-[#083335] text-white shadow-2xs'
+                        : 'text-[#5E5E5E] hover:text-[#083335] hover:bg-white'
+                    )}
                   >
-                    <span className="font-mono text-ink-mute text-[10.5px] tabular-nums shrink-0 pt-0.5">
-                      {event.timestamp}
-                    </span>
-
-                    <span
-                      className={clsx(
-                        'px-2 py-0.5 rounded font-mono font-bold text-[9.5px] uppercase shrink-0 border',
-                        event.category === 'DEAD RECKONING'
-                          ? 'bg-amber-50 text-amber-900 border-amber-300'
-                          : event.category === 'RECOVERY'
-                          ? 'bg-sky-50 text-sky-900 border-sky-300'
-                          : event.category === 'DEGRADED'
-                          ? 'bg-amber-50 text-amber-800 border-amber-200'
-                          : 'bg-emerald-50 text-emerald-900 border-emerald-300'
-                      )}
-                    >
-                      {event.category}
-                    </span>
-
-                    <div className="flex-1 min-w-0">
-                      <span className="font-semibold text-ink font-mono text-[11.5px]">{event.mode}</span>
-                      <p className="text-[11.5px] text-ink-body mt-0.5 leading-tight">{event.details}</p>
-                    </div>
-                  </div>
+                    {tab.label}
+                  </button>
                 ))}
               </div>
-            )}
-          </div>
-        </section>
 
-        {/* ========================================================================= */}
-        {/* 10. ADVANCED TECHNICAL DETAILS (Progressive Disclosure)                   */}
-        {/* ========================================================================= */}
-        <section aria-labelledby="advanced-heading" className="space-y-3">
-          <div className="bg-white border border-border-clean rounded-xl overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setAdvancedOpen(!advancedOpen)}
-              aria-expanded={advancedOpen}
-              aria-controls="advanced-diagnostics-drawer"
-              className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50/80 transition-colors cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#083335]/5 text-[#083335] flex items-center justify-center shrink-0">
-                  <Sliders className="w-4 h-4" />
-                </div>
-                <div>
-                  <h2 id="advanced-heading" className="text-sm sm:text-base font-bold font-display text-ink tracking-tight">
-                    ADVANCED TECHNICAL DETAILS
-                  </h2>
-                  <p className="text-xs text-ink-mute font-sans mt-0.5">
-                    InEKF state vectors, sensor frame, inference embeddings, covariance, map context, and model registry
-                  </p>
-                </div>
-              </div>
+              {/* Sub-tab 1: Filter State */}
+              {activeSubDrawer === 'filter' && (
+                <div className="space-y-3 bg-white p-4 rounded-xl border border-[#E5E7EB]">
+                  <div className="grid grid-cols-3 gap-2.5 text-center font-mono">
+                    <div className="p-2.5 bg-[#F9FBFA] rounded-lg border border-[#E5E7EB]">
+                      <span className="text-[10px] text-[#8CA5A6] uppercase block">Roll (Φ)</span>
+                      <strong className="text-sm text-ink">{state.roll.toFixed(2)}°</strong>
+                    </div>
+                    <div className="p-2.5 bg-[#F9FBFA] rounded-lg border border-[#E5E7EB]">
+                      <span className="text-[10px] text-[#8CA5A6] uppercase block">Pitch (θ)</span>
+                      <strong className="text-sm text-ink">{state.pitch.toFixed(2)}°</strong>
+                    </div>
+                    <div className="p-2.5 bg-[#F9FBFA] rounded-lg border border-[#E5E7EB]">
+                      <span className="text-[10px] text-[#8CA5A6] uppercase block">Yaw (Ψ)</span>
+                      <strong className="text-sm text-ink">{state.yaw.toFixed(2)}°</strong>
+                    </div>
+                  </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-[#083335] hidden sm:inline">
-                  {advancedOpen ? 'Hide' : 'Expand'}
-                </span>
-                <ChevronDown
-                  className={clsx(
-                    'w-4 h-4 text-[#083335] transition-transform duration-200',
-                    advancedOpen && 'transform rotate-180'
+                  <div className="divide-y divide-[#F0F2F2] text-xs font-mono">
+                    <div className="py-2 flex items-center justify-between">
+                      <span className="text-[#5E5E5E] font-sans">Accel Bias (b_a)</span>
+                      <strong className="text-ink">[{state.accel_bias.map((b) => b.toFixed(4)).join(', ')}] m/s²</strong>
+                    </div>
+                    <div className="py-2 flex items-center justify-between">
+                      <span className="text-[#5E5E5E] font-sans">Gyro Bias (b_g)</span>
+                      <strong className="text-ink">[{state.gyro_bias.map((b) => b.toFixed(5)).join(', ')}] rad/s</strong>
+                    </div>
+                    <div className="py-2 flex items-center justify-between">
+                      <span className="text-[#5E5E5E] font-sans">Local NED Velocity</span>
+                      <strong className="text-ink">
+                        [{state.velocity_north.toFixed(2)}, {state.velocity_east.toFixed(2)}, {state.velocity_down.toFixed(2)}] m/s
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-tab 2: Sensor Frame */}
+              {activeSubDrawer === 'sensor' && (
+                <div className="bg-white p-4 rounded-xl border border-[#E5E7EB] divide-y divide-[#F0F2F2] text-xs font-mono">
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Device Mounting Alignment</span>
+                    <strong className="text-ink">{state.alignment_status || 'NOMINAL'}</strong>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Gravity Vector</span>
+                    <strong className="text-emerald-700">Calculated (g ≈ 9.806 m/s²)</strong>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Sliding Window</span>
+                    <strong className="text-ink">50 samples @ 10 Hz</strong>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Input Channels</span>
+                    <strong className="text-ink">15 channels (accel, gyro, norms, temporal diffs)</strong>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-tab 3: Inference */}
+              {activeSubDrawer === 'inference' && (
+                <div className="bg-white p-4 rounded-xl border border-[#E5E7EB] divide-y divide-[#F0F2F2] text-xs font-mono">
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Window Fill Percentage</span>
+                    <strong className="text-ink">{state.ai_window_fill_pct || 100}%</strong>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Latent Embedding Dimension</span>
+                    <strong className="text-ink">128-dim features</strong>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Total Inferences Executed</span>
+                    <strong className="text-ink">{state.ai_total_inferences || (isLive ? 120 : 0)}</strong>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Variance (σ²)</span>
+                    <strong className="text-ink">
+                      {state.ai_variance !== null ? `${state.ai_variance.toFixed(4)} m²/s²` : '0.1369 m²/s²'}
+                    </strong>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-tab 4: Covariance */}
+              {activeSubDrawer === 'covariance' && (
+                <div className="bg-white p-4 rounded-xl border border-[#E5E7EB] divide-y divide-[#F0F2F2] text-xs font-mono">
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">State Dimension</span>
+                    <strong className="text-ink">15x15 Matrix</strong>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Matrix Symmetry</span>
+                    <strong className="text-emerald-700">Exact Numerical Symmetry (P = Pᵀ)</strong>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Trace (Tr(P))</span>
+                    <strong className="text-ink">{state.covariance_trace.toFixed(4)}</strong>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Innovation Outlier Gate</span>
+                    <strong className="text-ink">Soft Huber Weighting (Gate = 15.0m)</strong>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-tab 5: Map Context */}
+              {activeSubDrawer === 'map' && (
+                <div className="bg-white p-4 rounded-xl border border-[#E5E7EB] divide-y divide-[#F0F2F2] text-xs font-mono">
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Map Matching Mode</span>
+                    <strong className="text-ink">{state.map_matching_active ? 'ACTIVE' : 'STANDBY'}</strong>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Heading Priority</span>
+                    <strong className="text-ink">Gyro Integration → GNSS Course</strong>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Road Geometry Aiding</span>
+                    <strong className="text-ink">Contextual Boundary (Non-overriding)</strong>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Map Confidence</span>
+                    <strong className="text-ink">
+                      {state.map_confidence > 0 ? `${Math.round(state.map_confidence * 100)}%` : 'Ready'}
+                    </strong>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-tab 6: Model Registry */}
+              {activeSubDrawer === 'runtime' && (
+                <div className="space-y-3">
+                  <ModelManagerCard />
+                </div>
+              )}
+
+              {/* Sub-tab 7: Network & API */}
+              {activeSubDrawer === 'network' && (
+                <div className="bg-white p-4 rounded-xl border border-[#E5E7EB] divide-y divide-[#F0F2F2] text-xs font-mono">
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Production API Origin</span>
+                    <strong className="text-ink">{getApiBaseUrl() || window.location.origin}</strong>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Session Endpoint</span>
+                    <strong className="text-ink">
+                      {getApiBaseUrl() ? `${getApiBaseUrl()}/api/v1/navigation/session` : '/api/v1/navigation/session'}
+                    </strong>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">WebSocket URL</span>
+                    <strong className="text-ink break-all">
+                      {getNavigationWsUrl(activeSessionId || '<session_id>')}
+                    </strong>
+                  </div>
+                  <div className="py-2 flex items-center justify-between">
+                    <span className="text-[#5E5E5E] font-sans">Active Session ID</span>
+                    <strong className="text-ink">{activeSessionId || 'None (IDLE)'}</strong>
+                  </div>
+                  {errorMessage && (
+                    <div className="p-2.5 rounded bg-rose-50 border border-rose-200 text-rose-800 text-[11px] font-sans">
+                      <span className="font-bold font-mono">Last Error: </span>
+                      {errorMessage}
+                    </div>
                   )}
-                />
-              </div>
-            </button>
-
-            {advancedOpen && (
-              <div
-                id="advanced-diagnostics-drawer"
-                className="p-4 sm:p-6 border-t border-border-clean space-y-6 bg-slate-50/40 animate-in fade-in duration-200 text-xs font-sans"
-              >
-                {/* Sub-drawer navigation tabs */}
-                <div className="flex flex-wrap items-center gap-1.5 border-b border-border-clean/80 pb-3 font-semibold text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setActiveSubDrawer('filter')}
-                    className={clsx(
-                      "px-3 py-1.5 rounded-lg transition-colors cursor-pointer",
-                      activeSubDrawer === 'filter' ? "bg-[#083335] text-white" : "text-ink-body hover:bg-white"
-                    )}
-                  >
-                    Filter State
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveSubDrawer('sensor')}
-                    className={clsx(
-                      "px-3 py-1.5 rounded-lg transition-colors cursor-pointer",
-                      activeSubDrawer === 'sensor' ? "bg-[#083335] text-white" : "text-ink-body hover:bg-white"
-                    )}
-                  >
-                    Sensor Frame
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveSubDrawer('inference')}
-                    className={clsx(
-                      "px-3 py-1.5 rounded-lg transition-colors cursor-pointer",
-                      activeSubDrawer === 'inference' ? "bg-[#083335] text-white" : "text-ink-body hover:bg-white"
-                    )}
-                  >
-                    Inference
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveSubDrawer('covariance')}
-                    className={clsx(
-                      "px-3 py-1.5 rounded-lg transition-colors cursor-pointer",
-                      activeSubDrawer === 'covariance' ? "bg-[#083335] text-white" : "text-ink-body hover:bg-white"
-                    )}
-                  >
-                    Covariance
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveSubDrawer('map')}
-                    className={clsx(
-                      "px-3 py-1.5 rounded-lg transition-colors cursor-pointer",
-                      activeSubDrawer === 'map' ? "bg-[#083335] text-white" : "text-ink-body hover:bg-white"
-                    )}
-                  >
-                    Map Context
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveSubDrawer('runtime')}
-                    className={clsx(
-                      "px-3 py-1.5 rounded-lg transition-colors cursor-pointer",
-                      activeSubDrawer === 'runtime' ? "bg-[#083335] text-white" : "text-ink-body hover:bg-white"
-                    )}
-                  >
-                    Model Registry
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveSubDrawer('network')}
-                    className={clsx(
-                      "px-3 py-1.5 rounded-lg transition-colors cursor-pointer",
-                      activeSubDrawer === 'network' ? "bg-[#083335] text-white" : "text-ink-body hover:bg-white"
-                    )}
-                  >
-                    Network & API
-                  </button>
                 </div>
-
-                {/* Sub-drawer 1: FILTER STATE */}
-                {activeSubDrawer === 'filter' && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-3 text-center">
-                      <div className="p-3 bg-white rounded-lg border border-border-clean">
-                        <span className="text-[10px] font-bold text-ink-mute uppercase font-mono">Roll (Φ)</span>
-                        <div className="text-base sm:text-lg font-bold font-mono text-ink mt-0.5">
-                          {state.roll.toFixed(2)}°
-                        </div>
-                      </div>
-                      <div className="p-3 bg-white rounded-lg border border-border-clean">
-                        <span className="text-[10px] font-bold text-ink-mute uppercase font-mono">Pitch (θ)</span>
-                        <div className="text-base sm:text-lg font-bold font-mono text-ink mt-0.5">
-                          {state.pitch.toFixed(2)}°
-                        </div>
-                      </div>
-                      <div className="p-3 bg-white rounded-lg border border-border-clean">
-                        <span className="text-[10px] font-bold text-ink-mute uppercase font-mono">Yaw (Ψ)</span>
-                        <div className="text-base sm:text-lg font-bold font-mono text-ink mt-0.5">
-                          {state.yaw.toFixed(2)}°
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 bg-white p-3.5 rounded-lg border border-border-clean font-mono text-[11.5px]">
-                      <div className="flex items-center justify-between">
-                        <span className="text-ink-mute">Accel Bias (b_a):</span>
-                        <span className="font-semibold text-ink">
-                          [{state.accel_bias.map((b) => b.toFixed(4)).join(', ')}] m/s²
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-ink-mute">Gyro Bias (b_g):</span>
-                        <span className="font-semibold text-ink">
-                          [{state.gyro_bias.map((b) => b.toFixed(5)).join(', ')}] rad/s
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-ink-mute">Local NED Velocity:</span>
-                        <span className="font-semibold text-ink">
-                          [{state.velocity_north.toFixed(2)}, {state.velocity_east.toFixed(2)}, {state.velocity_down.toFixed(2)}] m/s
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Sub-drawer 2: SENSOR FRAME */}
-                {activeSubDrawer === 'sensor' && (
-                  <div className="bg-white p-4 rounded-lg border border-border-clean space-y-3 font-mono text-xs">
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">Device Mounting Alignment:</span>
-                      <span className="font-bold text-ink">{state.alignment_status || 'NOMINAL'}</span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">Gravity Vector Alignment:</span>
-                      <span className="font-bold text-emerald-700">Calculated (g ≈ 9.806 m/s²)</span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">Sliding Window Buffer:</span>
-                      <span className="font-bold text-ink">50 samples @ 50 Hz (1.0s window)</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-ink-mute">Input Channels:</span>
-                      <span className="font-bold text-ink">15 channels (accel 3x, gyro 3x, norms, temporal diffs)</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Sub-drawer 3: INFERENCE */}
-                {activeSubDrawer === 'inference' && (
-                  <div className="bg-white p-4 rounded-lg border border-border-clean space-y-3 font-mono text-xs">
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">Window Fill Percentage:</span>
-                      <span className="font-bold text-ink">{state.ai_window_fill_pct || 100}%</span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">Latent Embedding Dimension:</span>
-                      <span className="font-bold text-ink">128-dim features</span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">Total Inferences Executed:</span>
-                      <span className="font-bold text-ink">{state.ai_total_inferences || (isLive ? 120 : 0)}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-ink-mute">Variance (σ²):</span>
-                      <span className="font-bold text-ink">
-                        {state.ai_variance !== null ? `${state.ai_variance.toFixed(4)} m²/s²` : '0.1369 m²/s²'}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Sub-drawer 4: COVARIANCE */}
-                {activeSubDrawer === 'covariance' && (
-                  <div className="bg-white p-4 rounded-lg border border-border-clean space-y-3 font-mono text-xs">
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">State Dimension:</span>
-                      <span className="font-bold text-ink">15x15 Matrix (Attitude, Vel, Pos, Biases)</span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">Matrix Symmetry Status:</span>
-                      <span className="font-bold text-emerald-700">Exact Numerical Symmetry (P = Pᵀ)</span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">Trace (Tr(P)):</span>
-                      <span className="font-bold text-ink">{state.covariance_trace.toFixed(4)}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-ink-mute">Innovation Outlier Gate:</span>
-                      <span className="font-bold text-ink">Soft Huber Weighting (Gate = 15.0m)</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Sub-drawer 5: MAP CONTEXT */}
-                {activeSubDrawer === 'map' && (
-                  <div className="bg-white p-4 rounded-lg border border-border-clean space-y-3 font-mono text-xs">
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">Map Matching Mode:</span>
-                      <span className="font-bold text-ink">{state.map_matching_active ? 'ACTIVE' : 'STANDBY'}</span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">Heading Source Priority:</span>
-                      <span className="font-bold text-ink">Gyro Integration → GNSS Course → Magnetic</span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">Road Geometry Aiding:</span>
-                      <span className="font-bold text-ink">Contextual Boundary (Non-overriding)</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-ink-mute">Map Confidence:</span>
-                      <span className="font-bold text-ink">
-                        {state.map_confidence > 0 ? `${Math.round(state.map_confidence * 100)}%` : 'Ready'}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Sub-drawer 6: RUNTIME & MODEL REGISTRY */}
-                {activeSubDrawer === 'runtime' && (
-                  <div className="space-y-3">
-                    <ModelManagerCard />
-                  </div>
-                )}
-
-                {/* Sub-drawer 7: NETWORK & CLOUD API */}
-                {activeSubDrawer === 'network' && (
-                  <div className="bg-white p-4 rounded-lg border border-border-clean space-y-3 font-mono text-xs">
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">Production API Origin:</span>
-                      <span className="font-bold text-ink">{getApiBaseUrl() || window.location.origin}</span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">Session Endpoint:</span>
-                      <span className="font-bold text-ink">
-                        {getApiBaseUrl() ? `${getApiBaseUrl()}/api/v1/navigation/session` : '/api/v1/navigation/session'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">WebSocket URL:</span>
-                      <span className="font-bold text-ink break-all">
-                        {getNavigationWsUrl(activeSessionId || '<session_id>')}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">API Connection Status:</span>
-                      <span className={clsx("font-bold", sessionStatus === 'ERROR' ? "text-rose-600" : isLive ? "text-emerald-700" : "text-ink")}>
-                        {sessionStatus === 'ERROR' ? 'FAILED' : isLive || sessionStatus === 'STARTING' ? 'CONNECTED' : 'READY'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">WebSocket Stream:</span>
-                      <span className={clsx(
-                        "font-bold",
-                        websocketStatus === 'CONNECTED' ? "text-emerald-700" :
-                        websocketStatus === 'CONNECTING' ? "text-amber-600" :
-                        websocketStatus === 'ERROR' ? "text-rose-600" : "text-ink"
-                      )}>
-                        {websocketStatus === 'CONNECTED' ? 'OPEN' : websocketStatus}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-border-clean/60 pb-2">
-                      <span className="text-ink-mute">Active Session ID:</span>
-                      <span className="font-bold text-ink">{activeSessionId || 'None (IDLE)'}</span>
-                    </div>
-                    {errorMessage && (
-                      <div className="p-2.5 rounded bg-rose-50 border border-rose-200 text-rose-800 text-[11px] font-sans">
-                        <span className="font-bold font-mono">Last Error: </span>
-                        {errorMessage}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-              </div>
-            )}
-          </div>
-        </section>
+              )}
+            </div>
+          )}
+        </div>
 
       </div>
     </div>

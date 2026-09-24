@@ -7,9 +7,7 @@ import {
   Play,
   Layers,
   ChevronDown,
-  ChevronUp,
   Activity,
-  BrainCircuit,
   Sparkles,
 } from 'lucide-react';
 import {
@@ -83,7 +81,7 @@ export function ModelManagerCard() {
   const getStatusBadge = (status: string) => {
     if (status.includes('PRODUCTION')) {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
           <ShieldCheck className="w-3 h-3 text-emerald-600" />
           Production
         </span>
@@ -91,7 +89,7 @@ export function ModelManagerCard() {
     }
     if (status.includes('REFERENCE') || status.includes('BASELINE')) {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-800 border border-blue-200/80">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
           <CheckCircle2 className="w-3 h-3 text-blue-600" />
           Baseline
         </span>
@@ -99,7 +97,7 @@ export function ModelManagerCard() {
     }
     if (status.includes('ROBUSTNESS')) {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/80">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
           <Activity className="w-3 h-3 text-amber-600" />
           Robustness
         </span>
@@ -107,19 +105,21 @@ export function ModelManagerCard() {
     }
     if (status.includes('ABLATION')) {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-800 border border-purple-200/80">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-800 border border-purple-200">
           <Layers className="w-3 h-3 text-purple-600" />
           Ablation
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-800 border border-rose-200/80">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-800 border border-rose-200">
         <AlertTriangle className="w-3 h-3 text-rose-600" />
         Degraded
       </span>
     );
   };
+
+  const activeModel = models.find((m) => m.model_id.toUpperCase() === activeModelId.toUpperCase());
 
   const filteredModels = models.filter((m) => {
     if (selectedFilter === 'PRODUCTION') return m.status.includes('PRODUCTION');
@@ -129,21 +129,86 @@ export function ModelManagerCard() {
   });
 
   return (
-    <div className="space-y-4">
-      {/* Registry Sub-header & Secondary Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border-clean/80 pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-[#083335]/5 border border-[#083335]/10 flex items-center justify-center text-[#083335] shrink-0">
-            <BrainCircuit className="w-4.5 h-4.5" />
+    <div className="space-y-3.5 text-xs font-body">
+      {/* 1. Compact Active Model Summary */}
+      <div className="bg-white rounded-xl p-3.5 border border-[#E5E7EB] space-y-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#083335] text-white flex items-center justify-center font-bold text-xs font-mono shrink-0">
+              {activeModelId}
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#8CA5A6] block font-heading">
+                Active Navigation Model
+              </span>
+              <div className="font-heading font-bold text-sm text-[#083335] flex items-center gap-2">
+                <span>{activeModel?.name || 'E5 Physics-Aware Gravity Velocity Model'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0 font-mono">
+              PRODUCTION / VALIDATED
+            </span>
+            {activeModelId !== 'E5' && (
+              <button
+                type="button"
+                onClick={() => handleSelectModel('E5')}
+                disabled={switching}
+                className="px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-[#083335] text-white hover:bg-[#052426] transition-colors cursor-pointer"
+              >
+                Reset to E5
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-[#F0F2F2] text-[11.5px] font-mono text-ink">
+          <div>
+            <span className="text-[10px] text-[#8CA5A6] block font-sans">Models Loaded</span>
+            <span className="font-semibold text-[#083335]">E5 · U2</span>
           </div>
           <div>
-            <h3 className="text-xs sm:text-sm font-bold text-ink">
-              Model Variant Registry & Benchmarking
-            </h3>
-            <p className="text-[11px] text-ink-mute">
-              {models.length} model variants available for comparative analysis & ablation inspection
-            </p>
+            <span className="text-[10px] text-[#8CA5A6] block font-sans">Runtime</span>
+            <span className="font-semibold text-ink">WASM + SIMD</span>
           </div>
+          <div>
+            <span className="text-[10px] text-[#8CA5A6] block font-sans">Window</span>
+            <span className="font-semibold text-ink">50 samples @ 10 Hz</span>
+          </div>
+          <div>
+            <span className="text-[10px] text-[#8CA5A6] block font-sans">Total Variants</span>
+            <span className="font-semibold text-ink">{models.length} registered</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Action / Benchmark Row */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+        {/* Filter Pills */}
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+          {(['ALL', 'PRODUCTION', 'BASELINES', 'ABLATIONS'] as const).map((filter) => (
+            <button
+              key={filter}
+              type="button"
+              onClick={() => setSelectedFilter(filter)}
+              className={clsx(
+                'px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
+                selectedFilter === filter
+                  ? 'bg-[#083335] text-white shadow-2xs'
+                  : 'text-[#5E5E5E] hover:text-[#083335] hover:bg-[#F0F4F4]'
+              )}
+            >
+              {filter === 'ALL'
+                ? `All (${models.length})`
+                : filter === 'PRODUCTION'
+                ? 'Production'
+                : filter === 'BASELINES'
+                ? 'Baselines'
+                : 'Ablations'}
+            </button>
+          ))}
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
@@ -151,7 +216,7 @@ export function ModelManagerCard() {
             type="button"
             onClick={handleRunBenchmark}
             disabled={benchmarking}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-canvas-soft hover:bg-canvas-softer active:bg-[#E5E5E5] text-ink border border-border-clean transition-all cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-[#083335] border border-[#E5E7EB] transition-colors cursor-pointer disabled:opacity-50"
           >
             {benchmarking ? (
               <>
@@ -169,239 +234,157 @@ export function ModelManagerCard() {
             type="button"
             onClick={loadData}
             disabled={loading}
-            className="p-1.5 rounded-xl text-xs bg-canvas-soft hover:bg-canvas-softer text-ink-body border border-border-clean transition-all cursor-pointer"
-            title="Refresh Registry"
+            aria-label="Refresh Registry"
+            className="p-1.5 rounded-xl bg-white hover:bg-slate-50 text-[#5E5E5E] border border-[#E5E7EB] transition-colors cursor-pointer"
           >
-            <RefreshCw className={clsx("w-3.5 h-3.5", loading && "animate-spin")} />
+            <RefreshCw className={clsx('w-3.5 h-3.5', loading && 'animate-spin')} />
           </button>
         </div>
       </div>
 
       {/* Notifications */}
       {errorMsg && (
-        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+        <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
           <span>{errorMsg}</span>
         </div>
       )}
       {successMsg && (
-        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+        <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
           <span>{successMsg}</span>
         </div>
       )}
 
-      {/* Active Model Banner */}
-      <div className="bg-canvas-soft/60 rounded-xl p-3 sm:p-3.5 border border-border-clean flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-[#083335] text-white flex items-center justify-center font-bold text-xs font-mono shrink-0">
-            {activeModelId}
-          </div>
-          <div className="min-w-0">
-            <span className="text-[10px] uppercase font-bold text-ink-mute block">Active Live Model</span>
-            <div className="text-xs font-bold text-ink flex items-center gap-2 truncate">
-              <span>{models.find((m) => m.model_id.toUpperCase() === activeModelId.toUpperCase())?.name || activeModelId}</span>
-              {models.find((m) => m.model_id.toUpperCase() === activeModelId.toUpperCase()) &&
-                getStatusBadge(models.find((m) => m.model_id.toUpperCase() === activeModelId.toUpperCase())!.status)}
-            </div>
-          </div>
-        </div>
+      {/* 2. Expandable Model Rows (Only ONE model detail row open at a time) */}
+      <div className="bg-white rounded-xl border border-[#E5E7EB] divide-y divide-[#F0F2F2] overflow-hidden">
+        {filteredModels.map((m) => {
+          const isActive = m.model_id.toUpperCase() === activeModelId.toUpperCase();
+          const isExpanded = expandedModelId === m.model_id;
 
-        {activeModelId !== 'E5' && (
-          <button
-            type="button"
-            onClick={() => handleSelectModel('E5')}
-            disabled={switching}
-            className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#083335] text-white hover:bg-[#052426] transition-all cursor-pointer self-start sm:self-auto shrink-0"
-          >
-            Reset to Production Default (E5)
-          </button>
-        )}
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-1.5 border-b border-border-clean/60 pb-2 text-xs font-semibold overflow-x-auto">
-        <button
-          type="button"
-          onClick={() => setSelectedFilter('ALL')}
-          className={clsx(
-            "px-2.5 py-1 rounded-lg transition-all cursor-pointer",
-            selectedFilter === 'ALL'
-              ? 'bg-[#083335] text-white'
-              : 'text-ink-body hover:bg-canvas-soft'
-          )}
-        >
-          All Variants ({models.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setSelectedFilter('PRODUCTION')}
-          className={clsx(
-            "px-2.5 py-1 rounded-lg transition-all cursor-pointer",
-            selectedFilter === 'PRODUCTION'
-              ? 'bg-[#083335] text-white'
-              : 'text-ink-body hover:bg-canvas-soft'
-          )}
-        >
-          Production (3)
-        </button>
-        <button
-          type="button"
-          onClick={() => setSelectedFilter('BASELINES')}
-          className={clsx(
-            "px-2.5 py-1 rounded-lg transition-all cursor-pointer",
-            selectedFilter === 'BASELINES'
-              ? 'bg-[#083335] text-white'
-              : 'text-ink-body hover:bg-canvas-soft'
-          )}
-        >
-          Baselines (3)
-        </button>
-        <button
-          type="button"
-          onClick={() => setSelectedFilter('ABLATIONS')}
-          className={clsx(
-            "px-2.5 py-1 rounded-lg transition-all cursor-pointer",
-            selectedFilter === 'ABLATIONS'
-              ? 'bg-[#083335] text-white'
-              : 'text-ink-body hover:bg-canvas-soft'
-          )}
-        >
-          Ablations (6)
-        </button>
-      </div>
-
-      {/* Compact Models Table / List */}
-      <div className="overflow-x-auto rounded-xl border border-border-clean bg-white divide-y divide-border-clean/80">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-canvas-soft/60 text-ink-mute font-mono text-[10.5px] uppercase">
-            <tr>
-              <th className="py-2.5 px-3">Model</th>
-              <th className="py-2.5 px-3">Role & Category</th>
-              <th className="py-2.5 px-3">Status</th>
-              <th className="py-2.5 px-3 text-right">Primary RMSE</th>
-              <th className="py-2.5 px-3 text-right">Params</th>
-              <th className="py-2.5 px-3 text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-clean/60">
-            {filteredModels.map((m) => {
-              const isActive = m.model_id.toUpperCase() === activeModelId.toUpperCase();
-              const isExpanded = expandedModelId === m.model_id;
-
-              return (
-                <tr
-                  key={m.model_id}
-                  className={clsx(
-                    "hover:bg-canvas-soft/40 transition-colors",
-                    isActive && "bg-[#083335]/5"
-                  )}
-                >
-                  <td className="py-2.5 px-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-ink">{m.model_id}</span>
-                      <button
-                        type="button"
-                        onClick={() => setExpandedModelId(isExpanded ? null : m.model_id)}
-                        className="text-ink-mute hover:text-ink text-[11px] font-sans flex items-center gap-0.5 cursor-pointer"
-                      >
-                        <span className="font-medium text-ink truncate max-w-[140px] sm:max-w-[200px]">{m.name}</span>
-                        {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                      </button>
+          return (
+            <div
+              key={m.model_id}
+              className={clsx(
+                'transition-colors',
+                isActive && 'bg-[#083335]/[0.03]'
+              )}
+            >
+              <div
+                onClick={() => setExpandedModelId(isExpanded ? null : m.model_id)}
+                className="p-3 sm:px-3.5 flex items-center justify-between gap-2.5 cursor-pointer hover:bg-slate-50/70 select-none"
+              >
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <span className="font-mono font-bold text-xs text-[#083335] w-6 shrink-0">
+                    {m.model_id}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-heading font-semibold text-xs sm:text-sm text-ink truncate">
+                      {m.name}
                     </div>
-                    {isExpanded && (
-                      <div className="mt-2 p-2.5 bg-canvas-soft rounded-lg text-[11px] text-ink-body space-y-1">
-                        <p><strong>Architecture:</strong> {m.architecture}</p>
-                        <p><strong>Input:</strong> {m.input_description} ({m.input_channels} channels, {m.window_samples} samples)</p>
-                        <p><strong>Artifact:</strong> <code className="font-mono text-[10px] bg-white px-1 py-0.5 rounded border border-border-clean">{m.weights_file}</code></p>
-                      </div>
-                    )}
-                  </td>
-                  <td className="py-2.5 px-3 text-[11px] text-ink-body">
-                    {m.output_description}
-                  </td>
-                  <td className="py-2.5 px-3">
-                    {getStatusBadge(m.status)}
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-mono text-[11px]">
+                    <div className="text-[11px] text-[#5E5E5E] font-body truncate">
+                      {m.output_description}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="hidden sm:block text-right font-mono text-[11px] text-[#5E5E5E]">
                     {m.primary_rmse_mps !== null ? `${m.primary_rmse_mps.toFixed(2)} m/s` : '—'}
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-mono text-[11px] text-ink-mute">
-                    {m.parameters ? `${(m.parameters / 1000).toFixed(0)}k` : '—'}
-                  </td>
-                  <td className="py-2.5 px-3 text-center">
-                    {isActive ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#083335] text-white">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Active
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleSelectModel(m.model_id)}
-                        disabled={switching}
-                        className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-canvas-soft hover:bg-canvas-softer text-ink border border-border-clean cursor-pointer transition-colors"
-                      >
-                        Activate
-                      </button>
+                  </div>
+                  <div>
+                    {getStatusBadge(m.status)}
+                  </div>
+                  {isActive ? (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#083335] text-white shrink-0">
+                      Active
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectModel(m.model_id);
+                      }}
+                      disabled={switching}
+                      className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#F0F4F4] hover:bg-[#E2EBEB] text-[#083335] transition-colors cursor-pointer shrink-0"
+                    >
+                      Activate
+                    </button>
+                  )}
+                  <ChevronDown
+                    className={clsx(
+                      'w-3.5 h-3.5 text-[#8CA5A6] transition-transform duration-200',
+                      isExpanded && 'transform rotate-180'
                     )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  />
+                </div>
+              </div>
+
+              {/* Single Model Expanded Drawer */}
+              {isExpanded && (
+                <div className="px-4 py-3 bg-[#F9FBFA] border-t border-[#F0F2F2] space-y-2 text-[11.5px] font-body animate-in fade-in duration-150">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-xs">
+                    <div>
+                      <span className="text-[10px] text-[#8CA5A6] block font-sans">Architecture</span>
+                      <span className="text-ink font-semibold">{m.architecture}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#8CA5A6] block font-sans">Input Format</span>
+                      <span className="text-ink font-semibold">{m.input_description} ({m.input_channels} ch, {m.window_samples} samples)</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#8CA5A6] block font-sans">Parameters</span>
+                      <span className="text-ink font-semibold">{m.parameters ? m.parameters.toLocaleString() : '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#8CA5A6] block font-sans">Weights File</span>
+                      <span className="text-ink font-semibold">{m.weights_file}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Benchmark Results Modal / Box */}
+      {/* Benchmark Results Drawer */}
       {benchmarkData && (
-        <div className="bg-canvas-soft rounded-xl p-4 border border-border-clean space-y-3">
-          <div className="flex items-center justify-between border-b border-border-clean/80 pb-2">
+        <div className="bg-white rounded-xl p-3.5 border border-[#E5E7EB] space-y-2.5">
+          <div className="flex items-center justify-between border-b border-[#F0F2F2] pb-2">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-[#083335]" />
-              <h4 className="text-xs font-bold text-ink">Multi-Model Benchmark Results</h4>
-              <span className="text-[10.5px] text-ink-mute">(Evaluated across 5.0s temporal sequence)</span>
+              <h4 className="text-xs font-bold text-[#083335] font-heading">Benchmark Evaluation Results</h4>
             </div>
             <button
               type="button"
               onClick={() => setBenchmarkData(null)}
-              className="text-[11px] text-ink-mute hover:text-ink cursor-pointer px-2 py-0.5 rounded bg-white border border-border-clean"
+              className="text-[11px] text-[#5E5E5E] hover:text-ink cursor-pointer px-2 py-0.5 rounded bg-[#F0F4F4]"
             >
               Close
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-mono">
-              <thead className="text-[10px] text-ink-mute uppercase border-b border-border-clean/80">
-                <tr>
-                  <th className="py-1.5 px-2">Model</th>
-                  <th className="py-1.5 px-2">Status</th>
-                  <th className="py-1.5 px-2 text-right">Pred Velocity</th>
-                  <th className="py-1.5 px-2 text-right">Sigma (±σ)</th>
-                  <th className="py-1.5 px-2 text-right">Latency</th>
-                  <th className="py-1.5 px-2 text-right">Params</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-clean/60">
-                {benchmarkData.results.map((r) => (
-                  <tr
-                    key={r.model_id}
-                    className={clsx(
-                      "hover:bg-white/60 transition-colors",
-                      r.model_id.toUpperCase() === activeModelId.toUpperCase() && "bg-[#083335]/5 font-bold text-[#083335]"
-                    )}
-                  >
-                    <td className="py-1.5 px-2 font-sans font-medium">{r.model_id} ({r.name.split(' ')[0]})</td>
-                    <td className="py-1.5 px-2 font-sans text-[10.5px]">{getStatusBadge(r.status)}</td>
-                    <td className="py-1.5 px-2 text-right">{r.velocity_mps.toFixed(2)} m/s</td>
-                    <td className="py-1.5 px-2 text-right">{r.calibrated_sigma_mps.toFixed(2)} m/s</td>
-                    <td className="py-1.5 px-2 text-right text-emerald-700">{r.latency_ms.toFixed(1)} ms</td>
-                    <td className="py-1.5 px-2 text-right text-ink-mute">{r.parameters.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-1.5 font-mono text-[11px]">
+            {benchmarkData.results.map((r) => (
+              <div
+                key={r.model_id}
+                className={clsx(
+                  'p-2 rounded-lg flex items-center justify-between gap-2',
+                  r.model_id.toUpperCase() === activeModelId.toUpperCase()
+                    ? 'bg-[#083335]/[0.06] font-bold text-[#083335]'
+                    : 'bg-[#F9FBFA] text-ink'
+                )}
+              >
+                <span>{r.model_id} ({r.name.split(' ')[0]})</span>
+                <div className="flex items-center gap-3">
+                  <span>{r.velocity_mps.toFixed(2)} m/s</span>
+                  <span>±{r.calibrated_sigma_mps.toFixed(2)}</span>
+                  <span className="text-emerald-700">{r.latency_ms.toFixed(1)} ms</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

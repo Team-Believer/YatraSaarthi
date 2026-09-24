@@ -28,11 +28,64 @@ export interface SavedPlaceItem {
 export const SAVED_ROUTES_STORAGE_KEY = 'yatrasaarthi_saved_routes_v1';
 const SAVED_ROUTES_EVENT = 'yatrasaarthi_saved_routes_updated';
 
+/**
+ * Formats the subtitle for a saved route or place without duplicating road names.
+ * Handles cases where:
+ * - Address already contains the route summary: "Via NH48, SH41" + "NH48, SH41" -> "Via NH48, SH41"
+ * - Address contains duplicated strings: "Via NH48, SH41 · NH48, SH41" -> "Via NH48, SH41"
+ * - Address has distinct origin/destination: "Ahmedabad → Mahesana" + "NH48, SH41" -> "Via NH48, SH41" or "Ahmedabad → Mahesana · Via NH48, SH41"
+ */
+export function formatRouteSubtitle(item: {
+  address?: string;
+  summary?: string;
+  name?: string;
+}): string {
+  let addr = (item.address || '').trim();
+  const sum = (item.summary || '').trim();
+
+  // If the address contains duplicate road segments (e.g. "Via NH48, SH41 · NH48, SH41")
+  if (addr.includes('·')) {
+    const parts = addr.split('·').map((p) => p.trim());
+    const normalizedParts = parts.map((p) => p.replace(/^via\s+/i, '').trim());
+    if (
+      normalizedParts.length > 1 &&
+      normalizedParts[0].toLowerCase() === normalizedParts[1].toLowerCase()
+    ) {
+      addr = parts[0].toLowerCase().startsWith('via ') ? parts[0] : `Via ${parts[0]}`;
+    }
+  }
+
+  const cleanSummary = sum.replace(/^via\s+/i, '').trim();
+
+  if (cleanSummary) {
+    if (!addr) {
+      return `Via ${cleanSummary}`;
+    }
+
+    const cleanAddr = addr.replace(/^via\s+/i, '').trim();
+    if (
+      cleanAddr.toLowerCase() === cleanSummary.toLowerCase() ||
+      addr.toLowerCase().includes(cleanSummary.toLowerCase())
+    ) {
+      return addr.toLowerCase().startsWith('via ') ? addr : `Via ${cleanSummary}`;
+    }
+
+    // If addr is a descriptive corridor (e.g. "Ahmedabad → Mahesana")
+    return `${addr} · Via ${cleanSummary}`;
+  }
+
+  if (addr) {
+    return addr.toLowerCase().startsWith('via ') ? addr : addr;
+  }
+
+  return item.name ? `Route to ${item.name}` : 'Saved route';
+}
+
 export const DEFAULT_SAVED_PLACES: SavedPlaceItem[] = [
   {
     id: 'saved-route-mahesana',
     name: 'Mahesana',
-    address: 'Ahmedabad → Mahesana',
+    address: 'Via NH48, SH41',
     summary: 'NH48, SH41',
     type: 'route',
     coordinates: [72.3998, 23.5880],
@@ -69,12 +122,14 @@ export const DEFAULT_SAVED_PLACES: SavedPlaceItem[] = [
   {
     id: 'saved-airport',
     name: 'Airport',
-    address: 'Sardar Vallabhbhai Patel International Airport',
+    address: 'Sardar Vallabhbhai Patel International Airport, Ahmedabad',
     type: 'place',
     coordinates: [72.6347, 23.0734],
     createdAt: new Date(Date.now() - 86400000 * 1).toISOString(),
   },
 ];
+
+let memoryCache: SavedPlaceItem[] | null = null;
 
 export const savedRouteService = {
   getSavedItems(): SavedPlaceItem[] {
@@ -84,23 +139,33 @@ export const savedRouteService = {
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
+            // Sanitize any route subtitle duplications from previous sessions
+            return parsed.map((item: SavedPlaceItem) => {
+              if (item.type === 'route') {
+                return {
+                  ...item,
+                  address: formatRouteSubtitle(item),
+                };
+              }
+              return item;
+            });
           }
         }
       }
     } catch (e) {
       console.warn('Failed to read saved routes from localStorage:', e);
     }
-    return DEFAULT_SAVED_PLACES;
+    return memoryCache ? [...memoryCache] : [...DEFAULT_SAVED_PLACES];
   },
 
   setSavedItems(items: SavedPlaceItem[]): void {
+    memoryCache = [...items];
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(SAVED_ROUTES_STORAGE_KEY, JSON.stringify(items));
       }
-      offlineStorage.cacheSavedRoutes(items).catch((err) => {
-        console.warn('Failed to sync saved routes to IndexedDB:', err);
+      offlineStorage.cacheSavedRoutes(items).catch(() => {
+        // Silently catch in headless test or unsupported storage environments
       });
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent(SAVED_ROUTES_EVENT, { detail: items }));
@@ -130,10 +195,16 @@ export const savedRouteService = {
       return existing;
     }
 
+    const formattedAddress = formatRouteSubtitle({
+      address: data.address,
+      summary: data.summary,
+      name: data.name,
+    });
+
     const newItem: SavedPlaceItem = {
       id: `saved-route-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       name: data.name,
-      address: data.address || (data.summary ? `Via ${data.summary}` : 'Saved route'),
+      address: formattedAddress,
       type: 'route',
       coordinates: data.coordinates,
       originCoordinates: data.originCoordinates,
@@ -149,6 +220,42 @@ export const savedRouteService = {
     const updated = [newItem, ...items];
     this.setSavedItems(updated);
     return newItem;
+  },
+
+  savePlace(data: {
+    name: string;
+    coordinates: [number, number];
+    address?: string;
+  }): SavedPlaceItem {
+    const items = this.getSavedItems();
+    const newItem: SavedPlaceItem = {
+      id: `saved-place-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: data.name.trim(),
+      address: data.address?.trim() || 'Saved destination',
+      type: 'place',
+      coordinates: data.coordinates,
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [newItem, ...items];
+    this.setSavedItems(updated);
+    return newItem;
+  },
+
+  updateSavedItem(id: string, updates: Partial<SavedPlaceItem>): boolean {
+    const items = this.getSavedItems();
+    const index = items.findIndex((item) => item.id === id);
+    if (index === -1) return false;
+
+    const current = items[index];
+    const updatedItem = { ...current, ...updates };
+
+    if (updatedItem.type === 'route' && (updates.address || updates.summary)) {
+      updatedItem.address = formatRouteSubtitle(updatedItem);
+    }
+
+    items[index] = updatedItem;
+    this.setSavedItems(items);
+    return true;
   },
 
   removeSavedItem(id: string): boolean {

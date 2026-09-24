@@ -11,6 +11,7 @@ import {
   logNavigationStartDiagnostics,
   classifyNetworkError,
 } from '../api/apiConfig';
+import { demoOutageService } from './demoOutageService';
 
 export class NavigationSessionLifecycle {
   private activeWs: WebSocket | null = null;
@@ -135,7 +136,8 @@ export class NavigationSessionLifecycle {
     store.setSessionStatus('ENDING');
 
     try {
-      // 2. Stop dual-engine coordinator and sensor collection
+      // 2. Stop dual-engine coordinator, sensor collection, and reset demo outage simulation
+      demoOutageService.reset();
       navigationEngineCoordinator.stop();
       sensorCollector.stop();
       store.setSensorStreaming(false);

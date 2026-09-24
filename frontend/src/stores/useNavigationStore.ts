@@ -86,7 +86,7 @@ const defaultNavigationState: NavigationState = {
   heading_confidence: 0,
   map_confidence: 0,
   gnss_available: false,
-  gnss_quality: 'LOST',
+  gnss_quality: 'ACQUIRING',
   navigation_mode: 'STANDBY',
   environment_state: 'UNKNOWN',
   alignment_status: 'UNALIGNED',
@@ -144,6 +144,8 @@ interface NavigationStore {
   destination: { name: string; coordinates: [number, number] } | null;
   routeCoordinates: [number, number][] | null;
 
+  hasHadFix: boolean;
+
   // Viewport Overlay Modals
   isNavStatusDrawerOpen: boolean;
 
@@ -182,6 +184,7 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
   journeySummary: null,
   errorMessage: null,
   state: { ...defaultNavigationState },
+  hasHadFix: false,
   
   source: null,
   destination: null,
@@ -225,8 +228,10 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
     // Accumulate trajectory if valid coordinates received
     let newTrajectory = store.trajectory;
     let newFusedPosition = store.fusedPosition;
+    let hasHadFix = store.hasHadFix;
 
     if (updated.latitude !== 0 && updated.longitude !== 0) {
+      hasHadFix = true;
       newFusedPosition = {
         latitude: updated.latitude,
         longitude: updated.longitude,
@@ -240,12 +245,15 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
       if (!lastPoint || (lastPoint[0] !== updated.longitude || lastPoint[1] !== updated.latitude)) {
         newTrajectory = [...newTrajectory, [updated.longitude, updated.latitude]];
       }
+    } else if (updated.gnss_available) {
+      hasHadFix = true;
     }
 
     return {
       state: updated,
       fusedPosition: newFusedPosition,
       trajectory: newTrajectory,
+      hasHadFix,
     };
   }),
 
@@ -262,6 +270,7 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
     source: null,
     destination: null,
     routeCoordinates: null,
+    hasHadFix: false,
     state: { ...defaultNavigationState },
   })),
 
@@ -280,6 +289,7 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
     routeCoordinates: null,
     journeySummary: null,
     errorMessage: null,
+    hasHadFix: false,
     state: { ...defaultNavigationState },
   }),
 }));

@@ -39,6 +39,10 @@ import {
   getISTDateBucket,
   formatTripDateTime,
 } from '../utils/timeFormat';
+import {
+  computeTripOutageMetrics,
+  formatDurationClock,
+} from '../utils/navigation/tripOutageAnalytics';
 
 interface GroupedTrips {
   bucket: DateBucket;
@@ -132,10 +136,10 @@ export default function History() {
   const [showMobileDetail, setShowMobileDetail] = useState(false);
 
   const handleNavigateAgain = () => {
-    if (!selectedViewModel) return;
+    if (!selectedViewModel || !selectedViewModel.endLon || !selectedViewModel.endLat) return;
     const destCoords: [number, number] = [
-      selectedViewModel.endLon ?? 72.6369,
-      selectedViewModel.endLat ?? 23.2156,
+      selectedViewModel.endLon,
+      selectedViewModel.endLat,
     ];
     if (selectedViewModel.vehicleType) {
       const rawMode = selectedViewModel.vehicleType.toLowerCase();
@@ -196,10 +200,10 @@ export default function History() {
           distance_meters: s.summary_metrics?.estimated_distance_m || 0,
           duration_seconds: s.summary_metrics?.total_duration_s || 0,
           vehicle_type: s.vehicle_type || 'CAR',
-          start_lat: s.geometry && s.geometry.length > 0 ? s.geometry[0][1] : 23.0225,
-          start_lon: s.geometry && s.geometry.length > 0 ? s.geometry[0][0] : 72.5714,
-          end_lat: s.geometry && s.geometry.length > 0 ? s.geometry[s.geometry.length - 1][1] : 23.2156,
-          end_lon: s.geometry && s.geometry.length > 0 ? s.geometry[s.geometry.length - 1][0] : 72.6369,
+          start_lat: s.geometry && s.geometry.length > 0 ? s.geometry[0][1] : 0,
+          start_lon: s.geometry && s.geometry.length > 0 ? s.geometry[0][0] : 0,
+          end_lat: s.geometry && s.geometry.length > 0 ? s.geometry[s.geometry.length - 1][1] : 0,
+          end_lon: s.geometry && s.geometry.length > 0 ? s.geometry[s.geometry.length - 1][0] : 0,
           is_offline_cached: true,
         }));
       } catch (idbErr) {
@@ -436,6 +440,14 @@ export default function History() {
       )
     );
   }, [selectedTrip, tripViewModels, tripMetadataMap, selectedDetail, savedPlaces, geoNamesMap]);
+
+  // Real measured Outage & Dead Reckoning metrics from session points
+  const selectedOutageMetrics = useMemo(() => {
+    return computeTripOutageMetrics(
+      selectedDetail?.points,
+      selectedViewModel?.durationSeconds
+    );
+  }, [selectedDetail, selectedViewModel]);
 
   // Summary Metrics (aggregate numbers from meaningful trip records)
   const totalCount = meaningfulSessions.length;
@@ -920,7 +932,86 @@ export default function History() {
                   )}
                 </div>
 
-                {/* 4. Large Route Map */}
+                {/* 4. Real Measured Outage & Dead Reckoning Telemetry */}
+                <div className="pt-2 space-y-2.5 border-t border-border-clean/60">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-ink-mute uppercase tracking-wider font-heading">
+                      Navigation & Outage Records
+                    </span>
+                    {selectedOutageMetrics.outageEventsCount > 0 ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-semibold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                        <span>{selectedOutageMetrics.outageEventsCount} GNSS Outage{selectedOutageMetrics.outageEventsCount > 1 ? 's' : ''}</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span>Continuous GNSS</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Telemetry Metrics 3-Card Grid */}
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="bg-canvas-soft p-2.5 rounded-xl border border-border-clean/60 space-y-0.5">
+                      <div className="text-[10px] text-ink-mute uppercase font-bold tracking-tight">GNSS Supported</div>
+                      <div className="text-sm font-bold font-mono text-ink">
+                        {formatDurationClock(selectedOutageMetrics.totalGnssSeconds)}
+                      </div>
+                    </div>
+                    <div className="bg-canvas-soft p-2.5 rounded-xl border border-border-clean/60 space-y-0.5">
+                      <div className="text-[10px] text-ink-mute uppercase font-bold tracking-tight">Dead Reckoning</div>
+                      <div className="text-sm font-bold font-mono text-amber-800">
+                        {formatDurationClock(selectedOutageMetrics.totalDrSeconds)}
+                      </div>
+                    </div>
+                    <div className="bg-canvas-soft p-2.5 rounded-xl border border-border-clean/60 space-y-0.5">
+                      <div className="text-[10px] text-ink-mute uppercase font-bold tracking-tight">Max Speed</div>
+                      <div className="text-sm font-bold font-mono text-ink">
+                        {selectedOutageMetrics.maxSpeedKmh !== null ? `${selectedOutageMetrics.maxSpeedKmh} km/h` : '—'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Visual Mode Timeline Bar */}
+                  {selectedOutageMetrics.segments.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <div className="h-2 w-full bg-canvas-soft rounded-full overflow-hidden flex shadow-2xs">
+                        {selectedOutageMetrics.segments.map((seg, idx) => (
+                          <div
+                            key={idx}
+                            style={{ width: `${Math.max(seg.percent, 2)}%` }}
+                            title={`${seg.type}: ${Math.round(seg.durationSeconds)}s (${Math.round(seg.percent)}%)`}
+                            className={clsx(
+                              'h-full transition-all',
+                              seg.type === 'DR' ? 'bg-amber-500' : seg.type === 'REACQUISITION' ? 'bg-sky-500' : 'bg-emerald-600'
+                            )}
+                          />
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-ink-mute font-mono">
+                        <span className="flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                          <span>GNSS ({formatDurationClock(selectedOutageMetrics.totalGnssSeconds)})</span>
+                        </span>
+                        {selectedOutageMetrics.totalDrSeconds > 0 && (
+                          <span className="flex items-center gap-1 font-semibold text-amber-800">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            <span>DR ({selectedOutageMetrics.totalDrSeconds}s)</span>
+                          </span>
+                        )}
+                        {selectedOutageMetrics.totalReacquisitionSeconds > 0 && (
+                          <span className="flex items-center gap-1 text-sky-800">
+                            <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+                            <span>Reacquiring ({selectedOutageMetrics.totalReacquisitionSeconds}s)</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. Large Route Map */}
                 <div className="pt-2 space-y-1.5">
                   <TripRouteMap
                     points={selectedDetail?.points}

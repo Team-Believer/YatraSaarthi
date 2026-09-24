@@ -13,11 +13,15 @@ import {
   Plane,
   X,
   Navigation2,
+  AlertTriangle,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useNavigationStore } from '../stores/useNavigationStore';
 import { useLocationStore } from '../stores/useLocationStore';
 import { useRouteStore } from '../stores/useRouteStore';
+import { useSensorStore } from '../stores/useSensorStore';
+import { useDemoOutage } from '../hooks/useDemoOutage';
+import { deriveGnssNavStatus } from '../utils/navigation/gnssStatus';
 import { routeService } from '../services/navigation/routeService';
 import { savedRouteService, type SavedPlaceItem } from '../services/navigation/savedRouteService';
 import { tripMetadataService, type TripMetadata } from '../services/navigation/tripMetadataService';
@@ -42,9 +46,52 @@ export default function Dashboard() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   // Location & Navigation Stores
-  const { latitude: deviceLat, longitude: deviceLon, placeName } = useLocationStore();
+  const {
+    latitude: deviceLat,
+    longitude: deviceLon,
+    placeName,
+    permission: locationPermission,
+    availability: locationAvailability,
+  } = useLocationStore();
   const { setSource, setDestination } = useNavigationStore();
+  const navState = useNavigationStore((s) => s.state);
+  const isLive = useNavigationStore((s) => s.isLive);
+  const { capabilities } = useSensorStore();
+  const { isSimulating: isDemoOutageActive, outageSeconds: demoOutageSeconds } = useDemoOutage();
   const travelMode = useRouteStore((s) => s.travelMode);
+
+  const hasCoordinates = deviceLat !== null && deviceLon !== null;
+  const isGnssAvailable = hasCoordinates || navState.gnss_available;
+  const isImuAvailable = Boolean(capabilities.deviceMotion || capabilities.deviceOrientation || navState.imu_available);
+
+  // Real pre-trip & live GNSS navigation status
+  const gnssStatus = useMemo(() => {
+    return deriveGnssNavStatus({
+      isLive,
+      navigationMode: navState.navigation_mode,
+      gnssAvailable: isGnssAvailable,
+      gnssQuality: isGnssAvailable ? 'GOOD' : navState.gnss_quality,
+      gnssOutageDuration: navState.gnss_outage_duration,
+      environmentState: navState.environment_state,
+      imuAvailable: isImuAvailable,
+      isDemoOutageActive,
+      demoOutageSeconds,
+      permission: locationPermission,
+      availability: locationAvailability,
+    });
+  }, [
+    isLive,
+    navState.navigation_mode,
+    isGnssAvailable,
+    navState.gnss_quality,
+    navState.gnss_outage_duration,
+    navState.environment_state,
+    isImuAvailable,
+    isDemoOutageActive,
+    demoOutageSeconds,
+    locationPermission,
+    locationAvailability,
+  ]);
 
   // Map state
   const [followVehicle, setFollowVehicle] = useState(true);
@@ -210,8 +257,6 @@ export default function Dashboard() {
     return list.slice(0, 2);
   }, [recentTrips, savedItems]);
 
-  const hasCoordinates = deviceLat !== null && deviceLon !== null;
-
   // Format distance
   const formatDistance = (meters?: number) => {
     if (!meters) return null;
@@ -240,10 +285,10 @@ export default function Dashboard() {
         }}
       >
         <MapController
-          latitude={deviceLat || 23.0225}
-          longitude={deviceLon || 72.5714}
+          latitude={deviceLat}
+          longitude={deviceLon}
           heading={0}
-          followVehicle={followVehicle}
+          followVehicle={followVehicle && hasCoordinates}
           orientationMode="NORTH_UP"
         />
         {hasCoordinates && (
@@ -270,12 +315,49 @@ export default function Dashboard() {
       <div className="absolute top-[calc(env(safe-area-inset-top)+66px)] md:top-5 left-3 right-3 md:left-[100px] md:right-auto md:w-[400px] z-20 pointer-events-none">
         <div className="space-y-2.5">
 
-          {/* ─── Location Context ─── */}
-          <div className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 w-fit">
-            <div className="w-2 h-2 rounded-full bg-[#083335] shrink-0" />
-            <span className="text-[12px] font-medium text-[#3A4F4E] truncate max-w-[240px] font-body drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)]">
-              {placeName || 'Locating…'}
-            </span>
+          {/* ─── Location & Navigation Status Context ─── */}
+          <div
+            className={clsx(
+              'pointer-events-auto bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-2xl border shadow-[0_2px_12px_rgba(8,51,53,0.06)] flex items-center justify-between gap-3 min-h-[42px] transition-all',
+              gnssStatus.isDr
+                ? 'border-amber-400/60 ring-2 ring-amber-400/20'
+                : 'border-[#E2E8E7]'
+            )}
+          >
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              {gnssStatus.isDr ? (
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              ) : (
+                <span
+                  className={clsx(
+                    'w-2 h-2 rounded-full shrink-0 transition-colors',
+                    gnssStatus.dotColor,
+                    (gnssStatus.isDr || gnssStatus.isReacquiring) && 'animate-pulse'
+                  )}
+                />
+              )}
+              <div className="flex flex-col min-w-0">
+                <span className="text-[12.5px] font-semibold text-[#083335] truncate font-heading leading-tight">
+                  {placeName || (hasCoordinates ? 'Current Location' : 'Locating…')}
+                </span>
+                <span className="text-[10.5px] font-medium text-[#6F7F7D] truncate leading-tight mt-0.5">
+                  {gnssStatus.subtitle}
+                </span>
+              </div>
+            </div>
+
+            {/* Compact Navigation / GNSS Status Chip */}
+            <div
+              className={clsx(
+                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold font-body border shrink-0',
+                gnssStatus.badgeBg,
+                gnssStatus.badgeBorder,
+                gnssStatus.textColor
+              )}
+            >
+              <span className={clsx('w-1.5 h-1.5 rounded-full shrink-0', gnssStatus.dotColor)} />
+              <span>{gnssStatus.title}</span>
+            </div>
           </div>
 
           {/* ─── Primary Search Bar ─── */}

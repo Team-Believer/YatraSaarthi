@@ -3,6 +3,8 @@ import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useLocationStore } from '../../stores/useLocationStore';
+import { useDemoOutage } from '../../hooks/useDemoOutage';
+import { deriveGnssNavStatus, formatOutageDuration } from '../../utils/navigation/gnssStatus';
 import { ChevronRight } from 'lucide-react';
 
 export interface NavStatusPillProps {
@@ -14,24 +16,6 @@ export interface NavStatusPillProps {
   showDrawerOnClick?: boolean;
   onClick?: () => void;
 }
-
-export type NavStateCategory =
-  | 'GNSS_FIX'
-  | 'GNSS_DEGRADED'
-  | 'DEAD_RECKONING'
-  | 'GNSS_RECOVERING'
-  | 'STANDBY'
-  | 'ACQUIRING'
-  | 'PERMISSION_REQUIRED'
-  | 'ERROR';
-
-// Format outage time mm:ss
-const formatOutageDuration = (seconds: number): string => {
-  if (typeof seconds !== 'number' || isNaN(seconds) || seconds <= 0) return '00:00';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
-};
 
 export const NavStatusPill: React.FC<NavStatusPillProps> = ({
   className,
@@ -47,17 +31,21 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
   // Store Subscriptions
   const isLive = useNavigationStore((s) => s.isLive);
   const sessionStatus = useNavigationStore((s) => s.sessionStatus);
-  const navMode = useNavigationStore((s) => s.state.navigation_mode);
-  const gnssAvailable = useNavigationStore((s) => s.state.gnss_available);
-  const gnssQuality = useNavigationStore((s) => s.state.gnss_quality);
-  const outageDuration = useNavigationStore((s) => s.state.gnss_outage_duration);
-  const envState = useNavigationStore((s) => s.state.environment_state);
+  const navState = useNavigationStore((s) => s.state);
+  const navMode = navState.navigation_mode;
+  const gnssAvailable = navState.gnss_available;
+  const gnssQuality = navState.gnss_quality;
+  const outageDuration = navState.gnss_outage_duration;
+  const envState = navState.environment_state;
+  const imuAvailable = navState.imu_available;
 
-  const engineSource = useNavigationStore((s) => s.state.engine_source);
+  const engineSource = navState.engine_source;
   const websocketStatus = useNavigationStore((s) => s.websocketStatus);
 
   const locPermission = useLocationStore((s) => s.permission);
   const locAvailability = useLocationStore((s) => s.availability);
+
+  const { isSimulating: isDemoOutageActive, outageSeconds: demoOutageSeconds } = useDemoOutage();
 
   const isStarting = sessionStatus === 'STARTING';
   const isEnding = sessionStatus === 'ENDING';
@@ -68,149 +56,87 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
     return null;
   }
 
-  // Derive precise category from real backend / local state
-  let category: NavStateCategory = 'STANDBY';
-  let title = 'Navigation ready';
-  let secondary = 'Sensors standby';
-
-  if (isLiveNav) {
-    if (engineSource === 'LOCAL') {
-      const modeUpper = (navMode || '').toUpperCase();
-      if (modeUpper.includes('REACQUISITION') || modeUpper.includes('RECOVERY')) {
-        category = 'GNSS_RECOVERING';
-        title = 'GNSS recovering';
-        secondary = 'Validating satellite fix';
-      } else if (
-        modeUpper.includes('DEAD_RECKONING') ||
-        modeUpper.includes('LOST') ||
-        !gnssAvailable ||
-        envState === 'TUNNEL'
-      ) {
-        category = 'DEAD_RECKONING';
-        title = 'Dead reckoning';
-        secondary =
-          typeof outageDuration === 'number' && outageDuration > 0
-            ? `GNSS unavailable · ${formatOutageDuration(outageDuration)}`
-            : 'Local AI engine active';
-      } else if (gnssAvailable) {
-        category = 'GNSS_FIX';
-        title = 'GNSS signal';
-        secondary = 'Local engine aiding';
-      } else {
-        category = 'DEAD_RECKONING';
-        title = 'Dead reckoning';
-        secondary = 'Local offline engine';
-      }
-    } else if (websocketStatus === 'ERROR' || websocketStatus === 'CLOSED' || engineSource === 'UNAVAILABLE') {
-      category = 'ERROR';
-      title = 'Connection lost';
-      secondary = 'Local sensor logging active';
-    } else {
-      const modeUpper = (navMode || '').toUpperCase();
-
-      if (modeUpper.includes('REACQUISITION') || modeUpper.includes('RECOVERY')) {
-        category = 'GNSS_RECOVERING';
-        title = 'GNSS recovering';
-        secondary = 'Validating satellite fix';
-      } else if (
-        modeUpper.includes('DEAD_RECKONING') ||
-        modeUpper.includes('LOST') ||
-        modeUpper.includes('INEKF') ||
-        modeUpper.includes('INERTIAL') ||
-        !gnssAvailable ||
-        envState === 'TUNNEL'
-      ) {
-        category = 'DEAD_RECKONING';
-        title = 'Dead reckoning';
-        secondary =
-          typeof outageDuration === 'number' && outageDuration > 0
-            ? `GNSS unavailable · ${formatOutageDuration(outageDuration)}`
-            : 'Inertial dead reckoning';
-      } else if (modeUpper.includes('DEGRADING') || gnssQuality === 'POOR' || gnssQuality === 'FAIR') {
-        category = 'GNSS_DEGRADED';
-        title = 'GNSS degraded';
-        secondary = 'Signal quality reduced';
-      } else if (gnssAvailable || modeUpper.includes('AIDED')) {
-        category = 'GNSS_FIX';
-        title = 'GNSS signal';
-        secondary = 'Satellite lock active';
-      } else {
-        category = 'GNSS_DEGRADED';
-        title = 'GNSS degraded';
-        secondary = 'Inertial aiding active';
-      }
-    }
-  } else if (isStarting) {
-    category = 'ACQUIRING';
-    title = 'Starting navigation...';
-    secondary = 'Connecting to system';
-  } else if (isEnding) {
-    category = 'STANDBY';
-    title = 'Finalizing...';
-    secondary = 'Saving trip summary';
-  } else if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    category = 'STANDBY';
-    title = 'Offline mode';
-    secondary = 'Saved routes available';
-  } else if (locPermission === 'denied') {
-    category = 'PERMISSION_REQUIRED';
-    title = 'Location required';
-    secondary = 'Enable geolocation';
-  } else if (locAvailability === 'getting') {
-    category = 'ACQUIRING';
-    title = 'Acquiring GNSS...';
-    secondary = 'Searching for satellites';
-  } else if (locAvailability === 'available') {
-    category = 'STANDBY';
-    title = 'Navigation ready';
-    secondary = 'Sensors calibrated';
-  }
-
-  // Visual styling: White base pill with small semantic indicator dot
+  // Derive title, secondary text, and indicator styling
+  let title = 'GPS · Strong';
+  let secondary: string | null = 'Satellite lock active';
   let dotColor = 'bg-emerald-500';
   let dotPulse = false;
 
-  switch (category) {
-    case 'GNSS_FIX':
-      dotColor = 'bg-emerald-500';
-      dotPulse = true;
-      break;
-
-    case 'DEAD_RECKONING':
-      dotColor = 'bg-amber-500';
-      dotPulse = true;
-      break;
-
-    case 'GNSS_RECOVERING':
-      dotColor = 'bg-cyan-500';
-      dotPulse = true;
-      break;
-
-    case 'GNSS_DEGRADED':
-      dotColor = 'bg-amber-500';
-      dotPulse = false;
-      break;
-
-    case 'ACQUIRING':
-      dotColor = 'bg-sky-500';
-      dotPulse = true;
-      break;
-
-    case 'PERMISSION_REQUIRED':
-      dotColor = 'bg-rose-500';
-      dotPulse = false;
-      break;
-
-    case 'ERROR':
+  if (isLiveNav) {
+    if (websocketStatus === 'ERROR' || websocketStatus === 'CLOSED' || engineSource === 'UNAVAILABLE') {
+      title = 'Connection lost';
+      secondary = 'Local sensor logging active';
       dotColor = 'bg-rose-500';
       dotPulse = true;
-      break;
+    } else {
+      const derived = deriveGnssNavStatus({
+        isLive: true,
+        navigationMode: navMode,
+        gnssAvailable,
+        gnssQuality,
+        gnssOutageDuration: outageDuration,
+        environmentState: envState,
+        imuAvailable,
+        isDemoOutageActive,
+        demoOutageSeconds,
+      });
 
-    case 'STANDBY':
-    default:
-      dotColor = 'bg-emerald-500';
-      dotPulse = false;
-      break;
+      title = derived.title;
+      dotColor = derived.dotColor;
+
+      if (derived.isDr) {
+        dotPulse = true;
+        const outSec = derived.outageDurationSeconds;
+        secondary = outSec > 0 ? `${formatOutageDuration(outSec)} outage` : 'IMU + AI active';
+      } else if (derived.isReacquiring) {
+        dotPulse = true;
+        secondary = 'Validating satellite fix';
+      } else if (derived.state === 'DEGRADED') {
+        dotPulse = false;
+        secondary = 'Inertial aiding active';
+      } else if (derived.state === 'GNSS_FUSING') {
+        dotPulse = false;
+        secondary = 'Nominal sensor fusion';
+      } else {
+        dotPulse = false;
+        secondary = 'Satellite lock active';
+      }
+    }
+  } else if (isStarting) {
+    title = 'Starting navigation...';
+    secondary = 'Connecting to system';
+    dotColor = 'bg-sky-500';
+    dotPulse = true;
+  } else if (isEnding) {
+    title = 'Finalizing...';
+    secondary = 'Saving trip summary';
+    dotColor = 'bg-emerald-500';
+    dotPulse = false;
+  } else if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    title = 'Offline mode';
+    secondary = 'Saved routes available';
+    dotColor = 'bg-slate-400';
+    dotPulse = false;
+  } else if (locPermission === 'denied') {
+    title = 'Location permission required';
+    secondary = 'Enable geolocation in settings';
+    dotColor = 'bg-rose-500';
+    dotPulse = false;
+  } else if (locPermission === 'prompt') {
+    title = 'GPS · Waiting for permission';
+    secondary = 'Grant location permission';
+    dotColor = 'bg-sky-500';
+    dotPulse = true;
+  } else if (locAvailability === 'getting') {
+    title = 'GPS · Acquiring';
+    secondary = 'Searching for satellites';
+    dotColor = 'bg-sky-500';
+    dotPulse = true;
+  } else {
+    title = 'Navigation ready';
+    secondary = 'Sensors calibrated';
+    dotColor = 'bg-emerald-500';
+    dotPulse = false;
   }
 
   const isClickable = Boolean(onClick || showDrawerOnClick);
@@ -229,7 +155,7 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
       <div className="flex items-center justify-center relative shrink-0">
         <span
           className={clsx(
-            'w-2 h-2 rounded-full shrink-0',
+            'w-2 h-2 rounded-full shrink-0 transition-colors duration-200',
             dotColor,
             dotPulse && 'animate-pulse'
           )}
@@ -261,10 +187,10 @@ export const NavStatusPill: React.FC<NavStatusPillProps> = ({
         type="button"
         onClick={handleClick}
         aria-label={`Navigation status: ${title}`}
-        title={`Navigation status: ${title}`}
+        title={`Navigation status: ${title} - click for telemetry details`}
         className={twMerge(
           clsx(
-            'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-ink border border-border-clean shadow-nav-pill select-none cursor-pointer transition-all duration-150 hover:bg-canvas-softer active:scale-[0.97] group text-left',
+            'inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white text-ink border border-border-clean shadow-nav-pill select-none cursor-pointer transition-all duration-150 hover:bg-canvas-softer active:scale-[0.97] group text-left',
             className
           )
         )}

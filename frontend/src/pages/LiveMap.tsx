@@ -19,6 +19,9 @@ import type { MapOrientationMode } from '../components/map/MapController';
 import { TripHudCard } from '../components/navigation/TripHudCard';
 import { RoutePreviewCard } from '../components/navigation/RoutePreviewCard';
 import { NextManeuver } from '../components/navigation/NextManeuver';
+import { NavStatusPill } from '../components/navigation/NavStatusPill';
+import { NavModeTimeline } from '../components/navigation/NavModeTimeline';
+import { CalibrationModal } from '../components/navigation/CalibrationModal';
 import { useResolvedHeading } from '../hooks/useResolvedHeading';
 import {
   CheckCircle2,
@@ -44,6 +47,7 @@ export default function LiveMap() {
 
   // Map picking mode: 'source' | 'destination' | null
   const [pickingField, setPickingField] = useState<'source' | 'destination' | null>(null);
+  const [showCalibrationModal, setShowCalibrationModal] = useState(false);
 
   // Navigation store
   const {
@@ -358,20 +362,26 @@ export default function LiveMap() {
           </div>
         )}
 
-        {/* PRIMARY ROUTE PLANNER (Desktop: Floating Left Safe Area; Mobile: Top Floating Bar) / ACTIVE MANEUVER GUIDANCE */}
-        <div
-          className={
-            !isLive
-              ? 'absolute top-[calc(env(safe-area-inset-top)+68px)] left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 sm:w-[480px] md:top-4 md:left-[96px] lg:left-[104px] md:translate-x-0 md:w-[380px] lg:w-[390px] md:max-w-[390px] z-20 pointer-events-auto flex justify-center md:justify-start'
-              : 'absolute top-[calc(env(safe-area-inset-top)+68px)] left-3 right-3 sm:top-6 sm:left-1/2 sm:-translate-x-1/2 sm:w-[500px] sm:max-w-[520px] z-20 pointer-events-auto flex justify-center'
-          }
-        >
-          {!isLive ? (
+        {/* ACTIVE NAVIGATION TOP HUD (When Live Navigation is Active) */}
+        {isLive && (
+          <div className="absolute top-[calc(env(safe-area-inset-top)+12px)] left-3 right-3 sm:top-5 sm:left-1/2 sm:-translate-x-1/2 sm:w-[500px] sm:max-w-[520px] z-30 pointer-events-auto flex flex-col items-center gap-2">
+            {/* Top Status Strip */}
+            <div className="flex items-center justify-between gap-2 w-full max-w-md px-1">
+              <NavStatusPill alwaysVisible={true} showDrawerOnClick={true} />
+              <NavModeTimeline />
+            </div>
+
+            {/* Primary Driving Maneuver Card */}
+            <NextManeuver className="w-full" />
+          </div>
+        )}
+
+        {/* PRIMARY ROUTE PLANNER (Desktop: Floating Left Safe Area; Mobile: Top Floating Bar - Only when NOT live) */}
+        {!isLive && (
+          <div className="absolute top-[calc(env(safe-area-inset-top)+68px)] left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 sm:w-[480px] md:top-4 md:left-[96px] lg:left-[104px] md:translate-x-0 md:w-[380px] lg:w-[390px] md:max-w-[390px] z-20 pointer-events-auto flex justify-center md:justify-start">
             <DestinationSearch onPickOnMap={(field) => setPickingField(field)} />
-          ) : (
-            <NextManeuver />
-          )}
-        </div>
+          </div>
+        )}
 
         {/* ROUTE PREVIEW PLANNING PANEL (Desktop: Floating Left Column below planner; Mobile: Bottom Sheet) */}
         {!isLive && destination && routeCoordinates && (
@@ -390,6 +400,12 @@ export default function LiveMap() {
           </div>
         )}
       </div>
+
+      {/* First-Run Vehicle Alignment / Sensor Calibration Modal */}
+      <CalibrationModal
+        isOpen={showCalibrationModal}
+        onClose={() => setShowCalibrationModal(false)}
+      />
     </div>
   );
 }

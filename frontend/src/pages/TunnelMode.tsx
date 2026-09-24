@@ -5,8 +5,8 @@ import { useLocationStore } from '../stores/useLocationStore';
 import { useSensorStore } from '../stores/useSensorStore';
 import { locationService } from '../services/location/locationService';
 import { sessionLifecycle } from '../services/navigation/sessionLifecycle';
-import { sensorCollector } from '../services/sensors/sensorCollector';
 import { useResolvedHeading } from '../hooks/useResolvedHeading';
+import { useDemoOutage } from '../hooks/useDemoOutage';
 import {
   MapContainer,
   MapController,
@@ -40,11 +40,13 @@ export default function TunnelMode() {
   const mapRef = useRef<MapboxMap | null>(null);
   const [followVehicle, setFollowVehicle] = useState(true);
   const [orientationMode, setOrientationMode] = useState<MapOrientationMode>('HEADING_UP');
-  const [isSimulatingOutage, setIsSimulatingOutage] = useState(false);
-  const [simulatedOutageSeconds, setSimulatedOutageSeconds] = useState(0);
+  const {
+    isSimulating: isSimulatingOutage,
+    outageSeconds: simulatedOutageSeconds,
+    toggleOutage: handleToggleOutageSimulation,
+  } = useDemoOutage();
   const [showTechnicalPanel, setShowTechnicalPanel] = useState(false);
   const [confirmEndSession, setConfirmEndSession] = useState(false);
-  const outageTimerRef = useRef<any>(null);
 
   // Resolved Heading from single prioritized source
   const { headingDeg, cardinal, valid: isHeadingValid } = useResolvedHeading();
@@ -85,34 +87,7 @@ export default function TunnelMode() {
   // Start real browser geolocation watcher on mount
   useEffect(() => {
     locationService.startWatching();
-    return () => {
-      if (sensorCollector.isGnssSuppressed()) {
-        sensorCollector.setGnssSuppression(false);
-      }
-      if (outageTimerRef.current) {
-        clearInterval(outageTimerRef.current);
-      }
-    };
   }, []);
-
-  // Outage Timer logic when simulated outage is active
-  useEffect(() => {
-    if (isSimulatingOutage && isLive) {
-      outageTimerRef.current = setInterval(() => {
-        setSimulatedOutageSeconds((prev) => prev + 1);
-      }, 1000);
-    } else {
-      if (outageTimerRef.current) {
-        clearInterval(outageTimerRef.current);
-      }
-      if (!isSimulatingOutage) {
-        setSimulatedOutageSeconds(0);
-      }
-    }
-    return () => {
-      if (outageTimerRef.current) clearInterval(outageTimerRef.current);
-    };
-  }, [isSimulatingOutage, isLive]);
 
   // Handle manual map panning
   const handleManualInteraction = useCallback(() => {
@@ -167,22 +142,10 @@ export default function TunnelMode() {
     setConfirmEndSession(false);
     setShowTechnicalPanel(false);
     try {
-      if (isSimulatingOutage) {
-        sensorCollector.setGnssSuppression(false);
-        setIsSimulatingOutage(false);
-      }
       await sessionLifecycle.endLiveSession();
     } catch (err: any) {
       console.error('Failed to end test session:', err);
     }
-  };
-
-  // Toggle GNSS Outage Simulation
-  const handleToggleOutageSimulation = () => {
-    if (!isLive) return;
-    const nextState = !isSimulatingOutage;
-    setIsSimulatingOutage(nextState);
-    sensorCollector.setGnssSuppression(nextState);
   };
 
   // Coordinates resolution
@@ -233,7 +196,7 @@ export default function TunnelMode() {
           onMapLoaded={(map) => {
             mapRef.current = map;
           }}
-          initialCenter={[displayLon ?? 72.67, displayLat ?? 23.00]}
+          initialCenter={hasCoordinates ? [displayLon!, displayLat!] : undefined}
           initialZoom={16.5}
           initialPitch={52}
           className="w-full h-full"
