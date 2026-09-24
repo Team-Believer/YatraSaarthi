@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Map as MapboxMap } from 'mapbox-gl';
 import {
@@ -6,14 +6,15 @@ import {
   MapPin,
   Loader2,
   ChevronRight,
-  ArrowRight,
   ArrowUpRight,
   LocateFixed,
   Home,
   Briefcase,
   Plane,
   X,
+  Navigation2,
 } from 'lucide-react';
+import { clsx } from 'clsx';
 import { useNavigationStore } from '../stores/useNavigationStore';
 import { useLocationStore } from '../stores/useLocationStore';
 import { useRouteStore } from '../stores/useRouteStore';
@@ -38,6 +39,7 @@ interface SearchResult {
 export default function Dashboard() {
   const navigate = useNavigate();
   const mapRef = useRef<MapboxMap | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   // Location & Navigation Stores
   const { latitude: deviceLat, longitude: deviceLon, placeName } = useLocationStore();
@@ -112,7 +114,7 @@ export default function Dashboard() {
   }, [query, deviceLat, deviceLon]);
 
   // Navigate to Navigate screen with prefilled destination
-  const handleLaunchToDestination = (
+  const handleLaunchToDestination = useCallback((
     dest: { name: string; coordinates: [number, number] },
     sourceCoords?: [number, number],
     sourceName?: string
@@ -136,7 +138,12 @@ export default function Dashboard() {
     }
 
     navigate('/app/map');
-  };
+  }, [setSource, setDestination, deviceLon, deviceLat, travelMode, navigate]);
+
+  // Close search results on outside click
+  const handleCloseSearch = useCallback(() => {
+    setIsSearchFocused(false);
+  }, []);
 
   // Saved shortcuts (inline compact chips, e.g. Home, Work, Airport)
   const savedShortcuts = useMemo(() => {
@@ -146,13 +153,13 @@ export default function Dashboard() {
   // Render icon for saved place shortcut
   const renderSavedIcon = (name: string) => {
     const lower = name.toLowerCase();
-    if (lower.includes('home')) return <Home className="w-3 h-3 text-[#083335]" />;
-    if (lower.includes('work') || lower.includes('office')) return <Briefcase className="w-3 h-3 text-[#083335]" />;
-    if (lower.includes('airport')) return <Plane className="w-3 h-3 text-[#083335]" />;
-    return <MapPin className="w-3 h-3 text-[#083335]" />;
+    if (lower.includes('home')) return <Home className="w-3.5 h-3.5" />;
+    if (lower.includes('work') || lower.includes('office')) return <Briefcase className="w-3.5 h-3.5" />;
+    if (lower.includes('airport')) return <Plane className="w-3.5 h-3.5" />;
+    return <MapPin className="w-3.5 h-3.5" />;
   };
 
-  // Unified recent routes (max 2-3 items for calm spatial display)
+  // Unified recent routes (max 2 items for calm spatial display)
   const recentRoutes = useMemo(() => {
     const list: Array<{
       id: string;
@@ -205,9 +212,27 @@ export default function Dashboard() {
 
   const hasCoordinates = deviceLat !== null && deviceLon !== null;
 
+  // Format distance
+  const formatDistance = (meters?: number) => {
+    if (!meters) return null;
+    return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
+  };
+
+  // Format duration
+  const formatDuration = (seconds?: number) => {
+    if (!seconds) return null;
+    const mins = Math.round(seconds / 60);
+    if (mins < 60) return `${mins} min`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h} h ${m} min` : `${h} h`;
+  };
+
   return (
     <div className="h-full w-full relative overflow-hidden bg-[#F5F8F7] font-body select-none">
-      {/* 1. FULL-VIEWPORT MAP CANVAS */}
+      {/* ================================================================= */}
+      {/* 1. FULL-VIEWPORT MAP CANVAS (Hero Surface)                        */}
+      {/* ================================================================= */}
       <MapContainer
         className="w-full h-full"
         onMapLoaded={(map: MapboxMap) => {
@@ -231,103 +256,144 @@ export default function Dashboard() {
         )}
       </MapContainer>
 
-      {/* 2. TOP FLOATING SEARCH & SHORTCUTS SURFACE */}
-      <div className="absolute top-[calc(env(safe-area-inset-top)+68px)] md:top-6 left-3.5 right-3.5 md:left-24 md:right-auto md:w-[420px] z-20 space-y-2 pointer-events-none">
-        {/* Contextual Locality Tag */}
-        <div className="pointer-events-auto inline-flex items-center gap-1.5 px-3 py-1 bg-white/90 backdrop-blur-md rounded-full border border-[#E2E8E7]/90 shadow-2xs text-xs font-medium text-[#6F7F7D]">
-          <MapPin className="w-3.5 h-3.5 text-[#083335] shrink-0" />
-          <span className="truncate max-w-[220px]">{placeName || 'Vastral, Ahmedabad'}</span>
-        </div>
+      {/* Click-away overlay to dismiss search results */}
+      {isSearchFocused && results.length > 0 && (
+        <div
+          className="absolute inset-0 z-15"
+          onClick={handleCloseSearch}
+        />
+      )}
 
-        {/* Floating Search Bar */}
-        <div className="pointer-events-auto relative">
-          <div className="bg-white/98 backdrop-blur-md rounded-[16px] border border-[#E2E8E7] shadow-nav-floating px-3.5 py-3 flex items-center gap-3 transition-all duration-150 focus-within:border-[#083335] focus-within:ring-2 focus-within:ring-[#083335]/10">
-            <Search className="w-5 h-5 text-[#6F7F7D] shrink-0 stroke-[2.2]" />
+      {/* ================================================================= */}
+      {/* 2. TOP FLOATING CONTROLS — Location, Search, Quick Destinations   */}
+      {/* ================================================================= */}
+      <div className="absolute top-[calc(env(safe-area-inset-top)+66px)] md:top-5 left-3 right-3 md:left-[100px] md:right-auto md:w-[400px] z-20 pointer-events-none">
+        <div className="space-y-2.5">
 
-            <input
-              id="home-search"
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => setIsSearchFocused(true)}
-              placeholder="Where to?"
-              className="w-full bg-transparent border-none focus:outline-none text-[#083335] text-sm font-medium placeholder:text-[#6F7F7D] placeholder:font-normal truncate"
-            />
+          {/* ─── Location Context ─── */}
+          <div className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 w-fit">
+            <div className="w-2 h-2 rounded-full bg-[#083335] shrink-0" />
+            <span className="text-[12px] font-medium text-[#3A4F4E] truncate max-w-[240px] font-body drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)]">
+              {placeName || 'Locating…'}
+            </span>
+          </div>
 
-            {query && (
-              <button
-                type="button"
-                onClick={() => {
-                  setQuery('');
-                  setResults([]);
-                }}
-                className="p-1 text-[#6F7F7D] hover:text-[#083335] rounded-full transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+          {/* ─── Primary Search Bar ─── */}
+          <div className="pointer-events-auto relative">
+            <div
+              className={clsx(
+                'bg-white rounded-2xl border shadow-[0_4px_20px_rgba(8,51,53,0.08)] px-4 flex items-center gap-3 transition-all duration-200',
+                isSearchFocused
+                  ? 'border-[#083335]/30 ring-[3px] ring-[#083335]/8 h-[54px]'
+                  : 'border-[#E2E8E7] h-[52px]'
+              )}
+            >
+              <Search className="w-[18px] h-[18px] text-[#8CA5A6] shrink-0 stroke-[2.2]" />
 
-            {isSearching && (
-              <Loader2 className="w-4 h-4 animate-spin text-[#083335] shrink-0" />
+              <input
+                ref={searchInputRef}
+                id="home-search"
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setIsSearchFocused(true)}
+                placeholder="Where to?"
+                autoComplete="off"
+                className="w-full bg-transparent border-none focus:outline-none text-[#083335] text-[15px] font-medium placeholder:text-[#8CA5A6] placeholder:font-normal truncate font-heading"
+              />
+
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery('');
+                    setResults([]);
+                  }}
+                  className="p-1.5 text-[#8CA5A6] hover:text-[#083335] hover:bg-[#F0F4F4] rounded-lg transition-colors cursor-pointer"
+                  aria-label="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+
+              {isSearching && (
+                <Loader2 className="w-4 h-4 animate-spin text-[#083335] shrink-0" />
+              )}
+            </div>
+
+            {/* Suggestions Dropdown */}
+            {isSearchFocused && results.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-[0_8px_32px_rgba(8,51,53,0.12)] border border-[#E2E8E7] overflow-hidden z-50 max-h-[260px] overflow-y-auto">
+                {results.map((r, idx) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => {
+                      setIsSearchFocused(false);
+                      setQuery('');
+                      setResults([]);
+                      handleLaunchToDestination({
+                        name: r.name,
+                        coordinates: r.coordinates,
+                      });
+                    }}
+                    className={clsx(
+                      'w-full flex items-center gap-3 px-4 py-3 hover:bg-[#F5F8F7] transition-colors text-left cursor-pointer group',
+                      idx > 0 && 'border-t border-[#F0F2F2]'
+                    )}
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-[#F0F4F4] group-hover:bg-[#E2EBEB] flex items-center justify-center shrink-0 transition-colors">
+                      <MapPin className="w-3.5 h-3.5 text-[#083335]" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-[#083335] text-[13.5px] truncate font-heading">
+                        {r.name}
+                      </div>
+                      <div className="text-[11.5px] text-[#6F7F7D] truncate mt-px">
+                        {r.place_formatted}
+                      </div>
+                    </div>
+                    <Navigation2 className="w-3.5 h-3.5 text-[#8CA5A6] group-hover:text-[#083335] rotate-45 shrink-0 transition-colors" />
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
-          {/* Suggestions Dropdown */}
-          {isSearchFocused && results.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-nav-floating border border-[#E2E8E7] overflow-hidden z-50 animate-in fade-in slide-in-from-top-1 max-h-[280px] overflow-y-auto divide-y divide-[#E2E8E7]">
-              {results.map((r) => (
+          {/* ─── Quick Destination Shortcuts ─── */}
+          {savedShortcuts.length > 0 && (
+            <div className="pointer-events-auto flex items-center gap-2 overflow-x-auto no-scrollbar">
+              {savedShortcuts.map((item) => (
                 <button
-                  key={r.id}
+                  key={item.id}
                   type="button"
-                  onClick={() => {
-                    setIsSearchFocused(false);
-                    handleLaunchToDestination({
-                      name: r.name,
-                      coordinates: r.coordinates,
-                    });
-                  }}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#F5F8F7] transition-colors text-left cursor-pointer group"
+                  onClick={() =>
+                    handleLaunchToDestination(
+                      { name: item.name, coordinates: item.coordinates },
+                      item.originCoordinates
+                    )
+                  }
+                  className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#083335] bg-white/95 backdrop-blur-sm px-3 py-2 rounded-xl transition-all cursor-pointer border border-[#E2E8E7]/80 shadow-[0_2px_8px_rgba(8,51,53,0.06)] hover:shadow-[0_2px_12px_rgba(8,51,53,0.1)] hover:border-[#083335]/20 active:scale-[0.97] shrink-0"
                 >
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-[#083335] text-sm truncate font-heading">
-                      {r.name}
-                    </div>
-                    <div className="text-xs text-[#6F7F7D] truncate mt-0.5 font-medium">
-                      {r.place_formatted}
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-[#8CA5A6] group-hover:text-[#083335] group-hover:translate-x-0.5 transition-all shrink-0" />
+                  {renderSavedIcon(item.name)}
+                  <span>{item.name}</span>
                 </button>
               ))}
             </div>
           )}
         </div>
-
-        {/* Saved Shortcuts Row */}
-        {savedShortcuts.length > 0 && (
-          <div className="pointer-events-auto flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-            {savedShortcuts.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() =>
-                  handleLaunchToDestination(
-                    { name: item.name, coordinates: item.coordinates },
-                    item.originCoordinates
-                  )
-                }
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#083335] hover:text-[#052426] bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-full transition-all cursor-pointer border border-[#E2E8E7]/90 shadow-2xs hover:bg-[#F5F8F7] active:scale-95 shrink-0"
-              >
-                {renderSavedIcon(item.name)}
-                <span>{item.name}</span>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* 3. FLOATING RECENTER CONTROL */}
-      <div className="absolute right-3.5 bottom-[calc(185px+env(safe-area-inset-bottom))] md:bottom-8 md:right-8 z-20 flex flex-col gap-2">
+      {/* ================================================================= */}
+      {/* 3. FLOATING RECENTER BUTTON                                       */}
+      {/* ================================================================= */}
+      <div className={clsx(
+        'absolute right-3 z-20 flex flex-col gap-2',
+        recentRoutes.length > 0
+          ? 'bottom-[calc(160px+env(safe-area-inset-bottom))]'
+          : 'bottom-[calc(84px+env(safe-area-inset-bottom))]',
+        'md:bottom-8 md:right-8'
+      )}>
         <button
           type="button"
           onClick={() => {
@@ -335,29 +401,35 @@ export default function Dashboard() {
             if (mapRef.current && deviceLon && deviceLat) {
               mapRef.current.flyTo({
                 center: [deviceLon, deviceLat],
-                zoom: 15,
+                zoom: 15.5,
                 duration: 800,
               });
             }
           }}
           aria-label="Recenter on current location"
           title="Recenter"
-          className="w-11 h-11 rounded-2xl bg-white/98 hover:bg-[#F5F8F7] border border-[#E2E8E7] shadow-nav-floating flex items-center justify-center text-[#083335] transition-all cursor-pointer active:scale-95"
+          className="w-11 h-11 rounded-[14px] bg-white hover:bg-[#F5F8F7] border border-[#E2E8E7] shadow-[0_2px_12px_rgba(8,51,53,0.08)] flex items-center justify-center text-[#083335] transition-all cursor-pointer active:scale-95"
         >
-          <LocateFixed className="w-5 h-5 text-[#083335]" />
+          <LocateFixed className="w-[18px] h-[18px]" strokeWidth={2.2} />
         </button>
       </div>
 
-      {/* 4. BOTTOM FLOATING RECENT DESTINATIONS SHEET */}
+      {/* ================================================================= */}
+      {/* 4. BOTTOM RECENT DESTINATIONS SHEET                               */}
+      {/* ================================================================= */}
       {recentRoutes.length > 0 && (
-        <div className="absolute bottom-[calc(76px+env(safe-area-inset-bottom))] md:bottom-6 left-3.5 right-3.5 md:left-24 md:right-auto md:w-[420px] z-20">
-          <div className="bg-white/96 backdrop-blur-md rounded-2xl border border-[#E2E8E7] shadow-nav-floating p-3 sm:p-3.5 space-y-1.5">
-            <div className="text-xs font-semibold text-[#6F7F7D] tracking-wider uppercase px-1 font-heading">
-              Recent
+        <div className="absolute bottom-[calc(68px+env(safe-area-inset-bottom))] md:bottom-6 left-3 right-3 md:left-[100px] md:right-auto md:w-[400px] z-20">
+          <div className="bg-white/[0.97] backdrop-blur-md rounded-2xl border border-[#E2E8E7] shadow-[0_-2px_20px_rgba(8,51,53,0.06)] overflow-hidden">
+            {/* Label */}
+            <div className="px-4 pt-3 pb-1">
+              <span className="text-[10.5px] font-bold text-[#8CA5A6] tracking-[0.1em] uppercase font-heading select-none">
+                Recent
+              </span>
             </div>
 
-            <div className="divide-y divide-[#E2E8E7]/70">
-              {recentRoutes.map((route) => (
+            {/* Destination List */}
+            <div className="px-2 pb-2">
+              {recentRoutes.map((route, idx) => (
                 <button
                   key={route.id}
                   type="button"
@@ -368,26 +440,30 @@ export default function Dashboard() {
                       route.sourceName
                     )
                   }
-                  className="w-full py-2.5 flex items-center justify-between gap-3 text-left hover:bg-[#F5F8F7] px-2 -mx-2 rounded-xl transition-colors cursor-pointer group"
+                  className={clsx(
+                    'w-full py-2.5 px-2 flex items-center justify-between gap-3 text-left hover:bg-[#F5F8F7] rounded-xl transition-colors cursor-pointer group',
+                    idx > 0 && 'border-t border-[#F0F2F2]'
+                  )}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-7 h-7 rounded-full bg-[#F5F8F7] group-hover:bg-[#EAF0F0] flex items-center justify-center text-[#083335] shrink-0 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-8 h-8 rounded-xl bg-[#F0F4F4] group-hover:bg-[#E2EBEB] flex items-center justify-center shrink-0 transition-colors">
                       <ArrowUpRight className="w-3.5 h-3.5 text-[#083335]" />
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-[#083335] truncate font-heading group-hover:text-[#052426]">
+                      <div className="text-[13.5px] font-semibold text-[#083335] truncate font-heading group-hover:text-[#052426]">
                         {route.destinationName}
                       </div>
-                      <div className="text-xs text-[#6F7F7D] truncate mt-0.5 font-medium">
-                        {route.routeLabel ? `${route.routeLabel} • ` : ''}
-                        {route.distanceMeters && `${(route.distanceMeters / 1000).toFixed(1)} km`}
-                        {route.durationSeconds && ` • ${Math.round(route.durationSeconds / 60)} min`}
+                      <div className="text-[11.5px] text-[#6F7F7D] truncate mt-px font-medium">
+                        {[
+                          formatDistance(route.distanceMeters),
+                          formatDuration(route.durationSeconds),
+                        ].filter(Boolean).join(' · ') || 'Tap to navigate'}
                       </div>
                     </div>
                   </div>
 
-                  <ChevronRight className="w-4 h-4 text-[#8CA5A6] group-hover:text-[#083335] group-hover:translate-x-0.5 transition-all shrink-0" />
+                  <ChevronRight className="w-4 h-4 text-[#C0CDCC] group-hover:text-[#083335] group-hover:translate-x-0.5 transition-all shrink-0" />
                 </button>
               ))}
             </div>

@@ -22,7 +22,7 @@ export default function MobileBottomNav() {
       aria-label="Mobile Navigation"
       className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-border-clean md:hidden pb-[env(safe-area-inset-bottom)] shadow-nav-floating select-none"
     >
-      <div className="grid grid-cols-4 h-16 px-2 max-w-lg mx-auto">
+      <div className="grid grid-cols-4 h-[60px] px-2 max-w-lg mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = item.exact
@@ -34,6 +34,7 @@ export default function MobileBottomNav() {
               key={item.name}
               to={item.path}
               aria-label={item.name}
+              aria-current={isActive ? 'page' : undefined}
               className={clsx(
                 'flex flex-col items-center justify-center min-h-[44px] py-1 transition-all relative rounded-xl',
                 isActive ? 'text-[#083335]' : 'text-[#8CA5A6] hover:text-[#4A6364]'
