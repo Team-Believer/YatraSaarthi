@@ -6,6 +6,11 @@ import { tripMetadataService, type TripMetadata } from './tripMetadataService';
 import { geocodingService } from '../location/geocodingService';
 import { offlineStorage } from '../storage/offlineStorage';
 import { navigationEngineCoordinator } from './navigationEngineCoordinator';
+import {
+  getNavigationWsUrl,
+  logNavigationStartDiagnostics,
+  classifyNetworkError,
+} from '../api/apiConfig';
 
 export class NavigationSessionLifecycle {
   private activeWs: WebSocket | null = null;
@@ -23,6 +28,9 @@ export class NavigationSessionLifecycle {
       return store.activeSessionId || '';
     }
 
+    // Log runtime diagnostics for troubleshooting development & mobile device connectivity
+    logNavigationStartDiagnostics();
+
     store.setSessionStatus('STARTING');
     store.setErrorMessage(null);
     store.setJourneySummary(null);
@@ -37,8 +45,12 @@ export class NavigationSessionLifecycle {
       const res = await navigationService.startSession(vehicleType, startLat, startLon);
       const sessionId = res.session_id;
 
+      if (!sessionId) {
+        throw new Error('Backend returned empty session ID');
+      }
+
       // 3. Inject route geometry to backend MapMatcher if available
-      if (sessionId && routeCoords && routeCoords.length >= 2) {
+      if (routeCoords && routeCoords.length >= 2) {
         try {
           await navigationService.loadSessionRoute(sessionId, routeCoords, roadName);
           console.info(`[SessionLifecycle] Injected route (${routeCoords.length} points) to session ${sessionId}`);
@@ -58,33 +70,31 @@ export class NavigationSessionLifecycle {
       }
 
       // 5. Save client-side rich trip metadata mapped to this sessionId
-      if (sessionId) {
-        tripMetadataService.saveTripMetadata({
-          sessionId,
-          sourceName: resolvedSourceName,
-          destinationName: metadata?.destinationName || roadName,
-          sourceCoords: metadata?.sourceCoords || (startLon !== undefined && startLat !== undefined ? [startLon, startLat] : undefined),
-          destinationCoords: metadata?.destinationCoords,
-          roadSummary: roadName !== 'Active Route' ? roadName : metadata?.roadSummary,
-          distance_meters: metadata?.distance_meters,
-          duration_seconds: metadata?.duration_seconds,
-          geometry: (routeCoords as [number, number][]) || metadata?.geometry,
-          travelMode: metadata?.travelMode,
-          vehicleType: vehicleType,
-          startedAt: new Date().toISOString(),
-        });
+      tripMetadataService.saveTripMetadata({
+        sessionId,
+        sourceName: resolvedSourceName,
+        destinationName: metadata?.destinationName || roadName,
+        sourceCoords: metadata?.sourceCoords || (startLon !== undefined && startLat !== undefined ? [startLon, startLat] : undefined),
+        destinationCoords: metadata?.destinationCoords,
+        roadSummary: roadName !== 'Active Route' ? roadName : metadata?.roadSummary,
+        distance_meters: metadata?.distance_meters,
+        duration_seconds: metadata?.duration_seconds,
+        geometry: (routeCoords as [number, number][]) || metadata?.geometry,
+        travelMode: metadata?.travelMode,
+        vehicleType: vehicleType,
+        startedAt: new Date().toISOString(),
+      });
 
-        // If source name was not yet cached, resolve asynchronously and update metadata
-        if (!resolvedSourceName && startLat !== undefined && startLon !== undefined) {
-          geocodingService.reverseGeocode(startLat, startLon).then((name) => {
-            if (name) {
-              tripMetadataService.saveTripMetadata({
-                sessionId,
-                sourceName: name,
-              });
-            }
-          });
-        }
+      // If source name was not yet cached, resolve asynchronously and update metadata
+      if (!resolvedSourceName && startLat !== undefined && startLon !== undefined) {
+        geocodingService.reverseGeocode(startLat, startLon).then((name) => {
+          if (name) {
+            tripMetadataService.saveTripMetadata({
+              sessionId,
+              sourceName: name,
+            });
+          }
+        });
       }
 
       store.setSessionId(sessionId);
@@ -100,8 +110,11 @@ export class NavigationSessionLifecycle {
 
       return sessionId;
     } catch (err: any) {
+      const classified = classifyNetworkError(err, 'session_create');
+      console.error('[SessionLifecycle] Failed to start live session:', classified.message);
       store.setSessionStatus('ERROR');
-      store.setErrorMessage(err.message || 'Failed to start navigation session');
+      store.setErrorMessage(classified.userFriendlyMessage);
+      store.setSessionId(null);
       throw err;
     }
   }
@@ -174,12 +187,9 @@ export class NavigationSessionLifecycle {
     const store = useNavigationStore.getState();
     store.setWebsocketStatus('CONNECTING');
 
-    const isBrowser = typeof window !== 'undefined';
-    const protocol = isBrowser && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = isBrowser ? window.location.host : 'localhost:8000';
-    const wsUrl = `${protocol}//${host}/ws/navigation/${sessionId}`;
+    const wsUrl = getNavigationWsUrl(sessionId);
 
-    if (typeof WebSocket === 'undefined') {
+    if (!wsUrl || typeof WebSocket === 'undefined') {
       store.setWebsocketStatus('DISCONNECTED');
       return;
     }

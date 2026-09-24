@@ -210,7 +210,7 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
   setSessionId: (activeSessionId) => set((store) => ({
     activeSessionId,
     state: { ...store.state, session_id: activeSessionId },
-    sessionStatus: activeSessionId ? 'LIVE' : (store.sessionStatus === 'ENDING' ? 'ENDED' : 'IDLE'),
+    sessionStatus: activeSessionId ? 'LIVE' : (store.sessionStatus === 'ENDING' ? 'ENDED' : store.sessionStatus === 'ERROR' ? 'ERROR' : 'IDLE'),
     isLive: activeSessionId !== null,
     isEnding: false,
   })),
@@ -249,8 +249,8 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
     };
   }),
 
-  clearActiveSession: () => set({
-    sessionStatus: 'IDLE',
+  clearActiveSession: () => set((store) => ({
+    sessionStatus: store.sessionStatus === 'ENDED' ? 'ENDED' : 'IDLE',
     isLive: false,
     isEnding: false,
     activeSessionId: null,
@@ -263,7 +263,7 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
     destination: null,
     routeCoordinates: null,
     state: { ...defaultNavigationState },
-  }),
+  })),
 
   resetState: () => set({
     sessionStatus: 'IDLE',

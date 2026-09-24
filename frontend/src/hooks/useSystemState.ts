@@ -15,6 +15,8 @@ import { useLocationStore } from '../stores/useLocationStore';
 import { onnxInferenceService } from '../services/offline/onnxInferenceService';
 import { offlineSessionService } from '../services/offline/offlineSessionService';
 
+import { getApiBaseUrl } from '../services/api/apiConfig';
+
 export type NetworkState = 'ONLINE' | 'OFFLINE' | 'BACKEND_UNAVAILABLE';
 export type GnssState = 'AVAILABLE' | 'DEGRADED' | 'LOST' | 'RECOVERING';
 export type NavigationEngineState =
@@ -124,7 +126,9 @@ export function useSystemState(): SystemStatusSnapshot {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 4000);
-        const res = await fetch('/api/v1/health', {
+        const apiBase = getApiBaseUrl();
+        const healthUrl = apiBase ? `${apiBase}/health` : '/health';
+        const res = await fetch(healthUrl, {
           method: 'GET',
           signal: controller.signal,
           headers: { Accept: 'application/json' },

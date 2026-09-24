@@ -16,6 +16,8 @@ import {
   CarFront,
   Bike,
   Footprints,
+  Loader2,
+  RotateCw,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -57,7 +59,7 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
       const vehicleType = routeService.getVehicleTypeForMode(travelMode);
       await sessionLifecycle.startLiveSession(vehicleType);
     } catch (err: any) {
-      alert(err.message || 'Failed to start navigation session');
+      console.warn('[TripHudCard] Navigation start notice:', err?.message || err);
     }
   };
 
@@ -224,10 +226,22 @@ export const TripHudCard: React.FC<TripHudCardProps> = ({
                 aria-label="Start navigation"
                 className="h-10 px-3.5 sm:px-4 bg-[#083335] hover:bg-[#052426] active:bg-[#031718] text-white rounded-xl text-xs sm:text-[13px] font-semibold flex items-center gap-1.5 shadow-nav-floating transition-colors cursor-pointer select-none active:scale-[0.97] font-body shrink-0"
               >
-                <Navigation2 className="w-4 h-4 fill-white text-white rotate-45 shrink-0" />
-                <span className="whitespace-nowrap">
-                  {sessionStatus === 'STARTING' ? 'Starting...' : 'Start navigation'}
-                </span>
+                {sessionStatus === 'STARTING' ? (
+                  <>
+                    <Loader2 className="w-4 h-4 text-white animate-spin shrink-0" />
+                    <span className="whitespace-nowrap">Starting...</span>
+                  </>
+                ) : sessionStatus === 'ERROR' ? (
+                  <>
+                    <RotateCw className="w-4 h-4 text-white shrink-0" />
+                    <span className="whitespace-nowrap">Retry navigation</span>
+                  </>
+                ) : (
+                  <>
+                    <Navigation2 className="w-4 h-4 fill-white text-white rotate-45 shrink-0" />
+                    <span className="whitespace-nowrap">Start navigation</span>
+                  </>
+                )}
               </button>
             ) : null}
           </div>

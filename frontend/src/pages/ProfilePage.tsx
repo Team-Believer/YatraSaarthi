@@ -1,103 +1,232 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/useAuthStore';
 import {
   User,
-  MapPin,
-  Navigation,
-  Brain,
-  HelpCircle,
-  Info,
+  Bookmark,
+  Navigation2,
+  BrainCircuit,
+  Settings,
+  Activity,
   ChevronRight,
   LogOut,
   LogIn,
   ShieldCheck,
 } from 'lucide-react';
-import { YatraSaarthiLogo } from '../components/branding/YatraSaarthiLogo';
+import { savedRouteService } from '../services/navigation/savedRouteService';
+import { offlineStorage } from '../services/storage/offlineStorage';
 
-const profileLinks = [
-  { label: 'Saved routes', icon: MapPin, path: '/app/memory', desc: 'Saved corridors & spatial memory' },
-  { label: 'Trips', icon: Navigation, path: '/app/history', desc: 'Recorded dead reckoning sessions' },
-  { label: 'Navigation intelligence', icon: Brain, path: '/app/learning', desc: 'Neural velocity & uncertainty models' },
-  { label: 'Settings', icon: HelpCircle, path: '/app/settings', desc: 'Kinematic profiles & filter tuning' },
-  { label: 'Diagnostics', icon: Info, path: '/app/diagnostics', desc: 'Hardware streams & innovation gates' },
+const WORKSPACE_LINKS = [
+  {
+    label: 'Saved routes',
+    path: '/app/memory',
+    desc: 'Saved corridors & spatial memory',
+    icon: Bookmark,
+  },
+  {
+    label: 'Trips',
+    path: '/app/history',
+    desc: 'Recorded navigation sessions',
+    icon: (props: { className?: string }) => <Navigation2 {...props} className="w-5 h-5 rotate-45" />,
+  },
+  {
+    label: 'Navigation Intelligence',
+    path: '/app/learning',
+    desc: 'Motion intelligence and uncertainty models',
+    icon: BrainCircuit,
+  },
+  {
+    label: 'Settings',
+    path: '/app/settings',
+    desc: 'Vehicle and navigation preferences',
+    icon: Settings,
+  },
+  {
+    label: 'Diagnostics',
+    path: '/app/diagnostics',
+    desc: 'Sensor and navigation runtime health',
+    icon: Activity,
+  },
 ];
 
 export default function ProfilePage() {
   const { user, isAuthenticated, logout } = useAuthStore();
+  const [savedCount, setSavedCount] = useState<number>(0);
+  const [tripsCount, setTripsCount] = useState<number>(0);
+  const [samplesCount, setSamplesCount] = useState<number>(0);
+
+  useEffect(() => {
+    // Fetch real persistent statistics from actual application services
+    const items = savedRouteService.getSavedItems();
+    setSavedCount(items.length);
+
+    offlineStorage.getStorageMetrics().then((m) => {
+      if (m) {
+        setTripsCount(m.cachedTripsCount || m.sessionCount || 0);
+        setSamplesCount(m.totalSensorSamples || 0);
+      }
+    }).catch(() => {});
+  }, []);
 
   return (
-    <div className="max-w-xl mx-auto space-y-6 animate-in fade-in duration-300 pb-24 md:pb-12 text-ink select-none">
-      {/* Profile Header */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-border-clean shadow-2xs text-center space-y-4">
-        <div className="w-18 h-18 bg-canvas-soft border border-border-clean rounded-full flex items-center justify-center mx-auto text-ink shadow-2xs">
-          <User className="w-9 h-9 text-ink" />
-        </div>
+    <div className="w-full bg-[#F7F9F8] min-h-screen text-ink select-none font-sans">
+      <div className="max-w-[1080px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-8 pb-32 md:pb-20 animate-in fade-in duration-300">
+        
+        {/* ========================================================================= */}
+        {/* 01. PAGE HEADER                                                           */}
+        {/* ========================================================================= */}
+        <header className="space-y-1.5 pb-6 border-b border-slate-200/80">
+          <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-bold font-display text-ink tracking-tight">
+            Your navigation workspace
+          </h1>
+          <p className="text-xs sm:text-sm text-ink-body font-normal">
+            Manage saved routes, recorded trips, and navigation system areas.
+          </p>
+        </header>
 
-        {isAuthenticated && user ? (
-          <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-ink">{user.full_name}</h1>
-            <p className="text-xs sm:text-sm text-ink-body font-normal">{user.email}</p>
-            <div className="pt-2 flex items-center justify-center gap-1.5 text-xs text-emerald-600 font-medium">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              Verified navigation profile
+        {/* ========================================================================= */}
+        {/* 02. SESSION & AUTH STATUS                                                 */}
+        {/* ========================================================================= */}
+        <section aria-label="Session status" className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            
+            {/* Left: Avatar & Identity details */}
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-[#083335]/[0.06] text-[#083335] border border-[#083335]/10 flex items-center justify-center shrink-0">
+                <User className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={1.8} />
+              </div>
+
+              <div className="min-w-0">
+                {isAuthenticated && user ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm sm:text-base font-bold font-display text-ink truncate">
+                        {user.full_name}
+                      </h2>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 shrink-0">
+                        <ShieldCheck className="w-3 h-3" />
+                        Verified
+                      </span>
+                    </div>
+                    <p className="text-xs text-ink-body mt-0.5 truncate font-sans">
+                      {user.email} · Telemetry synced with personal profile
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-sm sm:text-base font-bold font-display text-ink">
+                      Guest session
+                    </h2>
+                    <p className="text-xs text-ink-body mt-0.5 font-sans leading-relaxed">
+                      Telemetry is stored locally on this device.
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Primary Auth Action */}
+            <div className="shrink-0 self-start sm:self-auto pt-1 sm:pt-0">
+              {isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={() => logout()}
+                  className="inline-flex items-center gap-2 h-10 px-4 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sign out</span>
+                </button>
+              ) : (
+                <Link
+                  to="/login"
+                  className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-xl bg-[#083335] hover:bg-[#052426] active:bg-[#031718] text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer select-none"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Sign in to sync</span>
+                </Link>
+              )}
+            </div>
+
+          </div>
+
+          {/* Optional Data Summary (Real metadata from stores) */}
+          <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-sans text-ink-body">
+            <div className="flex items-center gap-1.5">
+              <span className="text-ink-mute">Saved routes:</span>
+              <strong className="text-ink font-mono">{savedCount}</strong>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-ink-mute">Recorded trips:</span>
+              <strong className="text-ink font-mono">{tripsCount}</strong>
+            </div>
+            {samplesCount > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-ink-mute">Stored IMU samples:</span>
+                <strong className="text-ink font-mono">{samplesCount.toLocaleString()}</strong>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5">
+              <span className="text-ink-mute">Storage:</span>
+              <span className="text-emerald-700 font-semibold">IndexedDB Active</span>
             </div>
           </div>
-        ) : (
-          <div className="space-y-3">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-ink">Guest session</h1>
-              <p className="text-xs sm:text-sm text-ink-body mt-0.5">Telemetry is stored locally on this device</p>
-            </div>
-            <Link
-              to="/login"
-              className="btn-primary py-2.5 px-6 text-xs sm:text-sm"
-            >
-              <LogIn className="w-4 h-4" />
-              Sign in to cloud sync
-            </Link>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* 03. NAVIGATION WORKSPACE                                                   */}
+        {/* ========================================================================= */}
+        <section aria-labelledby="workspace-heading" className="space-y-3">
+          <div>
+            <span className="text-[11px] font-bold tracking-widest uppercase text-[#083335] font-sans block mb-1">
+              Workspace
+            </span>
+            <h2 id="workspace-heading" className="text-lg sm:text-xl font-bold font-display text-ink tracking-tight">
+              Navigation workspace
+            </h2>
           </div>
-        )}
-      </div>
 
-      {/* Navigation Links */}
-      <div className="bg-white rounded-2xl border border-border-clean shadow-2xs overflow-hidden divide-y divide-border-clean">
-        {profileLinks.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.label}
-              to={item.path}
-              className="flex items-center gap-4 px-5 py-4 hover:bg-canvas-softer transition-colors group cursor-pointer"
-            >
-              <div className="w-10 h-10 bg-canvas-soft group-hover:bg-[#083335] group-hover:text-white rounded-full flex items-center justify-center text-ink shrink-0 transition-colors">
-                <Icon className="w-4.5 h-4.5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs sm:text-sm font-semibold text-ink group-hover:text-[#083335] transition-colors">
-                  {item.label}
-                </div>
-                <div className="text-[11px] text-ink-body truncate mt-0.5">{item.desc}</div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-ink-mute group-hover:text-ink group-hover:translate-x-0.5 transition-all" />
-            </Link>
-          );
-        })}
-      </div>
+          {/* Unified Workspace Surface */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 divide-y divide-slate-100 overflow-hidden">
+            {WORKSPACE_LINKS.map((item) => {
+              const Icon = item.icon;
 
-      {/* Logout */}
-      {isAuthenticated && (
-        <button
-          onClick={() => logout()}
-          className="btn-secondary w-full py-3 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
-        >
-          <LogOut className="w-4 h-4" />
-          Sign out of account
-        </button>
-      )}
+              return (
+                <Link
+                  key={item.label}
+                  to={item.path}
+                  className="p-4 sm:px-5 flex items-center justify-between gap-4 hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-[#083335]/[0.05] group-hover:bg-[#083335] group-hover:text-white text-[#083335] flex items-center justify-center shrink-0 transition-colors">
+                      <Icon className="w-4.5 h-4.5" />
+                    </div>
 
-      {/* Brand Footer */}
-      <div className="flex flex-col items-center justify-center py-2 space-y-1">
-        <YatraSaarthiLogo variant="compact" height={32} />
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold font-display text-ink group-hover:text-[#083335] transition-colors">
+                        {item.label}
+                      </div>
+                      <p className="text-xs text-ink-body mt-0.5 truncate font-sans">
+                        {item.desc}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 text-slate-300 group-hover:text-ink group-hover:translate-x-0.5 transition-all">
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* 04. SUBTLE FOOTER                                                         */}
+        {/* ========================================================================= */}
+        <footer className="pt-4 text-center text-xs text-ink-mute font-sans">
+          <p>YatraSaarthi · Intelligent Navigation Workspace</p>
+        </footer>
+
       </div>
     </div>
   );

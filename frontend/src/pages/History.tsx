@@ -14,9 +14,6 @@ import {
   AlertCircle,
   RotateCw,
   X,
-  Download,
-  Copy,
-  Check,
   Clock3,
   WifiOff,
 } from 'lucide-react';
@@ -133,35 +130,6 @@ export default function History() {
 
   // UI state
   const [showMobileDetail, setShowMobileDetail] = useState(false);
-  const [copiedId, setCopiedId] = useState(false);
-
-  const handleCopyId = (id: string) => {
-    navigator.clipboard.writeText(id);
-    setCopiedId(true);
-    setTimeout(() => setCopiedId(false), 2000);
-  };
-
-  const handleExportJson = () => {
-    if (!selectedTrip) return;
-    if (selectedTrip.session_id.startsWith('local-offline-')) {
-      offlineStorage.exportSessionAsJson(selectedTrip.session_id);
-      return;
-    }
-    const meta = tripMetadataMap[selectedTrip.session_id];
-    const exportData = {
-      ...(selectedDetail || selectedTrip),
-      trip_metadata: meta || null,
-    };
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `yatrasaarthi_session_${selectedTrip.session_id}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
 
   const handleNavigateAgain = () => {
     if (!selectedViewModel) return;
@@ -975,73 +943,6 @@ export default function History() {
                     <Navigation2 className="w-4 h-4 rotate-45 stroke-[2.4] text-[#083335]" />
                     <span>Navigate again</span>
                   </button>
-                </div>
-
-                {/* 6. Session Telemetry & Export Strip */}
-                <div className="pt-3 border-t border-border-clean/80 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-[#8E8E8E] uppercase tracking-wider font-body">
-                      Session Record
-                    </span>
-                    <span className="text-[11px] text-[#5E5E5E] font-medium font-body">
-                      {selectedViewModel.kind === 'fixture'
-                        ? `${selectedViewModel.geometry?.length || 0} route coordinates`
-                        : selectedDetail?.points && selectedDetail.points.length > 0
-                        ? `${selectedDetail.points.length} samples logged`
-                        : selectedViewModel.geometry
-                        ? `${selectedViewModel.geometry.length} route coordinates`
-                        : 'Session recorded'}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-2.5 bg-[#F9F9F9] border border-border-clean rounded-xl text-xs">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-[#5E5E5E] shrink-0 font-medium font-body">ID:</span>
-                      <span className="font-mono font-medium text-ink truncate text-[11px]">
-                        {selectedTrip.session_id}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyId(selectedTrip.session_id)}
-                        className="px-2.5 py-1.5 rounded-lg bg-white border border-border-clean hover:bg-canvas-soft text-ink font-medium text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer font-body"
-                        title="Copy Session ID"
-                      >
-                        {copiedId ? (
-                          <>
-                            <Check className="w-3 h-3 text-emerald-600" />
-                            <span className="text-emerald-600">Copied</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3 h-3 text-[#5E5E5E]" />
-                            <span>Copy ID</span>
-                          </>
-                        )}
-                      </button>
-
-                      {selectedViewModel.kind === 'recorded' ? (
-                        <button
-                          type="button"
-                          onClick={handleExportJson}
-                          className="px-3 py-1.5 rounded-lg bg-[#083335] hover:bg-[#052426] text-white font-medium text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs font-body"
-                          title="Download session trajectory JSON"
-                        >
-                          <Download className="w-3 h-3" />
-                          <span>Export JSON</span>
-                        </button>
-                      ) : (
-                        <span
-                          className="px-2.5 py-1.5 rounded-lg bg-[#EAEAEA] border border-[#D5D5D5] text-[#707070] font-medium text-[11px] select-none font-body"
-                          title="Route fixture preview (not an exportable recording)"
-                        >
-                          Preview Route
-                        </span>
-                      )}
-                    </div>
-                  </div>
                 </div>
               </div>
             ) : (

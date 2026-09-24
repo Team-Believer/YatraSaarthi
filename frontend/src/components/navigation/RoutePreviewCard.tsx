@@ -7,7 +7,6 @@ import { savedRouteService, type SavedPlaceItem } from '../../services/navigatio
 import { sessionLifecycle } from '../../services/navigation/sessionLifecycle';
 import {
   Navigation2,
-  Navigation,
   X,
   CarFront,
   Bike,
@@ -17,15 +16,8 @@ import {
   Bookmark,
   BookmarkCheck,
   Zap,
-  ChevronDown,
-  ChevronUp,
-  MapPin,
-  CornerUpRight,
-  CornerUpLeft,
-  ArrowUp,
-  RotateCcw,
+  AlertCircle,
   RotateCw,
-  ListOrdered,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -42,6 +34,8 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
 }) => {
   const isLive = useNavigationStore((s) => s.isLive);
   const sessionStatus = useNavigationStore((s) => s.sessionStatus);
+  const errorMessage = useNavigationStore((s) => s.errorMessage);
+  const setErrorMessage = useNavigationStore((s) => s.setErrorMessage);
   const source = useNavigationStore((s) => s.source);
   const destination = useNavigationStore((s) => s.destination);
   const setSource = useNavigationStore((s) => s.setSource);
@@ -60,7 +54,6 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
     return savedRouteService.getSavedItems();
   });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [expandedRouteKey, setExpandedRouteKey] = useState<string | null>(null);
 
   // Sync with savedRouteService updates
   useEffect(() => {
@@ -78,9 +71,6 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
     }, 2500);
     return () => clearTimeout(timer);
   }, [toastMessage]);
-
-  const currentRouteKey = `${destination?.name || ''}-${selectedRouteIndex}`;
-  const showDirections = expandedRouteKey === currentRouteKey;
 
   // Determine if the CURRENTLY SELECTED route is saved
   const selectedRoute = availableRoutes[selectedRouteIndex] || availableRoutes[0];
@@ -168,7 +158,8 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
         travelMode: travelMode,
       });
     } catch (err: any) {
-      alert(err.message || 'Failed to start navigation session');
+      console.warn('[RoutePreviewCard] Navigation start notice:', err?.message || err);
+      // State is already set to ERROR and errorMessage populated by sessionLifecycle
     }
   };
 
@@ -205,25 +196,10 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
     }
   };
 
-  const getManeuverIcon = (type?: string, modifier?: string) => {
-    const mod = modifier?.toLowerCase() || '';
-    const typ = type?.toLowerCase() || '';
-
-    if (typ === 'arrive') return <MapPin className="w-3.5 h-3.5 text-rose-600 shrink-0" />;
-    if (typ === 'depart') return <Navigation className="w-3.5 h-3.5 text-emerald-600 rotate-45 shrink-0" />;
-    if (mod.includes('left') || typ.includes('left')) return <CornerUpLeft className="w-3.5 h-3.5 text-[#083335] shrink-0" />;
-    if (mod.includes('right') || typ.includes('right')) return <CornerUpRight className="w-3.5 h-3.5 text-[#083335] shrink-0" />;
-    if (mod.includes('u-turn') || typ.includes('uturn')) return <RotateCcw className="w-3.5 h-3.5 text-[#083335] shrink-0" />;
-    if (typ.includes('roundabout')) return <RotateCw className="w-3.5 h-3.5 text-[#083335] shrink-0" />;
-    return <ArrowUp className="w-3.5 h-3.5 text-[#083335] shrink-0" />;
-  };
-
-  const stepsList = selectedRoute?.steps || [];
-
   return (
     <div
       className={clsx(
-        'w-full bg-white/98 backdrop-blur-md rounded-2xl p-3.5 sm:p-4 shadow-[0_6px_24px_rgba(8,51,53,0.08)] border border-[#E2E8E7] select-none animate-in fade-in duration-150 flex flex-col gap-2.5 max-h-[calc(100dvh-130px)] sm:max-h-[72dvh] overflow-hidden font-body',
+        'w-full bg-white/98 backdrop-blur-md rounded-2xl p-3.5 sm:p-4 shadow-[0_6px_24px_rgba(8,51,53,0.08)] border border-[#E2E8E7] select-none animate-in fade-in duration-150 flex flex-col gap-2.5 max-h-[calc(100dvh-130px)] sm:max-h-[68dvh] overflow-hidden font-body',
         className
       )}
     >
@@ -347,7 +323,7 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
       </div>
 
       {/* 3. Compact Route Options Rows */}
-      <div className="space-y-1 overflow-y-auto pr-0.5 max-h-[140px] hide-scrollbar shrink-0">
+      <div className="space-y-1 overflow-y-auto pr-0.5 max-h-[160px] hide-scrollbar flex-1 min-h-[50px]">
         {isLoadingRoutes ? (
           <div className="py-5 flex flex-col items-center justify-center gap-1.5 text-[#6F7F7D] text-xs">
             <Loader2 className="w-4 h-4 animate-spin text-[#083335]" />
@@ -415,47 +391,22 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
         )}
       </div>
 
-      {/* 4. Expandable Turn-by-Turn Directions Accordion */}
-      {selectedRoute && stepsList.length > 0 && (
-        <div className="border border-[#E2E8E7] rounded-xl overflow-hidden bg-[#FAFCFC] shrink-0">
+      {/* 4. Error banner when navigation server unavailable */}
+      {errorMessage && (
+        <div className="p-2.5 rounded-xl bg-amber-50/90 border border-amber-200/80 text-amber-900 text-xs flex items-start gap-2 animate-in fade-in shrink-0">
+          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold leading-tight">{errorMessage}</p>
+            <p className="text-[11px] text-amber-700 mt-0.5">Route preview remains ready. Tap Retry to connect.</p>
+          </div>
           <button
             type="button"
-            onClick={() => setExpandedRouteKey(showDirections ? null : currentRouteKey)}
-            aria-expanded={showDirections}
-            className="w-full px-2.5 py-1.5 flex items-center justify-between text-xs font-semibold text-[#083335] hover:bg-[#F0F5F5] transition-colors cursor-pointer select-none"
+            onClick={() => setErrorMessage(null)}
+            className="text-amber-500 hover:text-amber-800 p-0.5 rounded cursor-pointer"
+            aria-label="Dismiss message"
           >
-            <div className="flex items-center gap-1.5">
-              <ListOrdered className="w-3.5 h-3.5 text-[#4A6364]" />
-              <span>Directions ({stepsList.length} steps)</span>
-            </div>
-            {showDirections ? (
-              <ChevronUp className="w-3.5 h-3.5 text-[#4A6364]" />
-            ) : (
-              <ChevronDown className="w-3.5 h-3.5 text-[#4A6364]" />
-            )}
+            <X className="w-3.5 h-3.5" />
           </button>
-
-          {showDirections && (
-            <div className="p-2 border-t border-[#E2E8E7] max-h-[140px] overflow-y-auto space-y-1.5 hide-scrollbar divide-y divide-[#E2E8E7]/60">
-              {stepsList.map((step, sIdx) => (
-                <div key={sIdx} className="pt-1.5 first:pt-0 flex items-start gap-2 text-left">
-                  <div className="w-5 h-5 rounded-md bg-[#F0F4F4] flex items-center justify-center shrink-0 mt-0.5">
-                    {getManeuverIcon(step.type, step.modifier)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11.5px] font-medium text-[#083335] leading-snug">
-                      {step.instruction}
-                    </p>
-                    {step.distance_m > 0 && (
-                      <span className="text-[10px] text-[#6F7F7D]">
-                        {formatDistance(step.distance_m)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
@@ -475,14 +426,27 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
           disabled={sessionStatus === 'STARTING' || availableRoutes.length === 0 || isLoadingRoutes}
           className="flex-1 h-10 bg-[#083335] hover:bg-[#052426] active:bg-[#031718] disabled:bg-neutral-300 text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shadow-[0_4px_12px_rgba(8,51,53,0.18)] transition-all cursor-pointer select-none active:scale-[0.98]"
         >
-          <Navigation2 className="w-4 h-4 fill-white text-white rotate-45 shrink-0" />
-          <span>{sessionStatus === 'STARTING' ? 'Starting...' : 'Start navigation'}</span>
+          {sessionStatus === 'STARTING' ? (
+            <>
+              <Loader2 className="w-4 h-4 text-white animate-spin shrink-0" />
+              <span>Starting...</span>
+            </>
+          ) : sessionStatus === 'ERROR' ? (
+            <>
+              <RotateCw className="w-4 h-4 text-white shrink-0" />
+              <span>Retry navigation</span>
+            </>
+          ) : (
+            <>
+              <Navigation2 className="w-4 h-4 fill-white text-white rotate-45 shrink-0" />
+              <span>Start navigation</span>
+            </>
+          )}
         </button>
       </div>
     </div>
   );
 };
-
 
 
 
