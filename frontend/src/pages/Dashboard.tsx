@@ -356,7 +356,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
-                onClick={() => navigate('/settings')}
+                onClick={() => navigate('/app/settings')}
                 title={`Selected Vehicle: ${vehicleLabel} (Click to change in Settings)`}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold font-body border border-slate-200/90 bg-slate-50 hover:bg-slate-100 text-[#083335] transition-colors cursor-pointer"
               >
