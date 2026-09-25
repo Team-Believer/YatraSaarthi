@@ -8,6 +8,22 @@ interface TrajectoryLayerProps {
   fusedTrack?: [number, number][];
 }
 
+function safeRemoveLayer(map: any, layerId: string) {
+  try {
+    if (map && map.getStyle() && map.getLayer(layerId)) {
+      map.removeLayer(layerId);
+    }
+  } catch {}
+}
+
+function safeRemoveSource(map: any, sourceId: string) {
+  try {
+    if (map && map.getStyle() && map.getSource(sourceId)) {
+      map.removeSource(sourceId);
+    }
+  } catch {}
+}
+
 export const TrajectoryLayer: React.FC<TrajectoryLayerProps> = ({
   gnssTrack = [],
   drTrack = [],
@@ -30,50 +46,56 @@ export const TrajectoryLayer: React.FC<TrajectoryLayerProps> = ({
       const sourceId = `source-track-${id}`;
       const layerId = `layer-track-${id}`;
 
-      if (coords.length < 2) {
-        if (map.getLayer(layerId)) map.removeLayer(layerId);
-        if (map.getSource(sourceId)) map.removeSource(sourceId);
-        return;
-      }
-
-      const geojson: any = {
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'LineString',
-          coordinates: coords,
-        },
-      };
-
-      const existingSource = map.getSource(sourceId) as GeoJSONSource;
-      if (existingSource) {
-        existingSource.setData(geojson);
-      } else {
-        map.addSource(sourceId, {
-          type: 'geojson',
-          data: geojson,
-        });
-
-        const layerPaint: LinePaint = {
-          'line-color': color,
-          'line-width': width,
-          'line-opacity': opacity,
-        };
-
-        if (dash) {
-          layerPaint['line-dasharray'] = dash;
+      try {
+        if (coords.length < 2) {
+          safeRemoveLayer(map, layerId);
+          safeRemoveSource(map, sourceId);
+          return;
         }
 
-        map.addLayer({
-          id: layerId,
-          type: 'line',
-          source: sourceId,
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round',
+        if (!map.getStyle()) return;
+
+        const geojson: any = {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: coords,
           },
-          paint: layerPaint,
-        });
+        };
+
+        const existingSource = map.getSource(sourceId) as GeoJSONSource;
+        if (existingSource) {
+          existingSource.setData(geojson);
+        } else {
+          map.addSource(sourceId, {
+            type: 'geojson',
+            data: geojson,
+          });
+
+          const layerPaint: LinePaint = {
+            'line-color': color,
+            'line-width': width,
+            'line-opacity': opacity,
+          };
+
+          if (dash) {
+            layerPaint['line-dasharray'] = dash;
+          }
+
+          map.addLayer({
+            id: layerId,
+            type: 'line',
+            source: sourceId,
+            layout: {
+              'line-join': 'round',
+              'line-cap': 'round',
+            },
+            paint: layerPaint,
+          });
+        }
+      } catch (err) {
+        console.warn(`[TrajectoryLayer] updateLineSource warning (${id}):`, err);
       }
     };
 
@@ -86,14 +108,11 @@ export const TrajectoryLayer: React.FC<TrajectoryLayerProps> = ({
 
     return () => {
       ['gnss-raw', 'dr-track', 'fused-track'].forEach((id) => {
-        const layerId = `layer-track-${id}`;
-        const sourceId = `source-track-${id}`;
-        if (map.getLayer(layerId)) map.removeLayer(layerId);
-        if (map.getSource(sourceId)) map.removeSource(sourceId);
+        safeRemoveLayer(map, `layer-track-${id}`);
+        safeRemoveSource(map, `source-track-${id}`);
       });
     };
   }, [map, gnssTrack, drTrack, fusedTrack]);
 
   return null;
 };
-

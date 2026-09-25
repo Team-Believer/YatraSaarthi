@@ -30,16 +30,13 @@ import { useRouteStore, type TravelMode } from '../stores/useRouteStore';
 import { useLocationStore } from '../stores/useLocationStore';
 import { useSystemState } from '../hooks/useSystemState';
 import { routeService } from '../services/navigation/routeService';
-import {
-  savedRouteService,
-  formatRouteSubtitle,
-  type SavedPlaceItem,
-} from '../services/navigation/savedRouteService';
+import { savedRouteService, formatRouteSubtitle, type SavedPlaceItem } from '../services/navigation/savedRouteService';
 import { TripRouteMap } from '../components/map/TripRouteMap';
+import { SavedOfflineRoutes } from '../components/navigation/SavedOfflineRoutes';
 
 export type { SavedPlaceItem };
 
-type TypeFilter = 'all' | 'route' | 'place';
+type TypeFilter = 'all' | 'route' | 'place' | 'offline';
 
 // Resolve appropriate contextual icon for a saved place or route
 function getPlaceIcon(item: SavedPlaceItem) {
@@ -405,6 +402,18 @@ export default function NavigationMemoryPage() {
               {placeCount}
             </span>
           </button>
+          <button
+            type="button"
+            onClick={() => setTypeFilter('offline')}
+            className={clsx(
+              'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none flex items-center gap-1.5',
+              typeFilter === 'offline'
+                ? 'bg-[#083335] text-white shadow-2xs'
+                : 'text-[#5E5E5E] hover:text-[#083335] hover:bg-[#F0F2F2]'
+            )}
+          >
+            <span>Offline Saved</span>
+          </button>
         </div>
       )}
 
@@ -449,10 +458,21 @@ export default function NavigationMemoryPage() {
             Clear search
           </button>
         </div>
+      ) : typeFilter === 'offline' ? (
+        <div className="bg-white rounded-2xl p-5 sm:p-6 border border-[#E5E7EB] shadow-2xs">
+          <SavedOfflineRoutes />
+        </div>
       ) : (
         /* 5. Content Sections: Visually Consistent Native Hierarchy */
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
           <div className="md:col-span-5 space-y-4">
+            {/* OFFLINE SAVED ROUTES (when all) */}
+            {typeFilter === 'all' && (
+              <div className="space-y-1.5">
+                <SavedOfflineRoutes />
+              </div>
+            )}
+
             {/* 5A. FREQUENT ROUTES SECTION */}
             {(typeFilter === 'all' || typeFilter === 'route') && matchingRoutes.length > 0 && (
               <div className="space-y-1.5">

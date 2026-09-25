@@ -2,11 +2,12 @@
  * YatraSaarthi — Offline Navigation HUD
  *
  * Displays real-time offline navigation state:
- * - OFFLINE banner with saved route name
+ * - OFFLINE banner with saved route name and close/exit button
  * - Distance remaining & ETA from real GPS match
  * - Next turn instruction from saved route steps
  * - Off-route warning when GPS deviates
  * - Vehicle type and GPS accuracy
+ * - End Navigation action button
  *
  * All values are REAL — derived from phone GPS + saved route geometry.
  */
@@ -15,6 +16,7 @@ import React from 'react';
 import { useOfflineNavigationStore } from '../../stores/useOfflineNavigationStore';
 import { useLocationStore } from '../../stores/useLocationStore';
 import { useSettingsStore } from '../../stores/useSettingsStore';
+import { offlineNavigationController } from '../../services/offline/offlineNavigationController';
 import { VEHICLE_PROFILES, type SupportedVehicleType } from '../../utils/navigation/vehicleProfiles';
 import {
   WifiOff,
@@ -28,6 +30,7 @@ import {
   RotateCcw,
   CheckCircle2,
   Compass,
+  Square,
 } from 'lucide-react';
 
 function formatDistance(meters: number): string {
@@ -72,23 +75,43 @@ export const OfflineNavigationHud: React.FC = () => {
   const vehicleProfile = VEHICLE_PROFILES[vehicleType as SupportedVehicleType];
   const vehicleLabel = vehicleProfile?.shortLabel || vehicleType;
 
+  const handleStopNavigation = () => {
+    offlineNavigationController.stopNavigation();
+  };
+
   return (
     <div className="absolute top-0 left-0 right-0 z-50 pointer-events-none">
       {/* Offline Banner */}
       <div className="mx-3 mt-3 pointer-events-auto">
-        <div className="bg-gradient-to-r from-amber-600 to-amber-700 rounded-xl shadow-lg px-4 py-2.5 flex items-center gap-2.5">
-          <WifiOff className="w-4.5 h-4.5 text-white shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-white font-semibold text-sm leading-tight truncate">
-              OFFLINE · Saved Route Navigation
-            </p>
-            <p className="text-amber-100/80 text-[11px] leading-tight truncate mt-0.5">
-              {activeRoute.origin} → {activeRoute.destination}
-            </p>
+        <div className="bg-gradient-to-r from-amber-600 to-amber-700 rounded-xl shadow-lg px-3.5 py-2.5 flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <WifiOff className="w-4.5 h-4.5 text-white shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-white font-semibold text-sm leading-tight truncate">
+                OFFLINE · Saved Route Navigation
+              </p>
+              <p className="text-amber-100/80 text-[11px] leading-tight truncate mt-0.5">
+                {activeRoute.origin} → {activeRoute.destination}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-1 text-amber-100/90 text-[10px] shrink-0">
-            <Compass className="w-3 h-3" />
-            <span>{vehicleLabel}</span>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="hidden sm:flex items-center gap-1 text-amber-100/90 text-[10px]">
+              <Compass className="w-3 h-3" />
+              <span>{vehicleLabel}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleStopNavigation}
+              aria-label="End offline navigation"
+              title="End offline navigation"
+              className="px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 active:bg-white/40 text-white text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+            >
+              <Square className="w-3 h-3 fill-current" />
+              <span>End</span>
+            </button>
           </div>
         </div>
       </div>

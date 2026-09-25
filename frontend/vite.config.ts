@@ -31,6 +31,8 @@ export default defineConfig(({ mode }) => {
         maximumFileSizeToCacheInBytes: 35 * 1024 * 1024, // 35 MB to accommodate ONNX and WASM binary blobs
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,onnx,wasm}'],
         globIgnores: ['**/*jsep*.wasm'], // Exclude large unused WebGPU JSEP binary
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api/, /^\/ws/, /^\/health/],
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {

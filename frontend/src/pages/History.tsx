@@ -135,32 +135,6 @@ export default function History() {
   // UI state
   const [showMobileDetail, setShowMobileDetail] = useState(false);
 
-  const handleNavigateAgain = () => {
-    if (!selectedViewModel || !selectedViewModel.endLon || !selectedViewModel.endLat) return;
-    const destCoords: [number, number] = [
-      selectedViewModel.endLon,
-      selectedViewModel.endLat,
-    ];
-    if (selectedViewModel.vehicleType) {
-      const rawMode = selectedViewModel.vehicleType.toLowerCase();
-      let mode: TravelMode = 'driving';
-      if (rawMode.includes('motorcycle') || rawMode.includes('moto') || rawMode.includes('scooter') || rawMode.includes('two_wheeler')) {
-        mode = 'motorcycle';
-      } else if (rawMode.includes('bicycle') || rawMode.includes('bike') || rawMode.includes('cycl')) {
-        mode = 'cycling';
-      } else if (rawMode.includes('walk') || rawMode.includes('pedestrian')) {
-        mode = 'walking';
-      }
-      setTravelMode(mode);
-    }
-    setDestination({
-      name: selectedViewModel.destinationName,
-      coordinates: destCoords,
-    });
-    routeService.calculateRoutes(destCoords, travelMode);
-    navigate('/app');
-  };
-
   // Sync subscriptions for local metadata and saved routes
   useEffect(() => {
     const unsubMeta = tripMetadataService.subscribe((updated) => {
@@ -440,6 +414,32 @@ export default function History() {
       )
     );
   }, [selectedTrip, tripViewModels, tripMetadataMap, selectedDetail, savedPlaces, geoNamesMap]);
+
+  const handleNavigateAgain = useCallback(() => {
+    if (!selectedViewModel || !selectedViewModel.endLon || !selectedViewModel.endLat) return;
+    const destCoords: [number, number] = [
+      selectedViewModel.endLon,
+      selectedViewModel.endLat,
+    ];
+    if (selectedViewModel.vehicleType) {
+      const rawMode = selectedViewModel.vehicleType.toLowerCase();
+      let mode: TravelMode = 'driving';
+      if (rawMode.includes('motorcycle') || rawMode.includes('moto') || rawMode.includes('scooter') || rawMode.includes('two_wheeler')) {
+        mode = 'motorcycle';
+      } else if (rawMode.includes('bicycle') || rawMode.includes('bike') || rawMode.includes('cycl')) {
+        mode = 'cycling';
+      } else if (rawMode.includes('walk') || rawMode.includes('pedestrian')) {
+        mode = 'walking';
+      }
+      setTravelMode(mode);
+    }
+    setDestination({
+      name: selectedViewModel.destinationName,
+      coordinates: destCoords,
+    });
+    routeService.calculateRoutes(destCoords, travelMode);
+    navigate('/app');
+  }, [selectedViewModel, travelMode, setDestination, setTravelMode, navigate]);
 
   // Real measured Outage & Dead Reckoning metrics from session points
   const selectedOutageMetrics = useMemo(() => {

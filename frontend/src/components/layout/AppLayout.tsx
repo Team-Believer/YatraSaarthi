@@ -8,6 +8,7 @@ import { useNavigationWebSocket } from '../../hooks/useNavigationWebSocket';
 import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { YatraSaarthiLogo } from '../branding/YatraSaarthiLogo';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Menu, LogOut, User } from 'lucide-react';
 
 // Full-bleed map pages that take over the complete viewport
@@ -173,7 +174,9 @@ export default function AppLayout() {
               : 'flex-1 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 md:pl-[96px] lg:pl-[104px] pb-[calc(76px+env(safe-area-inset-bottom))] md:pb-12 overflow-y-auto bg-slate-50'
           }`}
         >
-          <Outlet />
+          <ErrorBoundary isRouteLevel={true} fallbackTitle="Page Error" fallbackMessage="This section encountered an unexpected error. You can try reloading or choosing another tab.">
+            <Outlet />
+          </ErrorBoundary>
         </main>
 
         {/* Mobile Bottom Nav Bar (4 evenly distributed items: Home, Navigate, Trips, Saved) */}

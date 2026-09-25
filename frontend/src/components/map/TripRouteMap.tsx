@@ -32,7 +32,6 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
 
   const token = getMapboxToken();
 
-
   // Extract valid [lng, lat] coordinate pairs
   const coordinates: [number, number][] = React.useMemo(() => {
     const coords: [number, number][] = [];
@@ -104,24 +103,40 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
         setMapLoaded(true);
       });
 
+      map.on('error', (e) => {
+        console.warn('[TripRouteMap] Mapbox GL event warning:', e.error?.message || e);
+      });
+
       mapRef.current = map;
 
       const resizeObserver = new ResizeObserver(() => {
-        if (mapRef.current) {
-          mapRef.current.resize();
-        }
+        try {
+          if (mapRef.current && mapRef.current.getCanvas()) {
+            mapRef.current.resize();
+          }
+        } catch {}
       });
       resizeObserver.observe(containerRef.current);
 
       return () => {
-        resizeObserver.disconnect();
-        if (startMarkerRef.current) startMarkerRef.current.remove();
-        if (endMarkerRef.current) endMarkerRef.current.remove();
-        if (mapRef.current) {
-          mapRef.current.remove();
-          mapRef.current = null;
+        try {
+          resizeObserver.disconnect();
+          if (startMarkerRef.current) {
+            startMarkerRef.current.remove();
+            startMarkerRef.current = null;
+          }
+          if (endMarkerRef.current) {
+            endMarkerRef.current.remove();
+            endMarkerRef.current = null;
+          }
+          if (mapRef.current) {
+            mapRef.current.remove();
+            mapRef.current = null;
+          }
+          setMapLoaded(false);
+        } catch (e) {
+          console.warn('[TripRouteMap] Cleanup warning:', e);
         }
-        setMapLoaded(false);
       };
     } catch (err) {
       console.warn('Mapbox initialization error on TripRouteMap:', err);
@@ -137,89 +152,93 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
     const casingLayerId = 'trip-route-casing';
     const lineLayerId = 'trip-route-line';
 
-    const geojson: any = {
-      type: 'Feature',
-      properties: {},
-      geometry: {
-        type: 'LineString',
-        coordinates,
-      },
-    };
-
-    const existingSource = map.getSource(sourceId) as mapboxgl.GeoJSONSource;
-    if (existingSource) {
-      existingSource.setData(geojson);
-    } else {
-      map.addSource(sourceId, {
-        type: 'geojson',
-        data: geojson,
-      });
-
-      // Casing
-      map.addLayer({
-        id: casingLayerId,
-        type: 'line',
-        source: sourceId,
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round',
-        },
-        paint: {
-          'line-color': '#0f172a',
-          'line-width': 8,
-          'line-opacity': 0.25,
-        },
-      });
-
-      // Active Route Polyline
-      map.addLayer({
-        id: lineLayerId,
-        type: 'line',
-        source: sourceId,
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round',
-        },
-        paint: {
-          'line-color': '#2563eb',
-          'line-width': 5,
-          'line-opacity': 0.95,
-        },
-      });
-    }
-
-    // Start marker
-    const startCoord = coordinates[0];
-    if (startCoord) {
-      if (!startMarkerRef.current) {
-        const startEl = document.createElement('div');
-        startEl.className = 'w-6 h-6 rounded-full bg-emerald-600 border-2 border-white shadow-md flex items-center justify-center text-white text-[10px] font-bold select-none';
-        startEl.innerText = 'A';
-        startMarkerRef.current = new mapboxgl.Marker({ element: startEl, anchor: 'center' })
-          .setLngLat(startCoord)
-          .addTo(map);
-      } else {
-        startMarkerRef.current.setLngLat(startCoord);
-      }
-    }
-
-    // Destination marker
-    const endCoord = coordinates[coordinates.length - 1];
-    if (endCoord) {
-      if (!endMarkerRef.current) {
-        const endEl = document.createElement('div');
-        endEl.className = 'w-6 h-6 rounded-full bg-slate-900 border-2 border-white shadow-md flex items-center justify-center text-white text-[10px] font-bold select-none';
-        endEl.innerText = 'B';
-        endMarkerRef.current = new mapboxgl.Marker({ element: endEl, anchor: 'center' })
-          .setLngLat(endCoord)
-          .addTo(map);
-      } else {
-        endMarkerRef.current.setLngLat(endCoord);
-      }
-    }
-
-    // Fit bounds to trajectory
     try {
+      if (!map.getStyle()) return;
+
+      const geojson: any = {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates,
+        },
+      };
+
+      const existingSource = map.getSource(sourceId) as mapboxgl.GeoJSONSource;
+      if (existingSource) {
+        existingSource.setData(geojson);
+      } else {
+        map.addSource(sourceId, {
+          type: 'geojson',
+          data: geojson,
+        });
+
+        // Casing
+        map.addLayer({
+          id: casingLayerId,
+          type: 'line',
+          source: sourceId,
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round',
+          },
+          paint: {
+            'line-color': '#0f172a',
+            'line-width': 8,
+            'line-opacity': 0.25,
+          },
+        });
+
+        // Active Route Polyline
+        map.addLayer({
+          id: lineLayerId,
+          type: 'line',
+          source: sourceId,
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round',
+          },
+          paint: {
+            'line-color': '#2563eb',
+            'line-width': 5,
+            'line-opacity': 0.95,
+          },
+        });
+      }
+
+      // Start marker
+      const startCoord = coordinates[0];
+      if (startCoord && map.getCanvas()) {
+        if (!startMarkerRef.current) {
+          const startEl = document.createElement('div');
+          startEl.className =
+            'w-6 h-6 rounded-full bg-emerald-600 border-2 border-white shadow-md flex items-center justify-center text-white text-[10px] font-bold select-none';
+          startEl.innerText = 'A';
+          startMarkerRef.current = new mapboxgl.Marker({ element: startEl, anchor: 'center' })
+            .setLngLat(startCoord)
+            .addTo(map);
+        } else {
+          startMarkerRef.current.setLngLat(startCoord);
+        }
+      }
+
+      // Destination marker
+      const endCoord = coordinates[coordinates.length - 1];
+      if (endCoord && map.getCanvas()) {
+        if (!endMarkerRef.current) {
+          const endEl = document.createElement('div');
+          endEl.className =
+            'w-6 h-6 rounded-full bg-slate-900 border-2 border-white shadow-md flex items-center justify-center text-white text-[10px] font-bold select-none';
+          endEl.innerText = 'B';
+          endMarkerRef.current = new mapboxgl.Marker({ element: endEl, anchor: 'center' })
+            .setLngLat(endCoord)
+            .addTo(map);
+        } else {
+          endMarkerRef.current.setLngLat(endCoord);
+        }
+      }
+
+      // Fit bounds to trajectory
       const bounds = new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]);
       for (const coord of coordinates) {
         bounds.extend(coord);
@@ -230,7 +249,7 @@ export const TripRouteMap: React.FC<TripRouteMapProps> = ({
         duration: 800,
       });
     } catch (e) {
-      console.warn('Could not fit bounds on trip route map:', e);
+      console.warn('Could not update trip route map:', e);
     }
   }, [mapLoaded, coordinates, hasValidRoute]);
 

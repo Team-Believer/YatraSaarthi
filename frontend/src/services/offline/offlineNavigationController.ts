@@ -6,6 +6,8 @@
  * 2. Consumes real GPS positions from useLocationStore
  * 3. Runs LocalRouteMatcher against saved route geometry
  * 4. Updates useOfflineNavigationStore with match results
+ * 5. Syncs route geometry to useNavigationStore for map rendering
+ * 6. Persists session state so offline navigation survives page reload
  *
  * Does NOT fabricate any position, speed, or heading data.
  * Does NOT request online directions while offline.
@@ -13,6 +15,7 @@
 
 import { useLocationStore } from '../../stores/useLocationStore';
 import { useOfflineNavigationStore } from '../../stores/useOfflineNavigationStore';
+import { useNavigationStore } from '../../stores/useNavigationStore';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import {
   offlineRouteStorage,
@@ -22,6 +25,8 @@ import {
 import { LocalRouteMatcher } from './localRouteMatcher';
 import type { RouteData, RouteStep } from '../../stores/useRouteStore';
 
+const ACTIVE_OFFLINE_SESSION_KEY = 'ys_active_offline_route_id';
+
 class OfflineNavigationController {
   private matcher: LocalRouteMatcher | null = null;
   private locationUnsubscribe: (() => void) | null = null;
@@ -30,9 +35,10 @@ class OfflineNavigationController {
   private isInitialized = false;
 
   /**
-   * Initialize connectivity listeners. Call once at app startup.
+   * Initialize connectivity listeners and restore any saved offline session.
+   * Call once at application startup.
    */
-  init(): void {
+  async init(): Promise<void> {
     if (this.isInitialized || typeof window === 'undefined') return;
     this.isInitialized = true;
 
@@ -47,7 +53,6 @@ class OfflineNavigationController {
       const offStore = useOfflineNavigationStore.getState();
       if (offStore.offlineNavMode === 'OFFLINE_SAVED_ROUTE') {
         offStore.setConnectivity('ONLINE');
-        // Brief reconnecting state, then settle
         setTimeout(() => {
           const current = useOfflineNavigationStore.getState();
           if (current.offlineNavMode === 'RECONNECTING') {
@@ -70,25 +75,69 @@ class OfflineNavigationController {
 
     window.addEventListener('online', this.onlineHandler);
     window.addEventListener('offline', this.offlineHandler);
+
+    // Restore any active offline navigation session
+    try {
+      const activeId = sessionStorage.getItem(ACTIVE_OFFLINE_SESSION_KEY);
+      if (activeId) {
+        const savedRoute = await offlineRouteStorage.getSavedRoute(activeId);
+        if (savedRoute && savedRoute.routeGeometry && savedRoute.routeGeometry.length >= 2) {
+          console.log('[OfflineNav] Restoring active offline navigation session:', savedRoute.destination);
+          this.startNavigation(savedRoute, false);
+        } else {
+          sessionStorage.removeItem(ACTIVE_OFFLINE_SESSION_KEY);
+        }
+      }
+    } catch (err) {
+      console.warn('[OfflineNav] Could not restore offline session:', err);
+    }
   }
 
   /**
    * Start offline navigation with a saved route.
    */
-  startNavigation(route: OfflineRouteRecord): void {
+  startNavigation(route: OfflineRouteRecord, persistSession = true): void {
     this.matcher = new LocalRouteMatcher(route);
     useOfflineNavigationStore.getState().startOfflineNavigation(route);
 
-    // Subscribe to GPS location updates
-    this.locationUnsubscribe = useLocationStore.subscribe((state) => {
-      if (state.latitude != null && state.longitude != null) {
-        this.onGPSUpdate(
-          [state.longitude, state.latitude],
-          state.accuracy,
-          state.speed
-        );
-      }
+    // Sync route geometry to useNavigationStore so the map renders the route line & markers
+    useNavigationStore.getState().setSource({
+      name: route.origin,
+      coordinates: route.originCoordinates,
+      isCurrentLocation: true,
     });
+    useNavigationStore.getState().setDestination({
+      name: route.destination,
+      coordinates: route.destinationCoordinates,
+    });
+    useNavigationStore.getState().setRouteCoordinates(route.routeGeometry);
+
+    if (persistSession && typeof window !== 'undefined') {
+      sessionStorage.setItem(ACTIVE_OFFLINE_SESSION_KEY, route.id);
+    }
+
+    // Subscribe to real GPS location updates
+    if (!this.locationUnsubscribe) {
+      this.locationUnsubscribe = useLocationStore.subscribe((state) => {
+        if (state.latitude != null && state.longitude != null) {
+          this.onGPSUpdate(
+            [state.longitude, state.latitude],
+            state.accuracy,
+            state.speed
+          );
+        }
+      });
+    }
+
+    // If current location already exists, trigger immediate match
+    const locState = useLocationStore.getState();
+    if (locState.latitude != null && locState.longitude != null) {
+      this.onGPSUpdate(
+        [locState.longitude, locState.latitude],
+        locState.accuracy,
+        locState.speed
+      );
+    }
 
     console.log('[OfflineNav] Started offline navigation:', route.destination);
   }
@@ -103,6 +152,11 @@ class OfflineNavigationController {
     }
     this.matcher = null;
     useOfflineNavigationStore.getState().stopOfflineNavigation();
+    useNavigationStore.getState().setRouteCoordinates(null);
+    useNavigationStore.getState().setDestination(null);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(ACTIVE_OFFLINE_SESSION_KEY);
+    }
     console.log('[OfflineNav] Stopped offline navigation');
   }
 
@@ -187,7 +241,7 @@ class OfflineNavigationController {
   }
 
   /**
-   * Cleanup on app unmount.
+   * Complete teardown on application shutdown.
    */
   destroy(): void {
     this.stopNavigation();

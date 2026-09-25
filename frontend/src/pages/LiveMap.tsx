@@ -23,7 +23,6 @@ import { NavStatusPill } from '../components/navigation/NavStatusPill';
 import { NavModeTimeline } from '../components/navigation/NavModeTimeline';
 import { CalibrationModal } from '../components/navigation/CalibrationModal';
 import { OfflineNavigationHud } from '../components/navigation/OfflineNavigationHud';
-import { offlineNavigationController } from '../services/offline/offlineNavigationController';
 import { useOfflineNavigationStore } from '../stores/useOfflineNavigationStore';
 import { useResolvedHeading } from '../hooks/useResolvedHeading';
 import {
@@ -67,14 +66,19 @@ export default function LiveMap() {
     routeCoordinates,
   } = useNavigationStore();
 
-  // Start real browser geolocation watcher on mount and init offline controller
+  // Start real browser geolocation watcher on mount
   useEffect(() => {
     locationService.startWatching();
-    offlineNavigationController.init();
-    return () => {
-      offlineNavigationController.destroy();
-    };
   }, []);
+
+  // Automatically dismiss journey summary toast notification after 4.5 seconds
+  useEffect(() => {
+    if (!journeySummary) return;
+    const timer = setTimeout(() => {
+      setJourneySummary(null);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [journeySummary, setJourneySummary]);
 
   // Offline navigation state
   const isOfflineNavActive = useOfflineNavigationStore((s) => s.isOfflineNavActive);

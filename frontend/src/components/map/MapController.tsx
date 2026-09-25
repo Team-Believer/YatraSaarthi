@@ -33,23 +33,33 @@ export const MapController: React.FC<MapControllerProps> = ({
     const handleUserInteraction = () => {
       if (!isProgrammaticMove.current) {
         if (onManualInteraction) {
-          onManualInteraction();
+          try {
+            onManualInteraction();
+          } catch {}
         }
       }
     };
 
-    map.on('dragstart', handleUserInteraction);
-    map.on('wheel', handleUserInteraction);
-    map.on('touchstart', handleUserInteraction);
-    map.on('rotatestart', handleUserInteraction);
-    map.on('pitchstart', handleUserInteraction);
+    try {
+      map.on('dragstart', handleUserInteraction);
+      map.on('wheel', handleUserInteraction);
+      map.on('touchstart', handleUserInteraction);
+      map.on('rotatestart', handleUserInteraction);
+      map.on('pitchstart', handleUserInteraction);
+    } catch (e) {
+      console.warn('[MapController] Listener attach warning:', e);
+    }
 
     return () => {
-      map.off('dragstart', handleUserInteraction);
-      map.off('wheel', handleUserInteraction);
-      map.off('touchstart', handleUserInteraction);
-      map.off('rotatestart', handleUserInteraction);
-      map.off('pitchstart', handleUserInteraction);
+      try {
+        if (map.getCanvas()) {
+          map.off('dragstart', handleUserInteraction);
+          map.off('wheel', handleUserInteraction);
+          map.off('touchstart', handleUserInteraction);
+          map.off('rotatestart', handleUserInteraction);
+          map.off('pitchstart', handleUserInteraction);
+        }
+      } catch {}
     };
   }, [map, onManualInteraction]);
 
@@ -61,35 +71,38 @@ export const MapController: React.FC<MapControllerProps> = ({
 
     if (!followVehicle) return;
 
-    // Throttle camera ease updates to max 20Hz (50ms) to ensure 60fps smoothness without overloading WebGL render loop
+    // Throttle camera ease updates to max 20Hz (50ms)
     const now = Date.now();
     if (now - lastUpdateRef.current < 50) return;
     lastUpdateRef.current = now;
 
-    isProgrammaticMove.current = true;
+    try {
+      if (!map.getCanvas()) return;
 
-    const targetBearing = orientationMode === 'HEADING_UP' ? heading : 0;
-    const targetPitch = is3D ? 52 : 0;
+      isProgrammaticMove.current = true;
 
-    // In 3D follow mode, offset camera slightly so vehicle is positioned in lower-center, giving greater visibility of the road ahead
-    map.easeTo({
-      center: [longitude, latitude],
-      bearing: targetBearing,
-      pitch: targetPitch,
-      zoom: 16.5,
-      offset: is3D ? [0, 70] : [0, 0],
-      duration: 600,
-      easing: (t) => t * (2 - t), // Smooth quad out
-    });
+      const targetBearing = orientationMode === 'HEADING_UP' ? heading : 0;
+      const targetPitch = is3D ? 52 : 0;
 
-    // Reset programmatic flag after ease completes
-    const timer = setTimeout(() => {
-      isProgrammaticMove.current = false;
-    }, 650);
+      map.easeTo({
+        center: [longitude, latitude],
+        bearing: targetBearing,
+        pitch: targetPitch,
+        zoom: 16.5,
+        offset: is3D ? [0, 70] : [0, 0],
+        duration: 600,
+        easing: (t) => t * (2 - t), // Smooth quad out
+      });
 
-    return () => clearTimeout(timer);
+      const timer = setTimeout(() => {
+        isProgrammaticMove.current = false;
+      }, 650);
+
+      return () => clearTimeout(timer);
+    } catch (err) {
+      console.warn('[MapController] easeTo warning:', err);
+    }
   }, [map, latitude, longitude, heading, followVehicle, orientationMode, is3D]);
 
   return null;
 };
-
