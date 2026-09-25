@@ -8,6 +8,8 @@
  * with a new DB version bump to add the offline_routes object store.
  */
 
+export type OfflineMapDownloadStatus = 'NOT_DOWNLOADED' | 'DOWNLOADING' | 'READY' | 'ERROR';
+
 export interface OfflineRouteRecord {
   id: string;
   origin: string;
@@ -25,6 +27,14 @@ export interface OfflineRouteRecord {
   routeVersion: string;
   summary?: string;
   travelMode?: string;
+  // Offline Mapbox Map metadata
+  mapRegionId?: string;
+  mapStatus?: OfflineMapDownloadStatus;
+  mapMinZoom?: number;
+  mapMaxZoom?: number;
+  mapDownloadedAt?: string;
+  mapError?: string;
+  mapSizeEstimate?: number;
 }
 
 export interface OfflineRouteStep {
@@ -152,6 +162,31 @@ class OfflineRouteStorage {
    */
   async updateSavedRoute(route: OfflineRouteRecord): Promise<void> {
     return this.saveRoute(route);
+  }
+
+  /**
+   * Update offline map metadata for a route.
+   */
+  async updateMapStatus(
+    routeId: string,
+    updates: {
+      mapRegionId?: string;
+      mapStatus?: OfflineMapDownloadStatus;
+      mapMinZoom?: number;
+      mapMaxZoom?: number;
+      mapDownloadedAt?: string;
+      mapError?: string;
+      mapSizeEstimate?: number;
+    }
+  ): Promise<void> {
+    const route = await this.getSavedRoute(routeId);
+    if (!route) return;
+
+    const updatedRoute: OfflineRouteRecord = {
+      ...route,
+      ...updates,
+    };
+    await this.saveRoute(updatedRoute);
   }
 
   /**

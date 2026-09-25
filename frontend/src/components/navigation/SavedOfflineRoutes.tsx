@@ -1,9 +1,9 @@
 /**
- * YatraSaarthi — Saved Offline Routes Page
+ * YatraSaarthi — Saved Offline Routes Component
  *
- * Lists all routes saved for offline navigation.
- * Allows starting offline navigation, deleting routes.
- * Shows real route data: distance, duration, vehicle type, saved date.
+ * Lists all routes saved for offline navigation with real Mapbox offline map download status.
+ * Allows starting offline navigation, downloading/retrying offline map resources, and deleting routes.
+ * Shows real route data: distance, duration, vehicle type, saved date, map status.
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -13,6 +13,7 @@ import {
   type OfflineRouteRecord,
 } from '../../services/offline/offlineRouteStorage';
 import { offlineNavigationController } from '../../services/offline/offlineNavigationController';
+import { offlineMapService } from '../../services/offline/offlineMapService';
 import { useOfflineNavigationStore } from '../../stores/useOfflineNavigationStore';
 import { VEHICLE_PROFILES, type SupportedVehicleType } from '../../utils/navigation/vehicleProfiles';
 import {
@@ -21,6 +22,10 @@ import {
   Trash2,
   CloudOff,
   CheckCircle2,
+  Map,
+  Download,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 
 function formatDistance(meters: number): string {
@@ -55,6 +60,8 @@ export const SavedOfflineRoutes: React.FC<{ className?: string }> = ({ className
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [downloadingRouteId, setDownloadingRouteId] = useState<string | null>(null);
+  const [downloadProgressText, setDownloadProgressText] = useState<string | null>(null);
 
   const connectivity = useOfflineNavigationStore((s) => s.connectivity);
 
@@ -82,10 +89,33 @@ export const SavedOfflineRoutes: React.FC<{ className?: string }> = ({ className
     [navigate]
   );
 
+  const handleDownloadMap = useCallback(
+    async (route: OfflineRouteRecord) => {
+      if (downloadingRouteId) return;
+      setDownloadingRouteId(route.id);
+      setDownloadProgressText('Preparing...');
+      try {
+        await offlineMapService.downloadMapForRoute(route, {
+          onProgress: (prog) => {
+            setDownloadProgressText(prog.message || `${prog.phase} (${prog.percentage}%)`);
+          },
+        });
+        await loadRoutes();
+      } catch (err) {
+        console.error('[SavedOfflineRoutes] Download map error:', err);
+      } finally {
+        setDownloadingRouteId(null);
+        setDownloadProgressText(null);
+      }
+    },
+    [downloadingRouteId, loadRoutes]
+  );
+
   const handleDelete = useCallback(
     async (id: string) => {
       setDeletingId(id);
       try {
+        await offlineMapService.deleteMapForRoute(id);
         await offlineRouteStorage.deleteSavedRoute(id);
         setRoutes((prev) => prev.filter((r) => r.id !== id));
       } catch (err) {
@@ -130,6 +160,8 @@ export const SavedOfflineRoutes: React.FC<{ className?: string }> = ({ className
         const vehicleProfile = VEHICLE_PROFILES[route.vehicleType as SupportedVehicleType];
         const isDeleting = deletingId === route.id;
         const isConfirmingDelete = confirmDeleteId === route.id;
+        const isDownloadingMap = downloadingRouteId === route.id;
+        const isMapReady = route.mapStatus === 'READY';
 
         return (
           <div
@@ -149,10 +181,32 @@ export const SavedOfflineRoutes: React.FC<{ className?: string }> = ({ className
                     <span>·</span>
                     <span>{vehicleProfile?.label || route.vehicleType}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                    <span className="text-emerald-600 text-[11px] font-medium">Available Offline</span>
-                    <span className="text-gray-300 text-[10px] ml-1">
+
+                  {/* Offline Status Badges */}
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    {isMapReady ? (
+                      <div className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full text-[11px] font-medium">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span>Offline Map Ready</span>
+                      </div>
+                    ) : isDownloadingMap ? (
+                      <div className="inline-flex items-center gap-1.5 text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full text-[11px] font-medium animate-pulse">
+                        <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
+                        <span>{downloadProgressText || 'Downloading Map...'}</span>
+                      </div>
+                    ) : route.mapStatus === 'ERROR' ? (
+                      <div className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full text-[11px] font-medium">
+                        <AlertCircle className="w-3 h-3 text-amber-600" />
+                        <span>Map incomplete</span>
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-1 text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-full text-[11px] font-medium">
+                        <Map className="w-3 h-3 text-slate-400" />
+                        <span>Route data stored</span>
+                      </div>
+                    )}
+
+                    <span className="text-gray-400 text-[10px]">
                       Saved {formatDate(route.savedAt)}
                     </span>
                   </div>
@@ -177,6 +231,18 @@ export const SavedOfflineRoutes: React.FC<{ className?: string }> = ({ className
                     </div>
                   ) : (
                     <>
+                      {/* Download map button if not yet ready and online */}
+                      {!isMapReady && !isDownloadingMap && connectivity === 'ONLINE' && (
+                        <button
+                          onClick={() => handleDownloadMap(route)}
+                          className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1 text-xs"
+                          title="Download offline Mapbox map"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span className="hidden sm:inline">Map</span>
+                        </button>
+                      )}
+
                       <button
                         onClick={() => setConfirmDeleteId(route.id)}
                         className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
@@ -184,11 +250,12 @@ export const SavedOfflineRoutes: React.FC<{ className?: string }> = ({ className
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
+
                       <button
                         onClick={() => handleStartNavigation(route)}
-                        className="px-3 py-1.5 bg-emerald-500 text-white text-xs font-semibold rounded-lg hover:bg-emerald-600 flex items-center gap-1.5 transition-colors"
+                        className="px-3 py-1.5 bg-[#083335] text-white text-xs font-semibold rounded-lg hover:bg-[#052426] flex items-center gap-1.5 transition-colors shadow-2xs"
                       >
-                        <Navigation className="w-3.5 h-3.5" />
+                        <Navigation className="w-3.5 h-3.5 rotate-45" />
                         {connectivity === 'OFFLINE' ? 'Navigate' : 'Start'}
                       </button>
                     </>

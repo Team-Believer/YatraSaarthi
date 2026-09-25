@@ -6,6 +6,7 @@ import { routeService, TRAVEL_MODES } from '../../services/navigation/routeServi
 import { savedRouteService, type SavedPlaceItem } from '../../services/navigation/savedRouteService';
 import { sessionLifecycle } from '../../services/navigation/sessionLifecycle';
 import { offlineNavigationController } from '../../services/offline/offlineNavigationController';
+import { offlineMapService } from '../../services/offline/offlineMapService';
 import {
   Navigation2,
   X,
@@ -134,17 +135,34 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
 
   const [isSavingOffline, setIsSavingOffline] = useState(false);
   const [offlineSaved, setOfflineSaved] = useState(false);
+  const [offlineProgressText, setOfflineProgressText] = useState<string | null>(null);
 
   const handleSaveForOffline = useCallback(async () => {
     if (!selectedRoute || !destination || isSavingOffline) return;
     setIsSavingOffline(true);
+    setOfflineProgressText('Saving route...');
     try {
       const originName = source?.name || 'Current Location';
       const destName = destination.name || 'Destination';
-      await offlineNavigationController.saveRouteForOffline(selectedRoute, originName, destName);
-      setOfflineSaved(true);
-      setToastMessage('Route saved for offline navigation');
-      setTimeout(() => setOfflineSaved(false), 5000);
+      const record = await offlineNavigationController.saveRouteForOffline(selectedRoute, originName, destName);
+
+      // Download actual Mapbox offline map resources (style, tiles, glyphs, sprites)
+      const success = await offlineMapService.downloadMapForRoute(record, {
+        onProgress: (prog) => {
+          setOfflineProgressText(prog.message || `${prog.phase} (${prog.percentage}%)`);
+        },
+      });
+
+      if (success) {
+        setOfflineSaved(true);
+        setToastMessage('✓ Offline map ready');
+        setTimeout(() => {
+          setOfflineSaved(false);
+          setOfflineProgressText(null);
+        }, 4000);
+      } else {
+        setToastMessage('Route saved (map download incomplete)');
+      }
     } catch (err) {
       console.error('[RoutePreviewCard] Save for offline failed:', err);
       setToastMessage('Failed to save route offline');
@@ -341,6 +359,14 @@ export const RoutePreviewCard: React.FC<RoutePreviewCardProps> = ({
         <div className="text-[11px] font-medium text-[#083335] bg-[#EAF0F0] border border-[#083335]/20 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5 animate-in fade-in duration-150 shrink-0">
           <Check className="w-3 h-3 text-[#083335] shrink-0 stroke-[2.5]" />
           <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Offline Map Download Progress */}
+      {isSavingOffline && offlineProgressText && (
+        <div className="text-[11px] font-medium text-emerald-900 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-2 animate-in fade-in duration-150 shrink-0">
+          <Loader2 className="w-3 h-3 animate-spin text-emerald-700 shrink-0" />
+          <span className="truncate">{offlineProgressText}</span>
         </div>
       )}
 

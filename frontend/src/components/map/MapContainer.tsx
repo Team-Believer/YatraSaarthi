@@ -1,8 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { AlertCircle, MonitorOff, WifiOff } from 'lucide-react';
+import { AlertCircle, MonitorOff, WifiOff, MapPinOff } from 'lucide-react';
 import { getMapboxToken } from '../../services/api/envConfig';
+import { useOfflineNavigationStore } from '../../stores/useOfflineNavigationStore';
+import { offlineMapService } from '../../services/offline/offlineMapService';
 
 interface MapContainerProps {
   onMapLoaded?: (map: mapboxgl.Map) => void;
@@ -28,9 +30,30 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const [mapLoaded, setMapLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [webGlSupported, setWebGlSupported] = useState(true);
-  const [isOfflineStyleFallback, setIsOfflineStyleFallback] = useState(false);
+  const [isOfflineMapActive, setIsOfflineMapActive] = useState(false);
+  const [isOutsideOfflineBounds, setIsOutsideOfflineBounds] = useState(false);
+
+  const isOfflineNavActive = useOfflineNavigationStore((s) => s.isOfflineNavActive);
+  const activeOfflineRoute = useOfflineNavigationStore((s) => s.activeOfflineRoute);
+  const connectivity = useOfflineNavigationStore((s) => s.connectivity);
 
   const token = getMapboxToken();
+
+  // Load offline style when offline navigation starts or changes
+  const applyOfflineStyleIfAvailable = useCallback(async (map: mapboxgl.Map, routeId: string) => {
+    try {
+      const offlineStyle = await offlineMapService.getOfflineStyleForRoute(routeId);
+      if (offlineStyle) {
+        console.log('[MapContainer] Applying offline Mapbox style for route:', routeId);
+        map.setStyle(offlineStyle, { diff: false } as any);
+        setIsOfflineMapActive(true);
+        return true;
+      }
+    } catch (e) {
+      console.warn('[MapContainer] Failed to apply offline style:', e);
+    }
+    return false;
+  }, []);
 
   useEffect(() => {
     // 1. Check Mapbox token validity
@@ -54,73 +77,131 @@ export const MapContainer: React.FC<MapContainerProps> = ({
 
     mapboxgl.accessToken = token;
 
-    try {
-      const map = new mapboxgl.Map({
-        container: containerRef.current,
-        style: styleUrl,
-        center: initialCenter,
-        zoom: initialZoom,
-        pitch: initialPitch,
-        attributionControl: false,
-      });
+    let isSubscribed = true;
 
-      map.on('load', () => {
-        setMapLoaded(true);
-        if (onMapLoaded) {
-          try {
-            onMapLoaded(map);
-          } catch (e) {
-            console.warn('[MapContainer] onMapLoaded callback warning:', e);
-          }
+    const initMap = async () => {
+      let initialStyle: any = styleUrl;
+
+      // Check if starting directly in offline mode with a saved route
+      if (activeOfflineRoute?.id) {
+        const offlineStyle = await offlineMapService.getOfflineStyleForRoute(activeOfflineRoute.id);
+        if (offlineStyle && isSubscribed) {
+          initialStyle = offlineStyle;
+          setIsOfflineMapActive(true);
         }
-      });
+      }
 
-      map.on('error', (e) => {
-        // If style fails to load while offline, prevent fatal crash and show offline indicator
-        const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
-        if (isOffline) {
-          console.warn('[MapContainer] Map tile request while offline:', e.error?.message || e);
-          setIsOfflineStyleFallback(true);
-          // Set map as loaded so child overlays/markers can still render
+      if (!containerRef.current || !isSubscribed) return;
+
+      try {
+        const map = new mapboxgl.Map({
+          container: containerRef.current,
+          style: initialStyle,
+          center: initialCenter,
+          zoom: initialZoom,
+          pitch: initialPitch,
+          attributionControl: false,
+        });
+
+        map.on('load', () => {
+          if (!isSubscribed) return;
           setMapLoaded(true);
           if (onMapLoaded) {
             try {
               onMapLoaded(map);
-            } catch {}
+            } catch (e) {
+              console.warn('[MapContainer] onMapLoaded callback warning:', e);
+            }
           }
-        } else {
-          console.warn('[MapContainer] Mapbox GL Warning/Error:', e.error?.message || e);
+        });
+
+        map.on('error', (e) => {
+          const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+          if (isOffline) {
+            console.warn('[MapContainer] Map tile warning while offline:', e.error?.message || e);
+            // Allow map to remain loaded so overlays and route geometry render
+            setMapLoaded(true);
+          } else {
+            console.warn('[MapContainer] Mapbox GL Warning/Error:', e.error?.message || e);
+          }
+        });
+
+        // Monitor viewport position vs offline route bounds
+        map.on('moveend', () => {
+          if (!isSubscribed) return;
+          const currentOffline = useOfflineNavigationStore.getState().isOfflineNavActive;
+          const currentRoute = useOfflineNavigationStore.getState().activeOfflineRoute;
+          if (currentOffline && currentRoute?.routeBounds) {
+            const center = map.getCenter();
+            const [[swLng, swLat], [neLng, neLat]] = currentRoute.routeBounds;
+            const margin = 0.05; // margin before showing outside alert
+            const isOutside =
+              center.lng < swLng - margin ||
+              center.lng > neLng + margin ||
+              center.lat < swLat - margin ||
+              center.lat > neLat + margin;
+            setIsOutsideOfflineBounds(isOutside);
+          } else {
+            setIsOutsideOfflineBounds(false);
+          }
+        });
+
+        mapInstanceRef.current = map;
+      } catch (err: any) {
+        console.error('[MapContainer] Map initialization error:', err);
+        if (isSubscribed) {
+          setError(err.message || 'Failed to initialize Mapbox instance.');
         }
-      });
+      }
+    };
 
-      mapInstanceRef.current = map;
+    initMap();
 
-      // ResizeObserver for handling layout/drawer changes smoothly
-      const resizeObserver = new ResizeObserver(() => {
-        try {
-          if (mapInstanceRef.current && mapInstanceRef.current.getCanvas()) {
-            mapInstanceRef.current.resize();
-          }
-        } catch {}
-      });
+    // ResizeObserver for handling layout/drawer changes smoothly
+    const resizeObserver = new ResizeObserver(() => {
+      try {
+        if (mapInstanceRef.current && mapInstanceRef.current.getCanvas()) {
+          mapInstanceRef.current.resize();
+        }
+      } catch {}
+    });
+
+    if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
-
-      return () => {
-        try {
-          resizeObserver.disconnect();
-          if (mapInstanceRef.current) {
-            mapInstanceRef.current.remove();
-            mapInstanceRef.current = null;
-          }
-        } catch (e) {
-          console.warn('[MapContainer] Map removal cleanup warning:', e);
-        }
-      };
-    } catch (err: any) {
-      console.error('[MapContainer] Map initialization error:', err);
-      setError(err.message || 'Failed to initialize Mapbox instance.');
     }
+
+    return () => {
+      isSubscribed = false;
+      try {
+        resizeObserver.disconnect();
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.remove();
+          mapInstanceRef.current = null;
+        }
+      } catch (e) {
+        console.warn('[MapContainer] Map removal cleanup warning:', e);
+      }
+    };
   }, [token]);
+
+  // React to offline navigation state changes (e.g. user starts offline route)
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (isOfflineNavActive && activeOfflineRoute?.id) {
+      applyOfflineStyleIfAvailable(map, activeOfflineRoute.id);
+    } else if (!isOfflineNavActive && connectivity === 'ONLINE' && isOfflineMapActive) {
+      // Revert back to online style when returning to online navigation
+      try {
+        console.log('[MapContainer] Reverting to online style:', styleUrl);
+        map.setStyle(styleUrl, { diff: false } as any);
+        setIsOfflineMapActive(false);
+      } catch (e) {
+        console.warn('[MapContainer] Revert style warning:', e);
+      }
+    }
+  }, [isOfflineNavActive, activeOfflineRoute, connectivity, isOfflineMapActive, styleUrl, applyOfflineStyleIfAvailable]);
 
   if (!webGlSupported) {
     return (
@@ -153,12 +234,31 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   return (
     <div className={`relative overflow-hidden ${className}`}>
       <div ref={containerRef} className="absolute inset-0 w-full h-full" />
-      {isOfflineStyleFallback && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-amber-900/80 backdrop-blur-md text-amber-100 text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-amber-500/30">
-          <WifiOff className="w-3.5 h-3.5" />
-          <span>Offline map — Saved route navigation active</span>
+
+      {/* Offline Map Status Badge */}
+      {isOfflineNavActive && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none flex flex-col items-center gap-1 animate-in fade-in">
+          {isOfflineMapActive ? (
+            <div className="bg-[#083335]/90 backdrop-blur-md text-emerald-300 text-[11px] font-medium px-3 py-1 rounded-full flex items-center gap-1.5 border border-emerald-500/30 shadow-nav-floating">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Offline Map Active</span>
+            </div>
+          ) : (
+            <div className="bg-amber-900/90 backdrop-blur-md text-amber-200 text-[11px] font-medium px-3 py-1 rounded-full flex items-center gap-1.5 border border-amber-500/30 shadow-nav-floating">
+              <WifiOff className="w-3 h-3 text-amber-400" />
+              <span>Offline Route Navigation</span>
+            </div>
+          )}
+
+          {isOutsideOfflineBounds && (
+            <div className="bg-rose-900/90 backdrop-blur-md text-rose-100 text-[10px] font-medium px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-rose-500/30 shadow-nav-floating">
+              <MapPinOff className="w-3 h-3 text-rose-300" />
+              <span>Outside downloaded map region</span>
+            </div>
+          )}
         </div>
       )}
+
       {mapLoaded && mapInstanceRef.current && (
         <MapContext.Provider value={mapInstanceRef.current}>
           {children}

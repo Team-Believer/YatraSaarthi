@@ -25,9 +25,10 @@ export default defineConfig(({ mode }) => {
 
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons/*.png', 'assets/*', 'models/*.onnx'],
+      includeAssets: ['favicon.svg', 'icons/*.png', 'assets/*', 'models/*.onnx', 'idb-offline-sw.js'],
       manifest: false, // Using public/manifest.json directly
       workbox: {
+        importScripts: ['/idb-offline-sw.js'],
         maximumFileSizeToCacheInBytes: 35 * 1024 * 1024, // 35 MB to accommodate ONNX and WASM binary blobs
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,onnx,wasm}'],
         globIgnores: ['**/*jsep*.wasm'], // Exclude large unused WebGPU JSEP binary
